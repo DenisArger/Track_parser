@@ -19,70 +19,46 @@
 - Yarn
 - FFmpeg (для обработки аудио)
 
-## Установка
+## Установка и настройка
 
-### 1. Клонирование и установка зависимостей
+### 1. Клонирование репозитория
 
 ```bash
 git clone <repository-url>
-cd track-parser
+cd Track_parser
+```
+
+### 2. Установка зависимостей
+
+```bash
 yarn install
 ```
 
-### 2. Установка FFmpeg
+### 3. Настройка переменных окружения
 
-#### Windows:
-
-1. Скачайте FFmpeg с [официального сайта](https://ffmpeg.org/download.html)
-2. Распакуйте в папку (например, `C:\ffmpeg`)
-3. Добавьте путь в переменную PATH: `C:\ffmpeg\bin`
-
-#### macOS:
+Скопируйте файл `.env.example` в `.env` и заполните ваши API ключи:
 
 ```bash
-brew install ffmpeg
+cp .env.example .env
 ```
 
-#### Linux (Ubuntu/Debian):
+Отредактируйте `.env` файл:
+
+```env
+# RapidAPI Configuration
+RAPIDAPI_KEY=your_rapidapi_key_here
+RAPIDAPI_HOST=youtube-mp36.p.rapidapi.com
+```
+
+**Важно:** Получите ваш RapidAPI ключ на [rapidapi.com](https://rapidapi.com/)
+
+### 4. Проверка FFmpeg
 
 ```bash
-sudo apt update
-sudo apt install ffmpeg
+yarn check
 ```
 
-### 3. Настройка конфигурации
-
-Отредактируйте файл `config.json`:
-
-```json
-{
-  "folders": {
-    "downloads": "./downloads",
-    "processed": "./processed",
-    "rejected": "./rejected",
-    "server_upload": "./server_upload"
-  },
-  "ftp": {
-    "host": "your-ftp-server.com",
-    "port": 21,
-    "user": "your-username",
-    "password": "your-password",
-    "secure": false
-  },
-  "processing": {
-    "maxDuration": 360,
-    "defaultRating": 5,
-    "defaultYear": 2025
-  },
-  "audio": {
-    "sampleRate": 44100,
-    "channels": 2,
-    "bitrate": "192k"
-  }
-}
-```
-
-### 4. Запуск приложения
+### 5. Запуск приложения
 
 ```bash
 yarn dev
