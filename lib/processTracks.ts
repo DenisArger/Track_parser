@@ -5,7 +5,7 @@ import NodeID3 from "node-id3";
 import MusicTempo from "music-tempo";
 import axios from "axios";
 import { Track, TrackMetadata, TrackType, FtpConfig } from "@/types/track";
-import { loadConfig } from "./config";
+import { loadConfig, AppConfig } from "./config";
 
 // Global track storage
 const tracks = new Map<string, Track>();

@@ -24,6 +24,7 @@ yarn-error.log*
 
 # Local env files
 .env*.local
+.env
 
 # Vercel
 .vercel
@@ -37,6 +38,9 @@ downloads/
 processed/
 rejected/
 server_upload/
+
+# Track data
+tracks.json
 
 # Logs
 logs

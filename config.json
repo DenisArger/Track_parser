@@ -1,13 +1,9 @@
 {
   "folders": {
-    "downloads": "./downloads",
-    "processed": "./processed",
-    "rejected": "./rejected",
-    "server_upload": "./server_upload"
-  },
-  "rapidapi": {
-    "key": "98baa22486msh98c412346ae468dp1a244fjsn621398520573",
-    "host": "youtube-mp36.p.rapidapi.com"
+    "downloads": "downloads",
+    "processed": "processed",
+    "rejected": "rejected",
+    "server_upload": "server_upload"
   },
   "ftp": {
     "host": "",
@@ -22,8 +18,11 @@
     "defaultYear": 2025
   },
   "audio": {
-    "sampleRate": 44100,
-    "channels": 2,
-    "bitrate": "192k"
+    "bitrate": "192k",
+    "sampleRate": 44100
+  },
+  "rapidapi": {
+    "key": "",
+    "host": ""
   }
 }
