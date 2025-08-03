@@ -25,7 +25,7 @@ export default function TrackPlayer({
   const audioRef = useRef<HTMLAudioElement>(null);
 
   const downloadedTracks = tracks.filter(
-    (track) => track.status === "downloaded"
+    (track) => track.status === "downloaded" || track.status === "trimmed"
   );
 
   const handleTrackSelect = (track: Track) => {
@@ -191,11 +191,11 @@ export default function TrackPlayer({
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Track List */}
         <div>
-          <h3 className="text-lg font-medium mb-3">Downloaded Tracks</h3>
+          <h3 className="text-lg font-medium mb-3">Треки для прослушивания</h3>
           {downloadedTracks.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
-              <p>No tracks available for review</p>
-              <p className="text-sm">Download some tracks first</p>
+              <p>Нет треков для прослушивания</p>
+              <p className="text-sm">Сначала загрузите треки</p>
             </div>
           ) : (
             <div className="space-y-2 max-h-96 overflow-y-auto">
@@ -250,11 +250,22 @@ export default function TrackPlayer({
                         </div>
                       )}
                     </div>
-                    <span className="text-xs text-gray-500">
-                      {track.metadata.duration
-                        ? formatTime(track.metadata.duration)
-                        : "Unknown"}
-                    </span>
+                    <div className="text-right">
+                      <span className="text-xs text-gray-500 block">
+                        {track.metadata.duration
+                          ? formatTime(track.metadata.duration)
+                          : "Unknown"}
+                      </span>
+                      <span
+                        className={`text-xs px-2 py-1 rounded-full ${
+                          track.status === "trimmed"
+                            ? "bg-green-100 text-green-800"
+                            : "bg-blue-100 text-blue-800"
+                        }`}
+                      >
+                        {track.status === "trimmed" ? "Обрезан" : "Загружен"}
+                      </span>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -368,7 +379,11 @@ export default function TrackPlayer({
                 {/* Hidden Audio Element */}
                 <audio
                   ref={audioRef}
-                  src={`/api/audio/${currentTrack.id}`}
+                  src={
+                    currentTrack.status === "trimmed"
+                      ? `/api/audio/${currentTrack.id}?trimmed=true`
+                      : `/api/audio/${currentTrack.id}`
+                  }
                   onTimeUpdate={handleTimeUpdate}
                   onLoadedMetadata={handleLoadedMetadata}
                   onEnded={() => setIsPlaying(false)}
@@ -377,85 +392,165 @@ export default function TrackPlayer({
 
                 {/* Action Buttons */}
                 <div className="flex space-x-3 mt-4">
-                  <button
-                    onClick={() => setShowTrimmer(true)}
-                    disabled={isAccepting || isRejecting}
-                    className="btn btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Настроить обрезку
-                  </button>
-                  <button
-                    onClick={handleAccept}
-                    disabled={isAccepting || isRejecting}
-                    className="btn btn-success flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isAccepting ? (
-                      <div className="flex items-center justify-center">
-                        <svg
-                          className="animate-spin -ml-1 mr-3 h-4 w-4 text-white"
-                          xmlns="http://www.w3.org/2000/svg"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                        >
-                          <circle
-                            className="opacity-25"
-                            cx="12"
-                            cy="12"
-                            r="10"
-                            stroke="currentColor"
-                            strokeWidth="4"
-                          ></circle>
-                          <path
-                            className="opacity-75"
-                            fill="currentColor"
-                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                          ></path>
-                        </svg>
-                        Processing...
-                      </div>
-                    ) : (
-                      "Accept Track"
-                    )}
-                  </button>
-                  <button
-                    onClick={handleReject}
-                    disabled={isAccepting || isRejecting}
-                    className="btn btn-danger flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isRejecting ? (
-                      <div className="flex items-center justify-center">
-                        <svg
-                          className="animate-spin -ml-1 mr-3 h-4 w-4 text-white"
-                          xmlns="http://www.w3.org/2000/svg"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                        >
-                          <circle
-                            className="opacity-25"
-                            cx="12"
-                            cy="12"
-                            r="10"
-                            stroke="currentColor"
-                            strokeWidth="4"
-                          ></circle>
-                          <path
-                            className="opacity-75"
-                            fill="currentColor"
-                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                          ></path>
-                        </svg>
-                        Rejecting...
-                      </div>
-                    ) : (
-                      "Reject Track"
-                    )}
-                  </button>
+                  {currentTrack.status === "downloaded" ? (
+                    <>
+                      <button
+                        onClick={() => setShowTrimmer(true)}
+                        disabled={isAccepting || isRejecting}
+                        className="btn btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Настроить обрезку
+                      </button>
+                      <button
+                        onClick={handleAccept}
+                        disabled={isAccepting || isRejecting}
+                        className="btn btn-success flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isAccepting ? (
+                          <div className="flex items-center justify-center">
+                            <svg
+                              className="animate-spin -ml-1 mr-3 h-4 w-4 text-white"
+                              xmlns="http://www.w3.org/2000/svg"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                            >
+                              <circle
+                                className="opacity-25"
+                                cx="12"
+                                cy="12"
+                                r="10"
+                                stroke="currentColor"
+                                strokeWidth="4"
+                              ></circle>
+                              <path
+                                className="opacity-75"
+                                fill="currentColor"
+                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                              ></path>
+                            </svg>
+                            Processing...
+                          </div>
+                        ) : (
+                          "Accept Track"
+                        )}
+                      </button>
+                      <button
+                        onClick={handleReject}
+                        disabled={isAccepting || isRejecting}
+                        className="btn btn-danger flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isRejecting ? (
+                          <div className="flex items-center justify-center">
+                            <svg
+                              className="animate-spin -ml-1 mr-3 h-4 w-4 text-white"
+                              xmlns="http://www.w3.org/2000/svg"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                            >
+                              <circle
+                                className="opacity-25"
+                                cx="12"
+                                cy="12"
+                                r="10"
+                                stroke="currentColor"
+                                strokeWidth="4"
+                              ></circle>
+                              <path
+                                className="opacity-75"
+                                fill="currentColor"
+                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                              ></path>
+                            </svg>
+                            Rejecting...
+                          </div>
+                        ) : (
+                          "Reject Track"
+                        )}
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => setShowTrimmer(true)}
+                        disabled={isAccepting || isRejecting}
+                        className="btn btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Изменить обрезку
+                      </button>
+                      <button
+                        onClick={handleAccept}
+                        disabled={isAccepting || isRejecting}
+                        className="btn btn-success flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isAccepting ? (
+                          <div className="flex items-center justify-center">
+                            <svg
+                              className="animate-spin -ml-1 mr-3 h-4 w-4 text-white"
+                              xmlns="http://www.w3.org/2000/svg"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                            >
+                              <circle
+                                className="opacity-25"
+                                cx="12"
+                                cy="12"
+                                r="10"
+                                stroke="currentColor"
+                                strokeWidth="4"
+                              ></circle>
+                              <path
+                                className="opacity-75"
+                                fill="currentColor"
+                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                              ></path>
+                            </svg>
+                            Processing...
+                          </div>
+                        ) : (
+                          "Анализировать трек"
+                        )}
+                      </button>
+                      <button
+                        onClick={handleReject}
+                        disabled={isAccepting || isRejecting}
+                        className="btn btn-danger flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isRejecting ? (
+                          <div className="flex items-center justify-center">
+                            <svg
+                              className="animate-spin -ml-1 mr-3 h-4 w-4 text-white"
+                              xmlns="http://www.w3.org/2000/svg"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                            >
+                              <circle
+                                className="opacity-25"
+                                cx="12"
+                                cy="12"
+                                r="10"
+                                stroke="currentColor"
+                                strokeWidth="4"
+                              ></circle>
+                              <path
+                                className="opacity-75"
+                                fill="currentColor"
+                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                              ></path>
+                            </svg>
+                            Rejecting...
+                          </div>
+                        ) : (
+                          "Reject Track"
+                        )}
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
           ) : (
             <div className="text-center py-8 text-gray-500">
-              <p>Select a track to start listening</p>
+              <p>Выберите трек для прослушивания</p>
             </div>
           )}
         </div>

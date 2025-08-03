@@ -9,7 +9,15 @@ export async function GET(
 ) {
   try {
     const { trackId } = params;
-    console.log("Audio API called for trackId:", trackId);
+    const { searchParams } = new URL(request.url);
+    const isTrimmed = searchParams.get("trimmed") === "true";
+
+    console.log(
+      "Audio API called for trackId:",
+      trackId,
+      "trimmed:",
+      isTrimmed
+    );
 
     const track = await getTrack(trackId);
 
@@ -20,8 +28,17 @@ export async function GET(
 
     console.log("Track found:", track.filename);
     console.log("Original path:", track.originalPath);
+    console.log("Processed path:", track.processedPath);
 
-    const filePath = track.originalPath;
+    // Выбираем путь к файлу в зависимости от статуса трека и параметра
+    let filePath = track.originalPath;
+    if (isTrimmed && track.status === "trimmed" && track.processedPath) {
+      filePath = track.processedPath;
+      console.log("Using processed path for trimmed track:", filePath);
+    } else if (track.status === "trimmed" && track.processedPath) {
+      filePath = track.processedPath;
+      console.log("Using processed path for trimmed track:", filePath);
+    }
 
     if (!(await fs.pathExists(filePath))) {
       console.log("File does not exist at path:", filePath);

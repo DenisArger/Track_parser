@@ -31,6 +31,7 @@ export type TrackStatus =
   | "downloaded"
   | "processing"
   | "processed"
+  | "trimmed"
   | "rejected"
   | "uploading"
   | "uploaded"

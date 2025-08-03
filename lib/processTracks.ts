@@ -621,7 +621,7 @@ export async function trimTrack(
   }
 
   track.processedPath = processedPath;
-  track.status = "processed";
+  track.status = "trimmed";
   tracks.set(trackId, track);
   await saveTracksToFile();
 
