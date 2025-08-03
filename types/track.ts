@@ -72,7 +72,7 @@ export interface AppConfig {
 
 export interface DownloadRequest {
   url: string;
-  source: "youtube" | "yandex";
+  source?: "youtube" | "youtube-music" | "yandex";
 }
 
 export interface ProcessingRequest {

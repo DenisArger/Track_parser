@@ -28,10 +28,13 @@ export async function GET(
     const fileBuffer = await fs.readFile(filePath);
     const fileName = path.basename(filePath);
 
+    // Кодируем имя файла для безопасного использования в заголовках
+    const encodedFileName = encodeURIComponent(fileName);
+
     return new NextResponse(fileBuffer, {
       headers: {
         "Content-Type": "audio/mpeg",
-        "Content-Disposition": `inline; filename="${fileName}"`,
+        "Content-Disposition": `inline; filename="${encodedFileName}"; filename*=UTF-8''${encodedFileName}`,
         "Content-Length": fileBuffer.length.toString(),
       },
     });

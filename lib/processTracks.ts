@@ -43,13 +43,29 @@ function generateTrackId() {
   return Math.random().toString(36).slice(2, 10) + Date.now();
 }
 
-// Извлечение ID видео из URL YouTube
+// Извлечение ID видео из URL YouTube и YouTube Music
 function extractVideoId(url: string): string {
   const regex =
-    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/;
+    /(?:youtube\.com\/watch\?v=|music\.youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/;
   const match = url.match(regex);
   if (!match) throw new Error("Invalid YouTube URL");
   return match[1];
+}
+
+// Автоматическое определение типа источника по URL
+function detectSourceFromUrl(
+  url: string
+): "youtube" | "youtube-music" | "yandex" {
+  if (url.includes("music.youtube.com")) {
+    return "youtube-music";
+  } else if (url.includes("youtube.com") || url.includes("youtu.be")) {
+    return "youtube";
+  } else if (url.includes("music.yandex.ru")) {
+    return "yandex";
+  } else {
+    // По умолчанию считаем YouTube
+    return "youtube";
+  }
 }
 
 // Скачивание трека через RapidAPI
@@ -81,7 +97,7 @@ export async function downloadTrackViaRapidAPI(
   }
 
   if (!response.data.link) {
-    throw new Error("No download link received from RapidAPI");
+    throw new Error("Не получена ссылка для скачивания от RapidAPI");
   }
 
   // Скачиваем аудиофайл
@@ -103,7 +119,8 @@ export async function downloadTrackViaRapidAPI(
 
   // Создаем безопасное имя файла
   const safeTitle = response.data.title
-    .replace(/[^\w\s-]/g, "")
+    .replace(/[^\w\s-а-яё]/gi, "") // Разрешаем кириллические символы
+    .replace(/\s+/g, "_") // Заменяем пробелы на подчеркивания
     .substring(0, 100);
   const filename = `${safeTitle}.mp3`;
   const filepath = path.join(outputDir, filename);
@@ -114,10 +131,85 @@ export async function downloadTrackViaRapidAPI(
   return { filePath: filepath, title: response.data.title };
 }
 
+// Скачивание трека через yt-dlp (более надежно для YouTube Music)
+export async function downloadTrackViaYtDlp(
+  url: string,
+  outputDir: string
+): Promise<{ filePath: string; title: string }> {
+  await fs.ensureDir(outputDir);
+
+  return new Promise((resolve, reject) => {
+    const ytDlpPath = path.join(process.cwd(), "bin", "yt-dlp.exe");
+    const outputTemplate = path.join(outputDir, "%(title)s.%(ext)s");
+
+    const args = [
+      "--extract-audio",
+      "--audio-format",
+      "mp3",
+      "--audio-quality",
+      "0",
+      "--output",
+      outputTemplate,
+      "--no-playlist",
+      "--write-thumbnail",
+      "--write-info-json",
+      "--restrict-filenames", // Используем безопасные имена файлов
+      url,
+    ];
+
+    const child = spawn(ytDlpPath, args, {
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+
+    let stdout = "";
+    let stderr = "";
+
+    child.stdout.on("data", (data) => {
+      stdout += data.toString();
+    });
+
+    child.stderr.on("data", (data) => {
+      stderr += data.toString();
+    });
+
+    child.on("close", async (code) => {
+      if (code === 0) {
+        try {
+          // Найти скачанный файл
+          const files = await fs.readdir(outputDir);
+          const mp3Files = files.filter((file) => file.endsWith(".mp3"));
+
+          if (mp3Files.length === 0) {
+            reject(new Error("Не найден скачанный MP3 файл"));
+            return;
+          }
+
+          // Используем последний созданный файл
+          const filename = mp3Files[mp3Files.length - 1];
+          const filepath = path.join(outputDir, filename);
+
+          // Извлекаем название из имени файла
+          const title = filename.replace(".mp3", "").replace(/_/g, " ");
+
+          resolve({ filePath: filepath, title });
+        } catch (error) {
+          reject(new Error(`Ошибка при поиске скачанного файла: ${error}`));
+        }
+      } else {
+        reject(new Error(`yt-dlp завершился с кодом ${code}: ${stderr}`));
+      }
+    });
+
+    child.on("error", (error) => {
+      reject(new Error(`Ошибка запуска yt-dlp: ${error.message}`));
+    });
+  });
+}
+
 // Основная функция скачивания трека
 export async function downloadTrack(
   url: string,
-  source: "youtube" | "yandex"
+  source: "youtube" | "youtube-music" | "yandex"
 ): Promise<Track> {
   const config = await loadConfig();
   const trackId = generateTrackId();
@@ -126,10 +218,23 @@ export async function downloadTrack(
   let apiTitle = "";
 
   if (source === "youtube") {
-    const result = await downloadTrackViaRapidAPI(
-      url,
-      config.folders.downloads
-    );
+    try {
+      const result = await downloadTrackViaRapidAPI(
+        url,
+        config.folders.downloads
+      );
+      filePath = result.filePath;
+      apiTitle = result.title;
+    } catch (error) {
+      // Если RapidAPI не сработал, пробуем yt-dlp
+      console.log("RapidAPI failed, trying yt-dlp...");
+      const result = await downloadTrackViaYtDlp(url, config.folders.downloads);
+      filePath = result.filePath;
+      apiTitle = result.title;
+    }
+  } else if (source === "youtube-music") {
+    // Для YouTube Music используем yt-dlp напрямую
+    const result = await downloadTrackViaYtDlp(url, config.folders.downloads);
     filePath = result.filePath;
     apiTitle = result.title;
   } else {
