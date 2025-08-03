@@ -5,7 +5,13 @@ import { ProcessingRequest, TrackMetadata } from "@/types/track";
 export async function POST(request: NextRequest) {
   try {
     const body: ProcessingRequest = await request.json();
-    const { trackId, metadata } = body;
+    const { trackId, metadata, trimSettings } = body;
+
+    console.log("Processing track request:", {
+      trackId,
+      metadata,
+      trimSettings,
+    });
 
     if (!trackId) {
       return NextResponse.json(
@@ -16,8 +22,11 @@ export async function POST(request: NextRequest) {
 
     const track = await processTrack(
       trackId,
-      metadata as TrackMetadata | undefined
+      metadata as TrackMetadata | undefined,
+      trimSettings
     );
+
+    console.log("Track processed successfully:", track.id);
 
     return NextResponse.json({
       success: true,

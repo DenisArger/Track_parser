@@ -204,9 +204,29 @@ export default function DownloadTrack({
                     <p className="text-sm text-gray-600">
                       {track.metadata.artist}
                     </p>
+                    {track.metadata.isTrimmed && (
+                      <div className="flex items-center space-x-1 mt-1">
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          <svg
+                            className="w-2.5 h-2.5 mr-1"
+                            fill="currentColor"
+                            viewBox="0 0 20 20"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                          Обрезан
+                        </span>
+                      </div>
+                    )}
                   </div>
                   <span className="text-sm text-green-600 font-medium">
-                    Ready for processing
+                    {track.metadata.isTrimmed
+                      ? "Обработан"
+                      : "Ready for processing"}
                   </span>
                 </div>
               ))}

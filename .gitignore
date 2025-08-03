@@ -38,6 +38,7 @@ downloads/
 processed/
 rejected/
 server_upload/
+temp/
 
 # Track data
 tracks.json

@@ -75,6 +75,23 @@ export async function downloadTrackViaRapidAPI(
 ): Promise<{ filePath: string; title: string }> {
   const config = await loadConfig();
   await fs.ensureDir(outputDir);
+
+  // Очищаем старые файлы перед скачиванием нового
+  try {
+    const files = await fs.readdir(outputDir);
+    for (const file of files) {
+      if (
+        file.endsWith(".mp3") ||
+        file.endsWith(".webp") ||
+        file.endsWith(".json")
+      ) {
+        await fs.remove(path.join(outputDir, file));
+      }
+    }
+  } catch (error) {
+    console.log("Error cleaning old files:", error);
+  }
+
   const videoId = extractVideoId(url);
 
   // Прямой запрос к youtube-mp36 API
@@ -138,6 +155,22 @@ export async function downloadTrackViaYtDlp(
 ): Promise<{ filePath: string; title: string }> {
   await fs.ensureDir(outputDir);
 
+  // Очищаем старые файлы перед скачиванием нового
+  try {
+    const files = await fs.readdir(outputDir);
+    for (const file of files) {
+      if (
+        file.endsWith(".mp3") ||
+        file.endsWith(".webp") ||
+        file.endsWith(".json")
+      ) {
+        await fs.remove(path.join(outputDir, file));
+      }
+    }
+  } catch (error) {
+    console.log("Error cleaning old files:", error);
+  }
+
   return new Promise((resolve, reject) => {
     const ytDlpPath = path.join(process.cwd(), "bin", "yt-dlp.exe");
     const outputTemplate = path.join(outputDir, "%(title)s.%(ext)s");
@@ -153,7 +186,8 @@ export async function downloadTrackViaYtDlp(
       "--no-playlist",
       "--write-thumbnail",
       "--write-info-json",
-      "--restrict-filenames", // Используем безопасные имена файлов
+      "--force-overwrites",
+      "--no-cache-dir",
       url,
     ];
 
@@ -188,8 +222,12 @@ export async function downloadTrackViaYtDlp(
           const filename = mp3Files[mp3Files.length - 1];
           const filepath = path.join(outputDir, filename);
 
-          // Извлекаем название из имени файла
-          const title = filename.replace(".mp3", "").replace(/_/g, " ");
+          // Извлекаем название из имени файла (убираем .mp3 и восстанавливаем оригинальные символы)
+          const title = filename.replace(".mp3", "");
+
+          console.log("Found downloaded file:", filename);
+          console.log("File path:", filepath);
+          console.log("Extracted title:", title);
 
           resolve({ filePath: filepath, title });
         } catch (error) {
@@ -336,51 +374,258 @@ export async function rejectTrack(trackId: string): Promise<void> {
   await fs.move(track.originalPath, rejectedPath, { overwrite: true });
   track.status = "rejected";
   tracks.set(trackId, track);
+  await saveTracksToFile(); // Сохраняем изменения в файл
 }
 
 // Обработать трек (обрезка, определение BPM, запись тегов)
 export async function processTrack(
   trackId: string,
-  metadata?: TrackMetadata
+  metadata?: TrackMetadata,
+  trimSettings?: {
+    startTime: number;
+    endTime?: number;
+    fadeIn: number;
+    fadeOut: number;
+    maxDuration?: number;
+  }
 ): Promise<Track> {
+  console.log("Starting processTrack for trackId:", trackId);
+
   const config = await loadConfig();
   const track = tracks.get(trackId);
   if (!track) throw new Error("Track not found");
 
-  // Обрезка до maxDuration
+  console.log("Track found:", track.filename, "status:", track.status);
+
+  // Проверяем, что трек еще не обработан
+  if (track.status === "processed") {
+    console.log("Track already processed, updating metadata only");
+    if (metadata) {
+      Object.assign(track.metadata, metadata);
+      await writeTrackTags(track.processedPath!, track.metadata);
+      tracks.set(trackId, track);
+      await saveTracksToFile();
+    }
+    return track;
+  }
+
+  // Обрезка с настройками или по умолчанию
   const processedPath = path.join(config.folders.processed, track.filename);
+  console.log(
+    "Processing audio file:",
+    track.originalPath,
+    "->",
+    processedPath
+  );
+
   const ffmpeg = require("fluent-ffmpeg");
   await new Promise<void>((resolve, reject) => {
-    ffmpeg(track.originalPath)
-      .setStartTime(0)
-      .duration(config.processing.maxDuration)
+    let command = ffmpeg(track.originalPath);
+
+    // Применяем настройки обрезки
+    if (trimSettings) {
+      console.log("Using custom trim settings:", trimSettings);
+
+      // Устанавливаем время начала
+      command = command.setStartTime(trimSettings.startTime);
+
+      // Устанавливаем длительность
+      if (trimSettings.endTime) {
+        const duration = trimSettings.endTime - trimSettings.startTime;
+        command = command.duration(duration);
+      } else if (trimSettings.maxDuration) {
+        command = command.duration(trimSettings.maxDuration);
+      } else {
+        command = command.duration(config.processing.maxDuration);
+      }
+
+      // Применяем затухание
+      if (trimSettings.fadeIn > 0) {
+        command = command.audioFilters(
+          `afade=t=in:st=${trimSettings.startTime}:d=${trimSettings.fadeIn}`
+        );
+      }
+
+      if (trimSettings.fadeOut > 0) {
+        const fadeOutStart = trimSettings.endTime
+          ? trimSettings.endTime - trimSettings.fadeOut
+          : trimSettings.startTime +
+            (trimSettings.maxDuration || config.processing.maxDuration) -
+            trimSettings.fadeOut;
+        command = command.audioFilters(
+          `afade=t=out:st=${fadeOutStart}:d=${trimSettings.fadeOut}`
+        );
+      }
+    } else {
+      console.log("Using default trim settings");
+      command = command.setStartTime(0).duration(config.processing.maxDuration);
+    }
+
+    command
       .output(processedPath)
-      .on("end", () => resolve())
-      .on("error", reject)
+      .on("end", () => {
+        console.log("FFmpeg processing completed");
+        resolve();
+      })
+      .on("error", (error: any) => {
+        console.error("FFmpeg error:", error);
+        reject(error);
+      })
       .run();
   });
 
   // Определение BPM
+  console.log("Starting BPM detection...");
   const bpm = await detectBpm(processedPath);
   if (bpm) {
+    console.log("BPM detected:", bpm);
     track.metadata.bpm = bpm;
     // Автоматически определить тип по BPM
     if (bpm >= 130) track.metadata.genre = "Быстрый";
     else if (bpm >= 90) track.metadata.genre = "Средний";
     else track.metadata.genre = "Медленный";
+  } else {
+    console.log("No BPM detected");
   }
 
   // Обновить метаданные, если переданы
   if (metadata) {
+    console.log("Updating metadata with:", metadata);
     Object.assign(track.metadata, metadata);
   }
 
+  // Сохранить информацию об обрезке только если действительно была применена обрезка
+  if (trimSettings) {
+    console.log("Saving trim information:", trimSettings);
+
+    // Проверяем, была ли действительно применена обрезка
+    const hasRealTrimming =
+      trimSettings.startTime > 0 ||
+      trimSettings.endTime ||
+      trimSettings.fadeIn > 0 ||
+      trimSettings.fadeOut > 0 ||
+      (trimSettings.maxDuration && trimSettings.maxDuration < 360);
+
+    if (hasRealTrimming) {
+      track.metadata.isTrimmed = true;
+      track.metadata.trimSettings = trimSettings;
+      console.log("Track marked as trimmed with real trimming applied");
+    } else {
+      console.log("No real trimming applied, keeping track as original");
+    }
+  }
+
   // Записать теги
+  console.log("Writing track tags...");
   await writeTrackTags(processedPath, track.metadata);
 
   track.processedPath = processedPath;
   track.status = "processed";
   tracks.set(trackId, track);
+  await saveTracksToFile(); // Сохраняем изменения в файл
+
+  console.log("Track processing completed successfully");
+  return track;
+}
+
+// Обрезать трек без анализа BPM
+export async function trimTrack(
+  trackId: string,
+  trimSettings: {
+    startTime: number;
+    endTime?: number;
+    fadeIn: number;
+    fadeOut: number;
+    maxDuration?: number;
+  }
+): Promise<Track> {
+  console.log("Starting trimTrack for trackId:", trackId);
+
+  const config = await loadConfig();
+  const track = tracks.get(trackId);
+  if (!track) throw new Error("Track not found");
+
+  console.log("Track found:", track.filename, "status:", track.status);
+
+  // Обрезка с настройками
+  const processedPath = path.join(config.folders.processed, track.filename);
+  console.log("Trimming audio file:", track.originalPath, "->", processedPath);
+
+  const ffmpeg = require("fluent-ffmpeg");
+  await new Promise<void>((resolve, reject) => {
+    let command = ffmpeg(track.originalPath);
+
+    console.log("Using trim settings:", trimSettings);
+
+    // Устанавливаем время начала
+    command = command.setStartTime(trimSettings.startTime);
+
+    // Устанавливаем длительность
+    if (trimSettings.endTime) {
+      const duration = trimSettings.endTime - trimSettings.startTime;
+      command = command.duration(duration);
+    } else if (trimSettings.maxDuration) {
+      command = command.duration(trimSettings.maxDuration);
+    } else {
+      command = command.duration(config.processing.maxDuration);
+    }
+
+    // Применяем затухание
+    if (trimSettings.fadeIn > 0) {
+      command = command.audioFilters(
+        `afade=t=in:st=${trimSettings.startTime}:d=${trimSettings.fadeIn}`
+      );
+    }
+
+    if (trimSettings.fadeOut > 0) {
+      const fadeOutStart = trimSettings.endTime
+        ? trimSettings.endTime - trimSettings.fadeOut
+        : trimSettings.startTime +
+          (trimSettings.maxDuration || config.processing.maxDuration) -
+          trimSettings.fadeOut;
+      command = command.audioFilters(
+        `afade=t=out:st=${fadeOutStart}:d=${trimSettings.fadeOut}`
+      );
+    }
+
+    command
+      .output(processedPath)
+      .on("end", () => {
+        console.log("FFmpeg trimming completed");
+        resolve();
+      })
+      .on("error", (error: any) => {
+        console.error("FFmpeg error:", error);
+        reject(error);
+      })
+      .run();
+  });
+
+  // Сохранить информацию об обрезке
+  console.log("Saving trim information:", trimSettings);
+
+  // Проверяем, была ли действительно применена обрезка
+  const hasRealTrimming =
+    trimSettings.startTime > 0 ||
+    trimSettings.endTime !== undefined ||
+    trimSettings.fadeIn > 0 ||
+    trimSettings.fadeOut > 0 ||
+    (trimSettings.maxDuration !== undefined && trimSettings.maxDuration < 360);
+
+  if (hasRealTrimming) {
+    track.metadata.isTrimmed = true;
+    track.metadata.trimSettings = trimSettings;
+    console.log("Track marked as trimmed with real trimming applied");
+  } else {
+    console.log("No real trimming applied, keeping track as original");
+  }
+
+  track.processedPath = processedPath;
+  track.status = "processed";
+  tracks.set(trackId, track);
+  await saveTracksToFile();
+
+  console.log("Track trimming completed successfully");
   return track;
 }
 

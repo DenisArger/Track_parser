@@ -6,6 +6,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { trackId } = body;
 
+    console.log("Rejecting track request:", { trackId });
+
     if (!trackId) {
       return NextResponse.json(
         { error: "Track ID is required" },
@@ -14,6 +16,8 @@ export async function POST(request: NextRequest) {
     }
 
     await rejectTrack(trackId);
+
+    console.log("Track rejected successfully:", trackId);
 
     return NextResponse.json({
       success: true,

@@ -5,6 +5,7 @@ import DownloadTrack from "./components/DownloadTrack";
 import TrackPlayer from "./components/TrackPlayer";
 import MetadataEditor from "./components/MetadataEditor";
 import FtpUploader from "./components/FtpUploader";
+import TrackManager from "./components/TrackManager";
 import { Track } from "@/types/track";
 
 export default function HomePage() {
@@ -33,6 +34,7 @@ export default function HomePage() {
     { id: "listen", label: "Listen & Review", component: TrackPlayer },
     { id: "metadata", label: "Edit Metadata", component: MetadataEditor },
     { id: "upload", label: "FTP Upload", component: FtpUploader },
+    { id: "manage", label: "Track Manager", component: TrackManager },
   ];
 
   const ActiveComponent =
