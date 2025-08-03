@@ -8,7 +8,7 @@ import { Track, TrackMetadata, TrackType, FtpConfig } from "@/types/track";
 import { loadConfig, AppConfig } from "./config";
 
 // Global track storage
-const tracks = new Map<string, Track>();
+export const tracks = new Map<string, Track>();
 const TRACKS_FILE = "tracks.json";
 
 // Загрузка треков из файла при инициализации
@@ -27,7 +27,7 @@ async function loadTracksFromFile() {
 }
 
 // Сохранение треков в файл
-async function saveTracksToFile() {
+export async function saveTracksToFile() {
   try {
     const tracksArray = Array.from(tracks.values());
     await fs.writeJson(TRACKS_FILE, tracksArray, { spaces: 2 });

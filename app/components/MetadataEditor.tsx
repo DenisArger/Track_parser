@@ -60,8 +60,12 @@ export default function MetadataEditor({
       });
 
       if (!response.ok) {
-        throw new Error("Failed to update metadata");
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to update metadata");
       }
+
+      const result = await response.json();
+      console.log("Metadata updated successfully:", result);
 
       onTracksUpdate();
       setSelectedTrack(null);
@@ -75,6 +79,11 @@ export default function MetadataEditor({
       });
     } catch (error) {
       console.error("Error updating metadata:", error);
+      alert(
+        `Error updating metadata: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
     } finally {
       setIsSaving(false);
     }
