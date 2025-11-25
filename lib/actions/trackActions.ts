@@ -81,11 +81,27 @@ export async function downloadTrackAction(
 
     return await downloadTrackFromLib(url, detectedSource);
   } catch (error) {
-    throw new Error(
-      `Download failed: ${
-        error instanceof Error ? error.message : String(error)
-      }`
-    );
+    // Улучшаем сообщение об ошибке для пользователя
+    const errorMessage = error instanceof Error ? error.message : String(error);
+
+    // Специальная обработка ошибок Яндекс.Музыки
+    if (
+      errorMessage.includes("451") ||
+      errorMessage.includes("Unavailable For Legal Reasons")
+    ) {
+      throw new Error(
+        "Трек недоступен для скачивания. Возможные причины: геоблокировка, требуется авторизация или трек недоступен по юридическим причинам."
+      );
+    }
+
+    // Специальная обработка ошибок yt-dlp
+    if (errorMessage.includes("yt-dlp")) {
+      throw new Error(
+        `Ошибка скачивания: ${errorMessage}. Проверьте правильность URL и доступность трека.`
+      );
+    }
+
+    throw new Error(`Ошибка скачивания: ${errorMessage}`);
   }
 }
 
