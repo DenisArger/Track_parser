@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getTrack } from "@/lib/processTracks";
 import fs from "fs-extra";
 import path from "path";
+import { handleApiError, handleNotFoundError } from "@/lib/api/errorHandler";
 
 export async function GET(
   request: NextRequest,
@@ -13,16 +14,13 @@ export async function GET(
     const track = await getTrack(trackId);
 
     if (!track) {
-      return NextResponse.json({ error: "Track not found" }, { status: 404 });
+      return handleNotFoundError("Track not found");
     }
 
     const filePath = track.originalPath;
 
     if (!(await fs.pathExists(filePath))) {
-      return NextResponse.json(
-        { error: "Audio file not found" },
-        { status: 404 }
-      );
+      return handleNotFoundError("Audio file not found");
     }
 
     const fileBuffer = await fs.readFile(filePath);
@@ -36,10 +34,6 @@ export async function GET(
       },
     });
   } catch (error) {
-    console.error("Audio serve error:", error);
-    return NextResponse.json(
-      { error: "Failed to serve audio file" },
-      { status: 500 }
-    );
+    return handleApiError(error, "Failed to serve audio file");
   }
 }

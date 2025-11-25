@@ -2,6 +2,10 @@
 
 import { useState } from "react";
 import { Track } from "@/types/track";
+import {
+  getDownloadingTracks,
+  getDownloadedTracks,
+} from "@/lib/utils/trackFilters";
 
 interface DownloadTrackProps {
   onTracksUpdate: () => void;
@@ -138,44 +142,38 @@ export default function DownloadTrack({
       </div>
 
       {/* Downloading Tracks */}
-      {tracks.filter((track) => track.status === "downloading").length > 0 && (
+      {getDownloadingTracks(tracks).length > 0 && (
         <div className="mt-6">
           <h3 className="text-lg font-medium mb-3">Downloading Tracks</h3>
           <div className="space-y-3">
-            {tracks
-              .filter((track) => track.status === "downloading")
-              .map((track) => (
-                <div
-                  key={track.id}
-                  className="border rounded-lg p-4 bg-blue-50"
-                >
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="font-medium text-gray-900">
-                      {track.metadata.title}
-                    </span>
-                    <span className="text-sm text-gray-600">
-                      {track.downloadProgress?.toFixed(1)}%
-                    </span>
-                  </div>
-                  <div className="progress-bar">
-                    <div
-                      className="progress-fill"
-                      style={{ width: `${track.downloadProgress || 0}%` }}
-                    ></div>
-                  </div>
+            {getDownloadingTracks(tracks).map((track) => (
+              <div key={track.id} className="border rounded-lg p-4 bg-blue-50">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="font-medium text-gray-900">
+                    {track.metadata.title}
+                  </span>
+                  <span className="text-sm text-gray-600">
+                    {track.downloadProgress?.toFixed(1)}%
+                  </span>
                 </div>
-              ))}
+                <div className="progress-bar">
+                  <div
+                    className="progress-fill"
+                    style={{ width: `${track.downloadProgress || 0}%` }}
+                  ></div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
 
       {/* Recently Downloaded Tracks */}
-      {tracks.filter((track) => track.status === "downloaded").length > 0 && (
+      {getDownloadedTracks(tracks).length > 0 && (
         <div className="mt-6">
           <h3 className="text-lg font-medium mb-3">Recently Downloaded</h3>
           <div className="space-y-2">
-            {tracks
-              .filter((track) => track.status === "downloaded")
+            {getDownloadedTracks(tracks)
               .slice(0, 5)
               .map((track) => (
                 <div

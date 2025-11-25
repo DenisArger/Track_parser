@@ -1,6 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { uploadToFtp } from "@/lib/processTracks";
 import { UploadRequest } from "@/types/track";
+import { handleApiError, handleValidationError } from "@/lib/api/errorHandler";
+import { createSuccessResponse } from "@/lib/api/responseHelpers";
 
 export async function POST(request: NextRequest) {
   try {
@@ -8,26 +10,12 @@ export async function POST(request: NextRequest) {
     const { trackId, ftpConfig } = body;
 
     if (!trackId || !ftpConfig) {
-      return NextResponse.json(
-        { error: "Track ID and FTP config are required" },
-        { status: 400 }
-      );
+      return handleValidationError("Track ID and FTP config are required");
     }
 
     await uploadToFtp(trackId, ftpConfig);
-
-    return NextResponse.json({
-      success: true,
-      message: "Track uploaded successfully",
-    });
+    return createSuccessResponse(undefined, "Track uploaded successfully");
   } catch (error) {
-    console.error("FTP upload error:", error);
-    return NextResponse.json(
-      {
-        error: error instanceof Error ? error.message : "FTP upload failed",
-        success: false,
-      },
-      { status: 500 }
-    );
+    return handleApiError(error, "FTP upload failed");
   }
 }

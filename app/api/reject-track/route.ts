@@ -1,5 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { rejectTrack } from "@/lib/processTracks";
+import { handleApiError, handleValidationError } from "@/lib/api/errorHandler";
+import { createSuccessResponse } from "@/lib/api/responseHelpers";
 
 export async function POST(request: NextRequest) {
   try {
@@ -7,27 +9,12 @@ export async function POST(request: NextRequest) {
     const { trackId } = body;
 
     if (!trackId) {
-      return NextResponse.json(
-        { error: "Track ID is required" },
-        { status: 400 }
-      );
+      return handleValidationError("Track ID is required");
     }
 
     await rejectTrack(trackId);
-
-    return NextResponse.json({
-      success: true,
-      message: "Track rejected successfully",
-    });
+    return createSuccessResponse(undefined, "Track rejected successfully");
   } catch (error) {
-    console.error("Reject error:", error);
-    return NextResponse.json(
-      {
-        error:
-          error instanceof Error ? error.message : "Failed to reject track",
-        success: false,
-      },
-      { status: 500 }
-    );
+    return handleApiError(error, "Failed to reject track");
   }
 }

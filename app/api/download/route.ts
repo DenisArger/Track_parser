@@ -1,6 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { downloadTrack } from "@/lib/processTracks";
 import { DownloadRequest } from "@/types/track";
+import { handleApiError, handleValidationError } from "@/lib/api/errorHandler";
+import { createTrackResponse } from "@/lib/api/responseHelpers";
 
 export async function POST(request: NextRequest) {
   try {
@@ -8,27 +10,12 @@ export async function POST(request: NextRequest) {
     const { url, source } = body;
 
     if (!url || !source) {
-      return NextResponse.json(
-        { error: "URL and source are required" },
-        { status: 400 }
-      );
+      return handleValidationError("URL and source are required");
     }
 
     const track = await downloadTrack(url, source);
-
-    return NextResponse.json({
-      success: true,
-      track,
-      message: "Download started successfully",
-    });
+    return createTrackResponse(track, "Download started successfully");
   } catch (error) {
-    console.error("Download error:", error);
-    return NextResponse.json(
-      {
-        error: error instanceof Error ? error.message : "Download failed",
-        success: false,
-      },
-      { status: 500 }
-    );
+    return handleApiError(error, "Download failed");
   }
 }

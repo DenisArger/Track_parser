@@ -1,6 +1,13 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { getTrack } from "@/lib/processTracks";
+import { setTrack, saveTracksToFile } from "@/lib/storage/trackStorage";
 import { TrackMetadata } from "@/types/track";
+import {
+  handleApiError,
+  handleValidationError,
+  handleNotFoundError,
+} from "@/lib/api/errorHandler";
+import { createTrackResponse } from "@/lib/api/responseHelpers";
 
 export async function POST(request: NextRequest) {
   try {
@@ -8,34 +15,23 @@ export async function POST(request: NextRequest) {
     const { trackId, metadata } = body;
 
     if (!trackId || !metadata) {
-      return NextResponse.json(
-        { error: "Track ID and metadata are required" },
-        { status: 400 }
-      );
+      return handleValidationError("Track ID and metadata are required");
     }
 
     const track = await getTrack(trackId);
     if (!track) {
-      return NextResponse.json({ error: "Track not found" }, { status: 404 });
+      return handleNotFoundError("Track not found");
     }
 
     // Update track metadata
     Object.assign(track.metadata, metadata);
 
-    return NextResponse.json({
-      success: true,
-      track,
-      message: "Metadata updated successfully",
-    });
+    // Save track to storage and file
+    setTrack(trackId, track);
+    await saveTracksToFile();
+
+    return createTrackResponse(track, "Metadata updated successfully");
   } catch (error) {
-    console.error("Metadata update error:", error);
-    return NextResponse.json(
-      {
-        error:
-          error instanceof Error ? error.message : "Failed to update metadata",
-        success: false,
-      },
-      { status: 500 }
-    );
+    return handleApiError(error, "Failed to update metadata");
   }
 }

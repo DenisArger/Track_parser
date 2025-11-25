@@ -5,6 +5,7 @@ import DownloadTrack from "./components/DownloadTrack";
 import TrackPlayer from "./components/TrackPlayer";
 import MetadataEditor from "./components/MetadataEditor";
 import FtpUploader from "./components/FtpUploader";
+import TrackStatusBadge from "./components/shared/TrackStatusBadge";
 import { Track } from "@/types/track";
 
 export default function HomePage() {
@@ -74,21 +75,7 @@ export default function HomePage() {
                 </h4>
                 <p className="text-sm text-gray-600">{track.metadata.artist}</p>
                 <div className="mt-2">
-                  <span
-                    className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                      track.status === "uploaded"
-                        ? "bg-success-100 text-success-800"
-                        : track.status === "processed"
-                        ? "bg-primary-100 text-primary-800"
-                        : track.status === "downloaded"
-                        ? "bg-blue-100 text-blue-800"
-                        : track.status === "rejected"
-                        ? "bg-danger-100 text-danger-800"
-                        : "bg-gray-100 text-gray-800"
-                    }`}
-                  >
-                    {track.status}
-                  </span>
+                  <TrackStatusBadge status={track.status} />
                 </div>
                 {track.error && (
                   <p className="text-xs text-danger-600 mt-1">

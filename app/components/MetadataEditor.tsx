@@ -2,6 +2,10 @@
 
 import { useState } from "react";
 import { Track, TrackMetadata, TrackType } from "@/types/track";
+import TrackList from "./shared/TrackList";
+import TrackStatusBadge from "./shared/TrackStatusBadge";
+import { getProcessedTracks } from "@/lib/utils/trackFilters";
+import { formatTime } from "@/lib/utils/timeFormatter";
 
 interface MetadataEditorProps {
   onTracksUpdate: () => void;
@@ -23,9 +27,7 @@ export default function MetadataEditor({
   });
   const [isSaving, setIsSaving] = useState(false);
 
-  const processedTracks = tracks.filter(
-    (track) => track.status === "processed"
-  );
+  const processedTracks = getProcessedTracks(tracks);
 
   const handleTrackSelect = (track: Track) => {
     setSelectedTrack(track);
@@ -95,53 +97,14 @@ export default function MetadataEditor({
         {/* Track List */}
         <div>
           <h3 className="text-lg font-medium mb-3">Processed Tracks</h3>
-          {processedTracks.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <p>No processed tracks available</p>
-              <p className="text-sm">Process some tracks first</p>
-            </div>
-          ) : (
-            <div className="space-y-2 max-h-96 overflow-y-auto">
-              {processedTracks.map((track) => (
-                <div
-                  key={track.id}
-                  onClick={() => handleTrackSelect(track)}
-                  className={`p-3 rounded-lg border cursor-pointer transition-colors ${
-                    selectedTrack?.id === track.id
-                      ? "border-primary-500 bg-primary-50"
-                      : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
-                  }`}
-                >
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <h4 className="font-medium text-gray-900 truncate">
-                        {track.metadata.title}
-                      </h4>
-                      <p className="text-sm text-gray-600">
-                        {track.metadata.artist}
-                      </p>
-                      <div className="flex items-center space-x-2 mt-1">
-                        <span
-                          className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                            track.metadata.genre === "Быстрый"
-                              ? "bg-green-100 text-green-800"
-                              : track.metadata.genre === "Медленный"
-                              ? "bg-blue-100 text-blue-800"
-                              : "bg-yellow-100 text-yellow-800"
-                          }`}
-                        >
-                          {track.metadata.genre}
-                        </span>
-                        <span className="text-xs text-gray-500">
-                          Rating: {track.metadata.rating}/10
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          <TrackList
+            tracks={processedTracks}
+            onTrackSelect={handleTrackSelect}
+            selectedTrackId={selectedTrack?.id}
+            showStatus={false}
+            emptyMessage="No processed tracks available"
+            emptySubMessage="Process some tracks first"
+          />
         </div>
 
         {/* Metadata Editor */}
@@ -289,11 +252,7 @@ export default function MetadataEditor({
                       </label>
                       <input
                         type="text"
-                        value={`${Math.floor(metadata.duration / 60)}:${(
-                          metadata.duration % 60
-                        )
-                          .toString()
-                          .padStart(2, "0")}`}
+                        value={formatTime(metadata.duration)}
                         className="input bg-gray-100"
                         readOnly
                       />

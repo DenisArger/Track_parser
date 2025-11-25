@@ -2,6 +2,9 @@
 
 import { useState, useRef } from "react";
 import { Track } from "@/types/track";
+import TrackList from "./shared/TrackList";
+import { getDownloadedTracks } from "@/lib/utils/trackFilters";
+import { formatTime } from "@/lib/utils/timeFormatter";
 
 interface TrackPlayerProps {
   onTracksUpdate: () => void;
@@ -18,9 +21,7 @@ export default function TrackPlayer({
   const [duration, setDuration] = useState(0);
   const audioRef = useRef<HTMLAudioElement>(null);
 
-  const downloadedTracks = tracks.filter(
-    (track) => track.status === "downloaded"
-  );
+  const downloadedTracks = getDownloadedTracks(tracks);
 
   const handleTrackSelect = (track: Track) => {
     setCurrentTrack(track);
@@ -73,12 +74,6 @@ export default function TrackPlayer({
       audioRef.current.currentTime = time;
       setCurrentTime(time);
     }
-  };
-
-  const formatTime = (time: number) => {
-    const minutes = Math.floor(time / 60);
-    const seconds = Math.floor(time % 60);
-    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
   };
 
   const handleAccept = async () => {
@@ -146,42 +141,14 @@ export default function TrackPlayer({
         {/* Track List */}
         <div>
           <h3 className="text-lg font-medium mb-3">Downloaded Tracks</h3>
-          {downloadedTracks.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <p>No tracks available for review</p>
-              <p className="text-sm">Download some tracks first</p>
-            </div>
-          ) : (
-            <div className="space-y-2 max-h-96 overflow-y-auto">
-              {downloadedTracks.map((track) => (
-                <div
-                  key={track.id}
-                  onClick={() => handleTrackSelect(track)}
-                  className={`p-3 rounded-lg border cursor-pointer transition-colors ${
-                    currentTrack?.id === track.id
-                      ? "border-primary-500 bg-primary-50"
-                      : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
-                  }`}
-                >
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <h4 className="font-medium text-gray-900 truncate">
-                        {track.metadata.title}
-                      </h4>
-                      <p className="text-sm text-gray-600">
-                        {track.metadata.artist}
-                      </p>
-                    </div>
-                    <span className="text-xs text-gray-500">
-                      {track.metadata.duration
-                        ? formatTime(track.metadata.duration)
-                        : "Unknown"}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          <TrackList
+            tracks={downloadedTracks}
+            onTrackSelect={handleTrackSelect}
+            selectedTrackId={currentTrack?.id}
+            showDuration={true}
+            emptyMessage="No tracks available for review"
+            emptySubMessage="Download some tracks first"
+          />
         </div>
 
         {/* Audio Player */}

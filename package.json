@@ -12,36 +12,31 @@
   },
   "dependencies": {
     "@types/node": "^20.0.0",
-    "@types/react": "^18.2.0",
-    "@types/react-dom": "^18.2.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
     "axios": "^1.6.0",
     "basic-ftp": "^5.0.3",
-    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
     "fluent-ffmpeg": "^2.1.2",
     "fs-extra": "^11.1.1",
-    "multer": "^1.4.5-lts.1",
     "music-tempo": "^1.0.3",
-    "next": "^14.0.0",
+    "next": "^16.0.0",
     "node-id3": "^0.2.0",
-    "path": "^0.12.7",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "typescript": "^5.0.0",
-    "youtube-dl-exec": "^3.0.22",
-    "ytdl-core": "^5.3.1"
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "typescript": "^5.0.0"
   },
   "devDependencies": {
-    "@types/cors": "^2.8.13",
     "@types/fluent-ffmpeg": "^2.1.24",
     "@types/fs-extra": "^11.0.1",
-    "@types/multer": "^1.4.7",
     "autoprefixer": "^10.4.16",
     "eslint": "^8.0.0",
-    "eslint-config-next": "^14.0.0",
+    "eslint-config-next": "^16.0.0",
     "postcss": "^8.4.31",
     "tailwindcss": "^3.3.5"
   },
   "engines": {
     "node": ">=18.0.0"
-  }
+  },
+  "packageManager": "yarn@4.12.0"
 }

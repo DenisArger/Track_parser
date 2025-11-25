@@ -1,16 +1,15 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { Client as FtpClient } from "basic-ftp";
 import { FtpConfig } from "@/types/track";
+import { handleApiError, handleValidationError } from "@/lib/api/errorHandler";
+import { createSuccessResponse } from "@/lib/api/responseHelpers";
 
 export async function POST(request: NextRequest) {
   try {
     const ftpConfig: FtpConfig = await request.json();
 
     if (!ftpConfig.host || !ftpConfig.user) {
-      return NextResponse.json(
-        { error: "Host and username are required" },
-        { status: 400 }
-      );
+      return handleValidationError("Host and username are required");
     }
 
     const client = new FtpClient();
@@ -24,21 +23,11 @@ export async function POST(request: NextRequest) {
         secure: ftpConfig.secure,
       });
 
-      return NextResponse.json({
-        success: true,
-        message: "FTP connection successful",
-      });
+      return createSuccessResponse(undefined, "FTP connection successful");
     } finally {
       client.close();
     }
   } catch (error) {
-    console.error("FTP test error:", error);
-    return NextResponse.json(
-      {
-        error: error instanceof Error ? error.message : "FTP connection failed",
-        success: false,
-      },
-      { status: 500 }
-    );
+    return handleApiError(error, "FTP connection failed");
   }
 }
