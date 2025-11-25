@@ -4,10 +4,10 @@ import path from "path";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { previewId: string } }
+  { params }: { params: Promise<{ previewId: string }> }
 ) {
   try {
-    const { previewId } = params;
+    const { previewId } = await params;
     console.log("Preview audio requested for:", previewId);
 
     const tempDir = path.join(process.cwd(), "temp");

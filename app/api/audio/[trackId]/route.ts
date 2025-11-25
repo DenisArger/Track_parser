@@ -6,10 +6,10 @@ import { handleApiError, handleNotFoundError } from "@/lib/api/errorHandler";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { trackId: string } }
+  { params }: { params: Promise<{ trackId: string }> }
 ) {
   try {
-    const { trackId } = params;
+    const { trackId } = await params;
     const { searchParams } = new URL(request.url);
     const isTrimmed = searchParams.get("trimmed") === "true";
 
