@@ -12,7 +12,10 @@ function detectSourceFromUrl(
     return "youtube-music";
   } else if (url.includes("youtube.com") || url.includes("youtu.be")) {
     return "youtube";
-  } else if (url.includes("music.yandex.ru")) {
+  } else if (
+    url.includes("music.yandex.ru") ||
+    url.includes("music.yandex.com")
+  ) {
     return "yandex";
   } else {
     // По умолчанию считаем YouTube

@@ -9,6 +9,7 @@ import {
   saveTracksToFile,
 } from "./storage/trackStorage";
 import { downloadTrackViaRapidAPI } from "./download/youtubeDownloader";
+import { downloadTrackViaYtDlp as downloadYandexTrackViaYtDlp } from "./download/yandexDownloader";
 import { detectBpm } from "./audio/bpmDetector";
 import { writeTrackTags } from "./audio/metadataWriter";
 import { uploadToFtp as uploadFileToFtp } from "./upload/ftpUploader";
@@ -25,7 +26,10 @@ function detectSourceFromUrl(
     return "youtube-music";
   } else if (url.includes("youtube.com") || url.includes("youtu.be")) {
     return "youtube";
-  } else if (url.includes("music.yandex.ru")) {
+  } else if (
+    url.includes("music.yandex.ru") ||
+    url.includes("music.yandex.com")
+  ) {
     return "yandex";
   } else {
     // По умолчанию считаем YouTube
@@ -164,9 +168,24 @@ export async function downloadTrack(
     const result = await downloadTrackViaYtDlp(url, config.folders.downloads);
     filePath = result.filePath;
     apiTitle = result.title;
+  } else if (source === "yandex") {
+    // Для Яндекс.Музыки используем yt-dlp
+    try {
+      const result = await downloadYandexTrackViaYtDlp(
+        url,
+        config.folders.downloads
+      );
+      filePath = result.filePath;
+      apiTitle = result.title;
+    } catch (error) {
+      throw new Error(
+        `Ошибка скачивания с Яндекс.Музыки: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+    }
   } else {
-    // Здесь должна быть реализация для Яндекс Музыки
-    throw new Error("Yandex Music download not implemented");
+    throw new Error(`Unknown source type: ${source}`);
   }
 
   const filename = path.basename(filePath);
