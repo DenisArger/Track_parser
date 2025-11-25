@@ -1,12 +1,12 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  webpack: (config) => {
-    config.externals.push({
-      "fluent-ffmpeg": "commonjs fluent-ffmpeg",
-      aubio: "commonjs aubio",
-    });
-    return config;
-  },
+  // Exclude native modules from server-side bundling
+  // These packages will be loaded using native require() at runtime
+  serverExternalPackages: ["fluent-ffmpeg"],
+
+  // Explicit Turbopack configuration
+  // Empty object indicates we're using Turbopack without custom rules
+  turbopack: {},
 };
 
 module.exports = nextConfig;
