@@ -12,8 +12,7 @@ import { spawn } from "child_process";
  */
 export function extractTrackId(url: string): string | null {
   // Паттерн для URL с album и track
-  const albumTrackRegex =
-    /music\.yandex\.(ru|com)\/album\/\d+\/track\/(\d+)/;
+  const albumTrackRegex = /music\.yandex\.(ru|com)\/album\/\d+\/track\/(\d+)/;
   const albumTrackMatch = url.match(albumTrackRegex);
   if (albumTrackMatch) {
     return albumTrackMatch[2];
@@ -148,4 +147,3 @@ export async function downloadTrackViaYtDlp(
     });
   });
 }
-

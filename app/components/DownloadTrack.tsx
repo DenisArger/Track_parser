@@ -6,6 +6,7 @@ import {
   getDownloadingTracks,
   getDownloadedTracks,
 } from "@/lib/utils/trackFilters";
+import { downloadTrackAction } from "@/lib/actions/trackActions";
 
 interface DownloadTrackProps {
   onTracksUpdate: () => void;
@@ -33,23 +34,8 @@ export default function DownloadTrack({
     setError("");
 
     try {
-      const response = await fetch("/api/download", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          url,
-          source: source === "auto" ? undefined : source,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Download failed");
-      }
-
-      const result = await response.json();
+      const sourceParam = source === "auto" ? undefined : source;
+      const result = await downloadTrackAction(url, sourceParam);
       console.log("Download successful:", result);
 
       // Clear form

@@ -91,28 +91,11 @@ export default function TrackPlayer({
     setIsAccepting(true);
 
     try {
-      const response = await fetch("/api/process-track", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          trackId: currentTrack.id,
-          metadata: currentTrack.metadata,
-        }),
-      });
-
-      console.log("Process track response status:", response.status);
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error("Process track error data:", errorData);
-        throw new Error(
-          `Failed to process track: ${errorData.error || response.statusText}`
-        );
-      }
-
-      const result = await response.json();
+      const { processTrackAction } = await import("@/lib/actions/trackActions");
+      const result = await processTrackAction(
+        currentTrack.id,
+        currentTrack.metadata
+      );
       console.log("Process track success:", result);
 
       onTracksUpdate();
@@ -137,26 +120,9 @@ export default function TrackPlayer({
     setIsRejecting(true);
 
     try {
-      const response = await fetch("/api/reject-track", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ trackId: currentTrack.id }),
-      });
-
-      console.log("Reject track response status:", response.status);
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error("Reject track error data:", errorData);
-        throw new Error(
-          `Failed to reject track: ${errorData.error || response.statusText}`
-        );
-      }
-
-      const result = await response.json();
-      console.log("Reject track success:", result);
+      const { rejectTrackAction } = await import("@/lib/actions/trackActions");
+      await rejectTrackAction(currentTrack.id);
+      console.log("Reject track success");
 
       onTracksUpdate();
       setCurrentTrack(null);

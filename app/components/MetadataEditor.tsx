@@ -50,23 +50,10 @@ export default function MetadataEditor({
     setIsSaving(true);
 
     try {
-      const response = await fetch("/api/update-metadata", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          trackId: selectedTrack.id,
-          metadata,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to update metadata");
-      }
-
-      const result = await response.json();
+      const { updateMetadataAction } = await import(
+        "@/lib/actions/trackActions"
+      );
+      const result = await updateMetadataAction(selectedTrack.id, metadata);
       console.log("Metadata updated successfully:", result);
 
       onTracksUpdate();

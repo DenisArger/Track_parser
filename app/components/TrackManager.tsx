@@ -18,14 +18,12 @@ export default function TrackManager() {
   const loadStats = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch("/api/cleanup-tracks");
-      if (response.ok) {
-        const data = await response.json();
-        setStats(data.stats);
-        setMessage("Статистика загружена");
-      } else {
-        setMessage("Ошибка загрузки статистики");
-      }
+      const { getTrackStatsAction } = await import(
+        "@/lib/actions/trackActions"
+      );
+      const statsData = await getTrackStatsAction();
+      setStats(statsData);
+      setMessage("Статистика загружена");
     } catch (error) {
       setMessage("Ошибка загрузки статистики");
     } finally {
@@ -36,17 +34,12 @@ export default function TrackManager() {
   const cleanupTracks = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch("/api/cleanup-tracks", {
-        method: "POST",
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setStats(data.statsAfter);
-        setMessage("Статусы треков очищены успешно");
-      } else {
-        setMessage("Ошибка очистки статусов");
-      }
+      const { cleanupTracksAction } = await import(
+        "@/lib/actions/trackActions"
+      );
+      const data = await cleanupTracksAction();
+      setStats(data.statsAfter);
+      setMessage("Статусы треков очищены успешно");
     } catch (error) {
       setMessage("Ошибка очистки статусов");
     } finally {

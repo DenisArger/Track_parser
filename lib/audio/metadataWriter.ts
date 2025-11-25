@@ -20,5 +20,9 @@ export async function writeTrackTags(
     },
   };
 
-  return NodeID3.write(tags, filePath);
+  const result = NodeID3.write(tags, filePath);
+  if (result instanceof Error) {
+    throw result;
+  }
+  return result;
 }

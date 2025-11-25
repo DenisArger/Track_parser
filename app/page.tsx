@@ -8,6 +8,7 @@ import FtpUploader from "./components/FtpUploader";
 import TrackStatusBadge from "./components/shared/TrackStatusBadge";
 import TrackManager from "./components/TrackManager";
 import { Track } from "@/types/track";
+import { getAllTracks } from "@/lib/actions/trackActions";
 
 export default function HomePage() {
   const [tracks, setTracks] = useState<Track[]>([]);
@@ -20,11 +21,8 @@ export default function HomePage() {
 
   const fetchTracks = async () => {
     try {
-      const response = await fetch("/api/tracks");
-      if (response.ok) {
-        const tracksData = await response.json();
-        setTracks(tracksData);
-      }
+      const tracksData = await getAllTracks();
+      setTracks(tracksData);
     } catch (error) {
       console.error("Error fetching tracks:", error);
     }

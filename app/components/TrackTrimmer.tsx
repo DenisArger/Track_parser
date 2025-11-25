@@ -60,23 +60,8 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
     };
 
     try {
-      const response = await fetch("/api/trim-track", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          trackId: track.id,
-          trimSettings,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to trim track");
-      }
-
-      const result = await response.json();
+      const { trimTrackAction } = await import("@/lib/actions/trackActions");
+      const result = await trimTrackAction(track.id, trimSettings);
       console.log("Track trimmed successfully:", result);
 
       // Закрываем окно обрезки
@@ -101,23 +86,10 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
         ...(useEndTime && endTime ? { endTime } : { maxDuration }),
       };
 
-      const response = await fetch("/api/preview-trim", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          trackId: track.id,
-          trimSettings,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to create preview");
-      }
-
-      const result = await response.json();
+      const { createPreviewAction } = await import(
+        "@/lib/actions/trackActions"
+      );
+      const result = await createPreviewAction(track.id, trimSettings);
       setPreviewId(result.previewId);
       console.log("Preview created:", result.previewId);
     } catch (error) {
@@ -184,23 +156,10 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
           ...(useEndTime && endTime ? { endTime } : { maxDuration }),
         };
 
-        const response = await fetch("/api/preview-trim", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            trackId: track.id,
-            trimSettings,
-          }),
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || "Failed to update preview");
-        }
-
-        const result = await response.json();
+        const { createPreviewAction } = await import(
+          "@/lib/actions/trackActions"
+        );
+        const result = await createPreviewAction(track.id, trimSettings);
         setPreviewId(result.previewId);
         setPreviewCurrentTime(0);
         setIsPreviewPlaying(false);
