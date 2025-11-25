@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { getTrack } from "@/lib/processTracks";
 import { setTrack, saveTracksToFile } from "@/lib/storage/trackStorage";
+import { writeTrackTags } from "@/lib/audio/metadataWriter";
 import { TrackMetadata } from "@/types/track";
 import {
   handleApiError,
@@ -23,8 +24,21 @@ export async function POST(request: NextRequest) {
       return handleNotFoundError("Track not found");
     }
 
+    console.log("Updating metadata for track:", track.filename);
+
     // Update track metadata
     Object.assign(track.metadata, metadata);
+
+    // Write metadata to audio file if processed path exists
+    if (track.processedPath) {
+      try {
+        await writeTrackTags(track.processedPath, track.metadata);
+        console.log("Metadata written to audio file:", track.processedPath);
+      } catch (error) {
+        console.error("Error writing metadata to audio file:", error);
+        // Continue execution even if writing to audio file fails
+      }
+    }
 
     // Save track to storage and file
     setTrack(trackId, track);

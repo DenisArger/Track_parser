@@ -7,6 +7,8 @@ export interface TrackMetadata {
   year: number;
   duration?: number;
   bpm?: number;
+  isTrimmed?: boolean;
+  trimSettings?: TrimSettings;
 }
 
 export type TrackType = "Быстрый" | "Средний" | "Медленный";
@@ -29,6 +31,7 @@ export type TrackStatus =
   | "downloaded"
   | "processing"
   | "processed"
+  | "trimmed"
   | "rejected"
   | "uploading"
   | "uploaded"
@@ -72,12 +75,21 @@ export interface AppConfig {
 
 export interface DownloadRequest {
   url: string;
-  source: "youtube" | "yandex";
+  source?: "youtube" | "youtube-music" | "yandex";
 }
 
 export interface ProcessingRequest {
   trackId: string;
   metadata: Partial<TrackMetadata>;
+  trimSettings?: TrimSettings;
+}
+
+export interface TrimSettings {
+  startTime: number; // время начала в секундах
+  endTime?: number; // время окончания в секундах (опционально)
+  fadeIn: number; // длительность затухания в начале в секундах
+  fadeOut: number; // длительность затухания в конце в секундах
+  maxDuration?: number; // максимальная длительность (если не указан endTime)
 }
 
 export interface UploadRequest {

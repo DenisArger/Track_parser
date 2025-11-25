@@ -8,6 +8,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { trackId } = body;
 
+    console.log("Rejecting track request:", { trackId });
+
     if (!trackId) {
       return handleValidationError("Track ID is required");
     }

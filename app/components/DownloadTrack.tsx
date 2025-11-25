@@ -17,7 +17,9 @@ export default function DownloadTrack({
   tracks,
 }: DownloadTrackProps) {
   const [url, setUrl] = useState("");
-  const [source, setSource] = useState<"youtube" | "yandex">("youtube");
+  const [source, setSource] = useState<
+    "youtube" | "youtube-music" | "yandex" | "auto"
+  >("auto");
   const [isDownloading, setIsDownloading] = useState(false);
   const [error, setError] = useState("");
 
@@ -36,7 +38,10 @@ export default function DownloadTrack({
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ url, source }),
+        body: JSON.stringify({
+          url,
+          source: source === "auto" ? undefined : source,
+        }),
       });
 
       if (!response.ok) {
@@ -63,7 +68,9 @@ export default function DownloadTrack({
   };
 
   const handleSourceChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setSource(e.target.value as "youtube" | "yandex");
+    setSource(
+      e.target.value as "youtube" | "youtube-music" | "yandex" | "auto"
+    );
   };
 
   return (
@@ -71,8 +78,8 @@ export default function DownloadTrack({
       <div>
         <h2 className="text-xl font-semibold mb-4">Download Tracks</h2>
         <p className="text-gray-600 mb-6">
-          Enter a URL from YouTube or Yandex Music to download tracks for
-          processing.
+          Enter a URL from YouTube, YouTube Music, or Yandex Music to download
+          tracks for processing.
         </p>
       </div>
 
@@ -91,7 +98,9 @@ export default function DownloadTrack({
             onChange={handleSourceChange}
             className="input"
           >
+            <option value="auto">Auto-detect</option>
             <option value="youtube">YouTube</option>
+            <option value="youtube-music">YouTube Music</option>
             <option value="yandex">Yandex Music</option>
           </select>
         </div>
@@ -110,7 +119,13 @@ export default function DownloadTrack({
             value={url}
             onChange={handleUrlChange}
             placeholder={`Enter ${
-              source === "youtube" ? "YouTube" : "Yandex Music"
+              source === "auto"
+                ? "YouTube, YouTube Music, or Yandex Music"
+                : source === "youtube"
+                ? "YouTube"
+                : source === "youtube-music"
+                ? "YouTube Music"
+                : "Yandex Music"
             } URL`}
             className="input"
             disabled={isDownloading}
@@ -187,9 +202,29 @@ export default function DownloadTrack({
                     <p className="text-sm text-gray-600">
                       {track.metadata.artist}
                     </p>
+                    {track.metadata.isTrimmed && (
+                      <div className="flex items-center space-x-1 mt-1">
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          <svg
+                            className="w-2.5 h-2.5 mr-1"
+                            fill="currentColor"
+                            viewBox="0 0 20 20"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                          Обрезан
+                        </span>
+                      </div>
+                    )}
                   </div>
                   <span className="text-sm text-green-600 font-medium">
-                    Ready for processing
+                    {track.metadata.isTrimmed
+                      ? "Обработан"
+                      : "Ready for processing"}
                   </span>
                 </div>
               ))}
