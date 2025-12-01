@@ -4,6 +4,10 @@ import { Track } from "@/types/track";
 const TRACKS_FILE = "tracks.json";
 const tracks = new Map<string, Track>();
 
+// Flag to track if tracks have been loaded from file
+let isInitialized = false;
+let initializationPromise: Promise<void> | null = null;
+
 /**
  * Генерирует уникальный ID для трека
  */
@@ -23,9 +27,27 @@ export async function loadTracksFromFile(): Promise<void> {
         tracks.set(track.id, track);
       });
     }
+    isInitialized = true;
   } catch (error) {
     console.error("Error loading tracks from file:", error);
+    // Continue with empty storage if file doesn't exist or can't be read
+    isInitialized = true;
   }
+}
+
+/**
+ * Ensures tracks are loaded from file (lazy initialization)
+ */
+async function ensureInitialized(): Promise<void> {
+  if (isInitialized) {
+    return;
+  }
+
+  if (!initializationPromise) {
+    initializationPromise = loadTracksFromFile();
+  }
+
+  await initializationPromise;
 }
 
 /**
@@ -44,7 +66,7 @@ export async function saveTracksToFile(): Promise<void> {
  * Получает все треки
  */
 export async function getAllTracks(): Promise<Track[]> {
-  await loadTracksFromFile();
+  await ensureInitialized();
   return Array.from(tracks.values());
 }
 
@@ -52,7 +74,7 @@ export async function getAllTracks(): Promise<Track[]> {
  * Получает трек по ID
  */
 export async function getTrack(trackId: string): Promise<Track | undefined> {
-  await loadTracksFromFile();
+  await ensureInitialized();
   return tracks.get(trackId);
 }
 
@@ -69,6 +91,3 @@ export function setTrack(trackId: string, track: Track): void {
 export function getTrackFromMemory(trackId: string): Track | undefined {
   return tracks.get(trackId);
 }
-
-// Инициализация при загрузке модуля
-loadTracksFromFile();
