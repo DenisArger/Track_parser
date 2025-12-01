@@ -1,7 +1,9 @@
 import fs from "fs-extra";
+import path from "path";
 import { Track } from "@/types/track";
 
-const TRACKS_FILE = "tracks.json";
+// Use absolute path to avoid issues in production
+const TRACKS_FILE = path.join(process.cwd(), "tracks.json");
 const tracks = new Map<string, Track>();
 
 // Flag to track if tracks have been loaded from file
@@ -37,6 +39,7 @@ export async function loadTracksFromFile(): Promise<void> {
 
 /**
  * Ensures tracks are loaded from file (lazy initialization)
+ * Safe for production - never throws errors
  */
 async function ensureInitialized(): Promise<void> {
   if (isInitialized) {
@@ -44,10 +47,22 @@ async function ensureInitialized(): Promise<void> {
   }
 
   if (!initializationPromise) {
-    initializationPromise = loadTracksFromFile();
+    initializationPromise = loadTracksFromFile().catch((error) => {
+      // Ensure we mark as initialized even if loading fails
+      console.error("Failed to initialize tracks storage:", error);
+      isInitialized = true;
+      // Return void to satisfy Promise<void>
+      return;
+    });
   }
 
-  await initializationPromise;
+  try {
+    await initializationPromise;
+  } catch (error) {
+    // This should not happen due to catch above, but just in case
+    console.error("Error in ensureInitialized:", error);
+    isInitialized = true;
+  }
 }
 
 /**
