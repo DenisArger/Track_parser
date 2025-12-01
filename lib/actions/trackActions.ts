@@ -51,16 +51,16 @@ function detectSourceFromUrl(
 
 /**
  * Получить все треки
+ * Safe for production - returns empty array on error instead of throwing
  */
 export async function getAllTracks(): Promise<Track[]> {
   try {
     return await getAllTracksFromLib();
   } catch (error) {
-    throw new Error(
-      `Failed to fetch tracks: ${
-        error instanceof Error ? error.message : String(error)
-      }`
-    );
+    // Log error but don't throw in production to avoid Server Component errors
+    console.error("Error fetching tracks:", error);
+    // Return empty array instead of throwing to prevent Server Component render errors
+    return [];
   }
 }
 

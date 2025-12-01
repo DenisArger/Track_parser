@@ -2,8 +2,18 @@ import fs from "fs-extra";
 import path from "path";
 import { Track } from "@/types/track";
 
-// Use absolute path to avoid issues in production
-const TRACKS_FILE = path.join(process.cwd(), "tracks.json");
+// Lazy evaluation of tracks file path to avoid issues in production
+// Compute path when needed, not at module import time
+function getTracksFilePath(): string {
+  try {
+    return path.join(process.cwd(), "tracks.json");
+  } catch (error) {
+    // Fallback to relative path if process.cwd() fails
+    console.warn("Error getting cwd, using relative path:", error);
+    return "tracks.json";
+  }
+}
+
 const tracks = new Map<string, Track>();
 
 // Flag to track if tracks have been loaded from file
@@ -22,12 +32,17 @@ export function generateTrackId(): string {
  */
 export async function loadTracksFromFile(): Promise<void> {
   try {
-    if (await fs.pathExists(TRACKS_FILE)) {
-      const tracksData = await fs.readJson(TRACKS_FILE);
+    const tracksFile = getTracksFilePath();
+    if (await fs.pathExists(tracksFile)) {
+      const tracksData = await fs.readJson(tracksFile);
       tracks.clear();
-      tracksData.forEach((track: Track) => {
-        tracks.set(track.id, track);
-      });
+      if (Array.isArray(tracksData)) {
+        tracksData.forEach((track: Track) => {
+          if (track && track.id) {
+            tracks.set(track.id, track);
+          }
+        });
+      }
     }
     isInitialized = true;
   } catch (error) {
@@ -70,10 +85,12 @@ async function ensureInitialized(): Promise<void> {
  */
 export async function saveTracksToFile(): Promise<void> {
   try {
+    const tracksFile = getTracksFilePath();
     const tracksArray = Array.from(tracks.values());
-    await fs.writeJson(TRACKS_FILE, tracksArray, { spaces: 2 });
+    await fs.writeJson(tracksFile, tracksArray, { spaces: 2 });
   } catch (error) {
     console.error("Error saving tracks to file:", error);
+    // Don't throw - this is a non-critical operation
   }
 }
 
