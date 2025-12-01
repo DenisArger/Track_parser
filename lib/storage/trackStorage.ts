@@ -1,12 +1,18 @@
 import fs from "fs-extra";
 import path from "path";
 import { Track } from "@/types/track";
+import {
+  isServerlessEnvironment,
+  getSafeWorkingDirectory,
+  isFileSystemWritable,
+} from "@/lib/utils/environment";
 
 // Lazy evaluation of tracks file path to avoid issues in production
 // Compute path when needed, not at module import time
 function getTracksFilePath(): string {
   try {
-    return path.join(process.cwd(), "tracks.json");
+    const workingDir = getSafeWorkingDirectory();
+    return path.join(workingDir, "tracks.json");
   } catch (error) {
     // Fallback to relative path if process.cwd() fails
     console.warn("Error getting cwd, using relative path:", error);
@@ -84,6 +90,18 @@ async function ensureInitialized(): Promise<void> {
  * Сохраняет треки в файл
  */
 export async function saveTracksToFile(): Promise<void> {
+  // In serverless environments, file system might be read-only
+  // We skip saving to file and rely on in-memory storage
+  if (isServerlessEnvironment()) {
+    const isWritable = await isFileSystemWritable();
+    if (!isWritable) {
+      console.warn(
+        "File system is not writable in serverless environment, skipping save"
+      );
+      return;
+    }
+  }
+
   try {
     const tracksFile = getTracksFilePath();
     const tracksArray = Array.from(tracks.values());
@@ -91,6 +109,7 @@ export async function saveTracksToFile(): Promise<void> {
   } catch (error) {
     console.error("Error saving tracks to file:", error);
     // Don't throw - this is a non-critical operation
+    // In serverless, we continue with in-memory storage
   }
 }
 
