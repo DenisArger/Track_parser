@@ -7,13 +7,18 @@ import {
 
 // Загружаем переменные окружения (Next.js автоматически загружает .env, но для серверной части используем dotenv)
 // Safe for production - dotenv.config() is safe to call multiple times
+// Wrapped in try-catch to prevent any errors during module import
 if (typeof window === "undefined") {
   try {
-    require("dotenv").config();
+    // Use dynamic require to avoid issues if dotenv is not available
+    const dotenv = require("dotenv");
+    if (dotenv && typeof dotenv.config === "function") {
+      dotenv.config();
+    }
   } catch (error) {
     // dotenv is optional - Next.js handles .env files automatically
     // This is just a fallback for server-side code
-    console.log("dotenv not available or .env file not found (this is OK)");
+    // Silently ignore - this is expected in many environments
   }
 }
 

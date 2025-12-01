@@ -8,14 +8,13 @@ import {
   setTrack,
   saveTracksToFile,
 } from "./storage/trackStorage";
-import { downloadTrackViaRapidAPI } from "./download/youtubeDownloader";
-import { downloadTrackViaYtDlp as downloadYandexTrackViaYtDlp } from "./download/yandexDownloader";
+// Dynamic imports for modules that use spawn/exec to avoid issues in serverless
+// These modules are only imported when needed, not at module load time
 import { detectBpm } from "./audio/bpmDetector";
 import { writeTrackTags } from "./audio/metadataWriter";
 import { uploadToFtp as uploadFileToFtp } from "./upload/ftpUploader";
-import { findFfmpegPath } from "./utils/ffmpegFinder";
+import { isServerlessEnvironment } from "./utils/environment";
 import fs from "fs-extra";
-import { spawn } from "child_process";
 
 /**
  * Автоматическое определение типа источника по URL
@@ -45,6 +44,18 @@ export async function downloadTrackViaYtDlp(
   url: string,
   outputDir: string
 ): Promise<{ filePath: string; title: string }> {
+  // In serverless, spawn may not work - reject early with helpful message
+  if (isServerlessEnvironment()) {
+    throw new Error(
+      "Downloading tracks via yt-dlp is not supported in serverless environment (Netlify). " +
+        "This feature requires local file system access and process execution."
+    );
+  }
+
+  // Dynamic import to avoid loading spawn at module import time
+  const { spawn } = await import("child_process");
+  const { findFfmpegPath } = await import("./utils/ffmpegFinder");
+
   await fs.ensureDir(outputDir);
 
   // Очищаем старые файлы перед скачиванием нового
@@ -191,6 +202,10 @@ export async function downloadTrack(
 
   if (source === "youtube") {
     try {
+      // Dynamic import to avoid loading at module import time
+      const { downloadTrackViaRapidAPI } = await import(
+        "./download/youtubeDownloader"
+      );
       const result = await downloadTrackViaRapidAPI(
         url,
         config.folders.downloads
@@ -212,6 +227,9 @@ export async function downloadTrack(
   } else if (source === "yandex") {
     // Для Яндекс.Музыки используем yt-dlp
     try {
+      // Dynamic import to avoid loading at module import time
+      const { downloadTrackViaYtDlp: downloadYandexTrackViaYtDlp } =
+        await import("./download/yandexDownloader");
       const result = await downloadYandexTrackViaYtDlp(
         url,
         config.folders.downloads

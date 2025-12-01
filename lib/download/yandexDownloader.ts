@@ -1,7 +1,6 @@
 import fs from "fs-extra";
 import path from "path";
-import { spawn } from "child_process";
-import { findFfmpegPath } from "@/lib/utils/ffmpegFinder";
+import { isServerlessEnvironment } from "@/lib/utils/environment";
 
 /**
  * Извлекает ID трека из URL Яндекс.Музыки
@@ -65,6 +64,18 @@ export async function downloadTrackViaYtDlp(
   } catch (error) {
     console.log("Error cleaning old files:", error);
   }
+
+  // In serverless, spawn may not work - reject early with helpful message
+  if (isServerlessEnvironment()) {
+    throw new Error(
+      "Downloading tracks from Yandex Music via yt-dlp is not supported in serverless environment (Netlify). " +
+        "This feature requires local file system access and process execution."
+    );
+  }
+
+  // Dynamic import to avoid loading spawn at module import time
+  const { spawn } = await import("child_process");
+  const { findFfmpegPath } = await import("@/lib/utils/ffmpegFinder");
 
   return new Promise(async (resolve, reject) => {
     try {

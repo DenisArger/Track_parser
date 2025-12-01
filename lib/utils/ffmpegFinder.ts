@@ -1,9 +1,18 @@
-import { exec } from "child_process";
-import { promisify } from "util";
 import path from "path";
 import fs from "fs-extra";
 
-const execAsync = promisify(exec);
+// Lazy initialization of exec to avoid issues in serverless
+// Don't create execAsync at module level - create it when needed
+function getExecAsync() {
+  try {
+    const { exec } = require("child_process");
+    const { promisify } = require("util");
+    return promisify(exec);
+  } catch (error) {
+    // exec may not be available in serverless
+    return null;
+  }
+}
 
 /**
  * Finds FFmpeg executable path
@@ -16,10 +25,24 @@ const execAsync = promisify(exec);
  * It gracefully handles all failures and returns null if FFmpeg is not found.
  */
 export async function findFfmpegPath(): Promise<string | null> {
+  // In serverless environments, exec/spawn may not be available
+  // Skip FFmpeg search in serverless to avoid errors
+  const { isServerlessEnvironment } = await import("./environment");
+  if (isServerlessEnvironment()) {
+    console.log("Skipping FFmpeg search in serverless environment");
+    return null;
+  }
+
   // Wrap everything in try-catch to ensure it never throws in production
   try {
     // Try to find ffmpeg in PATH
     try {
+      const execAsync = getExecAsync();
+      if (!execAsync) {
+        // exec not available, skip PATH check
+        throw new Error("exec not available");
+      }
+
       const command =
         process.platform === "win32" ? "where ffmpeg" : "which ffmpeg";
       const { stdout } = await execAsync(command, { timeout: 5000 });
@@ -87,6 +110,12 @@ export async function findFfmpegPath(): Promise<string | null> {
 
     // Check if ffmpeg is available via which/where (alternative method)
     try {
+      const execAsync = getExecAsync();
+      if (!execAsync) {
+        // exec not available, skip
+        throw new Error("exec not available");
+      }
+
       const command =
         process.platform === "win32" ? "where ffmpeg.exe" : "which ffmpeg";
       const { stdout } = await execAsync(command, { timeout: 5000 });

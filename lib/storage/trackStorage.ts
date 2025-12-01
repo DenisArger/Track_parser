@@ -68,13 +68,18 @@ async function ensureInitialized(): Promise<void> {
   }
 
   if (!initializationPromise) {
-    initializationPromise = loadTracksFromFile().catch((error) => {
-      // Ensure we mark as initialized even if loading fails
-      console.error("Failed to initialize tracks storage:", error);
-      isInitialized = true;
-      // Return void to satisfy Promise<void>
-      return;
-    });
+    initializationPromise = (async () => {
+      try {
+        await loadTracksFromFile();
+      } catch (error) {
+        // Ensure we mark as initialized even if loading fails
+        console.error("Failed to initialize tracks storage:", error);
+        // Continue with empty storage - this is not an error condition
+      } finally {
+        // Always mark as initialized, even if loading failed
+        isInitialized = true;
+      }
+    })();
   }
 
   try {
