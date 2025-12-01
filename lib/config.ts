@@ -46,12 +46,12 @@ export async function loadConfig(): Promise<AppConfig> {
   try {
     // Загружаем базовую конфигурацию
     const configPath = path.join(process.cwd(), "config.json");
-    
+
     // Check if config file exists
     if (!(await fs.pathExists(configPath))) {
       throw new Error(`Config file not found at ${configPath}`);
     }
-    
+
     const config = await fs.readJson(configPath);
 
     // Обновляем конфигурацию из переменных окружения
@@ -68,19 +68,19 @@ export async function loadConfig(): Promise<AppConfig> {
     } catch (error) {
       console.warn("Error creating downloads directory:", error);
     }
-    
+
     try {
       await fs.ensureDir(config.folders.processed);
     } catch (error) {
       console.warn("Error creating processed directory:", error);
     }
-    
+
     try {
       await fs.ensureDir(config.folders.rejected);
     } catch (error) {
       console.warn("Error creating rejected directory:", error);
     }
-    
+
     try {
       await fs.ensureDir(config.folders.server_upload);
     } catch (error) {
@@ -91,7 +91,9 @@ export async function loadConfig(): Promise<AppConfig> {
   } catch (error) {
     console.error("Error loading config:", error);
     throw new Error(
-      `Failed to load configuration: ${error instanceof Error ? error.message : String(error)}`
+      `Failed to load configuration: ${
+        error instanceof Error ? error.message : String(error)
+      }`
     );
   }
 }
