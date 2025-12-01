@@ -93,18 +93,33 @@ export async function loadConfig(): Promise<AppConfig> {
     const configPath = path.join(workingDir, "config.json");
 
     // Check if config file exists
-    if (!(await fs.pathExists(configPath))) {
-      // In serverless, try to load from environment variables or use defaults
-      if (isServerlessEnvironment()) {
-        console.warn(
-          "Config file not found in serverless environment, using defaults from env"
-        );
-        return getDefaultConfig();
-      }
-      throw new Error(`Config file not found at ${configPath}`);
+    let configExists = false;
+    try {
+      configExists = await fs.pathExists(configPath);
+    } catch (error) {
+      // If we can't check file existence, assume it doesn't exist
+      console.warn("Error checking config file existence:", error);
+      configExists = false;
     }
 
-    const config = await fs.readJson(configPath);
+    if (!configExists) {
+      // In serverless or if file doesn't exist, use defaults
+      console.warn(
+        `Config file not found at ${configPath}, using defaults${
+          isServerlessEnvironment() ? " (serverless)" : ""
+        }`
+      );
+      return getDefaultConfig();
+    }
+
+    let config: AppConfig;
+    try {
+      config = await fs.readJson(configPath);
+    } catch (error) {
+      // If we can't read config file, use defaults
+      console.warn("Error reading config file, using defaults:", error);
+      return getDefaultConfig();
+    }
 
     // Обновляем конфигурацию из переменных окружения
     if (process.env.RAPIDAPI_KEY) {
@@ -146,12 +161,9 @@ export async function loadConfig(): Promise<AppConfig> {
 
     return config;
   } catch (error) {
-    console.error("Error loading config:", error);
-    throw new Error(
-      `Failed to load configuration: ${
-        error instanceof Error ? error.message : String(error)
-      }`
-    );
+    // Never throw - always return default config to prevent Server Component errors
+    console.error("Error loading config, using defaults:", error);
+    return getDefaultConfig();
   }
 }
 

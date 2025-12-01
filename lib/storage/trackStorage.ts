@@ -115,10 +115,17 @@ export async function saveTracksToFile(): Promise<void> {
 
 /**
  * Получает все треки
+ * Safe for production - never throws errors
  */
 export async function getAllTracks(): Promise<Track[]> {
-  await ensureInitialized();
-  return Array.from(tracks.values());
+  try {
+    await ensureInitialized();
+    return Array.from(tracks.values());
+  } catch (error) {
+    // Never throw - return empty array to prevent Server Component errors
+    console.error("Error in getAllTracks (storage):", error);
+    return [];
+  }
 }
 
 /**

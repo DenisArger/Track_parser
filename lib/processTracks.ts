@@ -252,9 +252,16 @@ export async function downloadTrack(
 
 /**
  * Получить все треки
+ * Safe for production - never throws errors
  */
 export async function getAllTracks(): Promise<Track[]> {
-  return getAllTracksFromStorage();
+  try {
+    return await getAllTracksFromStorage();
+  } catch (error) {
+    // Never throw - return empty array to prevent Server Component errors
+    console.error("Error in getAllTracks:", error);
+    return [];
+  }
 }
 
 /**
