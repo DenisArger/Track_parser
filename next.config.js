@@ -4,19 +4,24 @@ const nextConfig = {
   // These packages will be loaded using native require() at runtime
   serverExternalPackages: ["fluent-ffmpeg"],
 
-  // Explicit Turbopack configuration
-  // Empty object indicates we're using Turbopack without custom rules
-  turbopack: {},
+  // Output configuration for Netlify
+  output: "standalone",
 
   // Ensure config.json is included in build
   webpack: (config, { isServer }) => {
     if (isServer) {
-      // Copy config.json to output directory
-      config.resolve.alias = {
-        ...config.resolve.alias,
-      };
+      // Exclude binary files from server bundle (not needed in serverless)
+      config.externals = config.externals || [];
+      config.externals.push({
+        "child_process": "commonjs child_process",
+      });
     }
     return config;
+  },
+
+  // Experimental features for better serverless support
+  experimental: {
+    serverComponentsExternalPackages: ["fluent-ffmpeg"],
   },
 };
 

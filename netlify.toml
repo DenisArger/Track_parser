@@ -7,4 +7,12 @@
 
 [build.environment]
   NODE_VERSION = "20"
+  # Set NETLIFY=true to enable serverless environment detection
+  NETLIFY = "true"
+
+# Functions configuration
+[functions]
+  # Maximum execution time for functions (in seconds)
+  # Default is 10s, max is 26s for free tier, 60s for pro
+  node_bundler = "esbuild"
 

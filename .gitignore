@@ -112,3 +112,10 @@ jspm_packages/
 
 # TernJS port file
 .tern-port 
+
+# Local Netlify folder
+.netlify
+
+# Binary files (not needed in serverless deployment)
+bin/
+*.exe
