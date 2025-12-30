@@ -26,8 +26,9 @@ import {
   ProcessingRequest,
   UploadRequest,
 } from "@/types/track";
-import fs from "fs-extra";
-import path from "path";
+// Dynamic imports to avoid issues during static generation
+// import fs from "fs-extra";
+// import path from "path";
 
 /**
  * Автоматическое определение типа источника по URL
@@ -244,6 +245,10 @@ export async function createPreviewAction(
   trimSettings: TrimSettings
 ): Promise<{ previewId: string }> {
   try {
+    // Dynamic imports to avoid issues during static generation
+    const fs = await import("fs-extra");
+    const path = await import("path");
+
     if (!trackId) {
       throw new Error("Track ID is required");
     }
