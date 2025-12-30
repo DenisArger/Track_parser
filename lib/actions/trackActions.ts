@@ -54,44 +54,67 @@ function detectSourceFromUrl(
  * Получить все треки
  * Safe for production - returns empty array on error instead of throwing
  * Ensures data is serializable for Server Components
+ * Handles static generation and serverless environments
  */
 export async function getAllTracks(): Promise<Track[]> {
   try {
+    // Check if we're in a build-time environment
+    // During static generation, return empty array immediately
+    if (typeof process !== "undefined") {
+      const isBuildTime =
+        process.env.NEXT_PHASE === "phase-production-build" ||
+        (process.env.NODE_ENV === "production" &&
+          (process.env.NETLIFY === "true" || process.env.VERCEL === "1") &&
+          !process.env.NETLIFY_DEV &&
+          !process.env.VERCEL_ENV);
+      
+      if (isBuildTime) {
+        console.log("Build time detected, returning empty tracks array");
+        return [];
+      }
+    }
+    
     const tracks = await getAllTracksFromLib();
     
     // Ensure all tracks are serializable (remove any non-serializable properties)
     return tracks.map((track) => {
       // Create a clean, serializable copy of the track
       return {
-        id: track.id,
-        filename: track.filename,
-        originalPath: track.originalPath,
-        processedPath: track.processedPath,
+        id: String(track.id || ""),
+        filename: String(track.filename || ""),
+        originalPath: String(track.originalPath || ""),
+        processedPath: track.processedPath ? String(track.processedPath) : undefined,
         metadata: {
-          title: track.metadata.title || "",
-          artist: track.metadata.artist || "",
-          album: track.metadata.album || "",
-          genre: track.metadata.genre || "Средний",
-          rating: track.metadata.rating || 0,
-          year: track.metadata.year || 0,
-          duration: track.metadata.duration,
-          bpm: track.metadata.bpm,
-          isTrimmed: track.metadata.isTrimmed,
-          trimSettings: track.metadata.trimSettings
+          title: String(track.metadata?.title || ""),
+          artist: String(track.metadata?.artist || ""),
+          album: String(track.metadata?.album || ""),
+          genre: (track.metadata?.genre || "Средний") as Track["metadata"]["genre"],
+          rating: Number(track.metadata?.rating || 0),
+          year: Number(track.metadata?.year || 0),
+          duration: track.metadata?.duration ? Number(track.metadata.duration) : undefined,
+          bpm: track.metadata?.bpm ? Number(track.metadata.bpm) : undefined,
+          isTrimmed: Boolean(track.metadata?.isTrimmed),
+          trimSettings: track.metadata?.trimSettings
             ? {
-                startTime: track.metadata.trimSettings.startTime || 0,
-                endTime: track.metadata.trimSettings.endTime,
-                fadeIn: track.metadata.trimSettings.fadeIn || 0,
-                fadeOut: track.metadata.trimSettings.fadeOut || 0,
-                maxDuration: track.metadata.trimSettings.maxDuration,
+                startTime: Number(track.metadata.trimSettings.startTime || 0),
+                endTime: track.metadata.trimSettings.endTime
+                  ? Number(track.metadata.trimSettings.endTime)
+                  : undefined,
+                fadeIn: Number(track.metadata.trimSettings.fadeIn || 0),
+                fadeOut: Number(track.metadata.trimSettings.fadeOut || 0),
+                maxDuration: track.metadata.trimSettings.maxDuration
+                  ? Number(track.metadata.trimSettings.maxDuration)
+                  : undefined,
               }
             : undefined,
         },
-        status: track.status,
-        downloadProgress: track.downloadProgress,
-        processingProgress: track.processingProgress,
-        uploadProgress: track.uploadProgress,
-        error: track.error,
+        status: String(track.status || "downloaded") as Track["status"],
+        downloadProgress: track.downloadProgress ? Number(track.downloadProgress) : undefined,
+        processingProgress: track.processingProgress
+          ? Number(track.processingProgress)
+          : undefined,
+        uploadProgress: track.uploadProgress ? Number(track.uploadProgress) : undefined,
+        error: track.error ? String(track.error) : undefined,
       };
     });
   } catch (error) {

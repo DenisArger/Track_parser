@@ -33,17 +33,30 @@ export function isServerlessEnvironment(): boolean {
 /**
  * Gets a safe working directory for file operations
  * In serverless, we might need to use /tmp or a different location
+ * Safe for static generation - returns /tmp if process.cwd() is not available
  */
 export function getSafeWorkingDirectory(): string {
   try {
+    // Check if we're in a build-time environment
+    if (typeof process === 'undefined' || !process.cwd) {
+      return "/tmp";
+    }
+    
     // In serverless, /tmp is usually writable
     if (isServerlessEnvironment()) {
       const tmpDir = process.env.TMPDIR || process.env.TMP || "/tmp";
       return tmpDir;
     }
-    return process.cwd();
+    
+    // Try to get current working directory
+    try {
+      return process.cwd();
+    } catch (error) {
+      // If process.cwd() fails, use /tmp
+      return "/tmp";
+    }
   } catch (error) {
-    // Fallback to /tmp if process.cwd() fails
+    // Fallback to /tmp if everything fails
     return "/tmp";
   }
 }
