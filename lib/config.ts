@@ -105,13 +105,15 @@ export async function loadConfig(): Promise<AppConfig> {
     // Dynamic imports to avoid issues during static generation
     const fs = await import("fs-extra");
     const path = await import("path");
-    const {
-      isServerlessEnvironment,
-      getSafeWorkingDirectory,
-    } = await import("@/lib/utils/environment");
+    const { isServerlessEnvironment, getSafeWorkingDirectory } = await import(
+      "@/lib/utils/environment"
+    );
 
     // Check if we're in a build-time environment
-    if (typeof process !== "undefined" && process.env.NEXT_PHASE === "phase-production-build") {
+    if (
+      typeof process !== "undefined" &&
+      process.env.NEXT_PHASE === "phase-production-build"
+    ) {
       console.log("Build time detected, returning default config");
       return getDefaultConfig();
     }
@@ -216,10 +218,9 @@ export async function saveConfig(config: AppConfig): Promise<void> {
     // Dynamic imports to avoid issues during static generation
     const fs = await import("fs-extra");
     const path = await import("path");
-    const {
-      isServerlessEnvironment,
-      getSafeWorkingDirectory,
-    } = await import("@/lib/utils/environment");
+    const { isServerlessEnvironment, getSafeWorkingDirectory } = await import(
+      "@/lib/utils/environment"
+    );
 
     // In serverless, file system might be read-only, so we skip saving
     if (isServerlessEnvironment()) {
