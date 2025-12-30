@@ -1,14 +1,16 @@
-import fs from "fs-extra";
-import path from "path";
-import {
-  isServerlessEnvironment,
-  getSafeWorkingDirectory,
-} from "@/lib/utils/environment";
+// Dynamic imports to avoid issues during static generation
+// These modules are only imported when needed, not at module load time
+// import fs from "fs-extra";
+// import path from "path";
+// import {
+//   isServerlessEnvironment,
+//   getSafeWorkingDirectory,
+// } from "@/lib/utils/environment";
 
 // Загружаем переменные окружения (Next.js автоматически загружает .env, но для серверной части используем dotenv)
 // Safe for production - dotenv.config() is safe to call multiple times
 // Wrapped in try-catch to prevent any errors during module import
-if (typeof window === "undefined") {
+if (typeof window === "undefined" && typeof process !== "undefined") {
   try {
     // Use dynamic require to avoid issues if dotenv is not available
     const dotenv = require("dotenv");
@@ -100,6 +102,20 @@ function getDefaultConfig(): AppConfig {
 
 export async function loadConfig(): Promise<AppConfig> {
   try {
+    // Dynamic imports to avoid issues during static generation
+    const fs = await import("fs-extra");
+    const path = await import("path");
+    const {
+      isServerlessEnvironment,
+      getSafeWorkingDirectory,
+    } = await import("@/lib/utils/environment");
+
+    // Check if we're in a build-time environment
+    if (typeof process !== "undefined" && process.env.NEXT_PHASE === "phase-production-build") {
+      console.log("Build time detected, returning default config");
+      return getDefaultConfig();
+    }
+
     // Загружаем базовую конфигурацию
     // Use safe working directory for serverless environments
     const workingDir = getSafeWorkingDirectory();
@@ -196,13 +212,21 @@ export async function loadConfig(): Promise<AppConfig> {
 }
 
 export async function saveConfig(config: AppConfig): Promise<void> {
-  // In serverless, file system might be read-only, so we skip saving
-  if (isServerlessEnvironment()) {
-    console.warn("Saving config is not supported in serverless environment");
-    return;
-  }
-
   try {
+    // Dynamic imports to avoid issues during static generation
+    const fs = await import("fs-extra");
+    const path = await import("path");
+    const {
+      isServerlessEnvironment,
+      getSafeWorkingDirectory,
+    } = await import("@/lib/utils/environment");
+
+    // In serverless, file system might be read-only, so we skip saving
+    if (isServerlessEnvironment()) {
+      console.warn("Saving config is not supported in serverless environment");
+      return;
+    }
+
     const workingDir = getSafeWorkingDirectory();
     const configPath = path.join(workingDir, "config.json");
     await fs.writeJson(configPath, config, { spaces: 2 });
