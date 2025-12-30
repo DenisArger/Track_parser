@@ -1,5 +1,6 @@
-import fs from "fs-extra";
-import path from "path";
+// Dynamic imports to avoid issues during static generation
+// import fs from "fs-extra";
+// import path from "path";
 import { Track, TrackMetadata } from "@/types/track";
 
 // Функция для проверки, был ли трек действительно обрезан
@@ -22,7 +23,19 @@ export function isTrackActuallyTrimmed(metadata: TrackMetadata): boolean {
 
 // Функция для очистки неправильно помеченных треков
 export async function cleanupTrackStatuses(): Promise<void> {
-  const tracksPath = path.join(process.cwd(), "tracks.json");
+  // Dynamic imports to avoid issues during static generation
+  const fs = await import("fs-extra");
+  const path = await import("path");
+  const { getSafeWorkingDirectory } = await import("@/lib/utils/environment");
+
+  // Check if we're in a build-time environment
+  if (typeof process !== "undefined" && process.env.NEXT_PHASE === "phase-production-build") {
+    console.log("Build time detected, skipping cleanup");
+    return;
+  }
+
+  const workingDir = getSafeWorkingDirectory();
+  const tracksPath = path.join(workingDir, "tracks.json");
 
   if (!(await fs.pathExists(tracksPath))) {
     console.log("tracks.json not found");
@@ -63,7 +76,18 @@ export async function getTrackStats(): Promise<{
   trimmed: number;
   rejected: number;
 }> {
-  const tracksPath = path.join(process.cwd(), "tracks.json");
+  // Dynamic imports to avoid issues during static generation
+  const fs = await import("fs-extra");
+  const path = await import("path");
+  const { getSafeWorkingDirectory } = await import("@/lib/utils/environment");
+
+  // Check if we're in a build-time environment
+  if (typeof process !== "undefined" && process.env.NEXT_PHASE === "phase-production-build") {
+    return { total: 0, downloaded: 0, processed: 0, trimmed: 0, rejected: 0 };
+  }
+
+  const workingDir = getSafeWorkingDirectory();
+  const tracksPath = path.join(workingDir, "tracks.json");
 
   if (!(await fs.pathExists(tracksPath))) {
     return { total: 0, downloaded: 0, processed: 0, trimmed: 0, rejected: 0 };

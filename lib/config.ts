@@ -10,7 +10,12 @@
 // Загружаем переменные окружения (Next.js автоматически загружает .env, но для серверной части используем dotenv)
 // Safe for production - dotenv.config() is safe to call multiple times
 // Wrapped in try-catch to prevent any errors during module import
-if (typeof window === "undefined" && typeof process !== "undefined") {
+// Skip during build time to avoid issues with static generation
+if (
+  typeof window === "undefined" &&
+  typeof process !== "undefined" &&
+  process.env.NEXT_PHASE !== "phase-production-build"
+) {
   try {
     // Use dynamic require to avoid issues if dotenv is not available
     const dotenv = require("dotenv");
@@ -63,39 +68,52 @@ export interface AppConfig {
  * Uses default values from config.json structure and only overrides with env vars if present
  */
 function getDefaultConfig(): AppConfig {
-  // Return default config matching config.json structure
-  // Only override with environment variables if they exist
+  // Safe access to process.env - returns empty strings if process is undefined
+  const getEnv = (key: string, defaultValue: string = ""): string => {
+    if (typeof process === "undefined" || !process.env) {
+      return defaultValue;
+    }
+    return process.env[key] || defaultValue;
+  };
+
+  const getEnvInt = (key: string, defaultValue: number): number => {
+    if (typeof process === "undefined" || !process.env) {
+      return defaultValue;
+    }
+    const value = process.env[key];
+    return value ? parseInt(value, 10) : defaultValue;
+  };
+
   return {
     folders: {
-      downloads: "downloads",
-      processed: "processed",
-      rejected: "rejected",
-      server_upload: "server_upload",
+      downloads: getEnv("DOWNLOADS_FOLDER", "downloads"),
+      processed: getEnv("PROCESSED_FOLDER", "processed"),
+      rejected: getEnv("REJECTED_FOLDER", "rejected"),
+      server_upload: getEnv("SERVER_UPLOAD_FOLDER", "server_upload"),
     },
     ftp: {
-      host: process.env.FTP_HOST || "",
-      port: process.env.FTP_PORT ? parseInt(process.env.FTP_PORT, 10) : 21,
-      user: process.env.FTP_USER || "",
-      password: process.env.FTP_PASSWORD || "",
-      secure: process.env.FTP_SECURE === "true",
-      remotePath: process.env.FTP_REMOTE_PATH || undefined,
+      host: getEnv("FTP_HOST"),
+      port: getEnvInt("FTP_PORT", 21),
+      user: getEnv("FTP_USER"),
+      password: getEnv("FTP_PASSWORD"),
+      secure: getEnv("FTP_SECURE") === "true",
+      remotePath: getEnv("FTP_REMOTE_PATH") || undefined,
     },
     processing: {
-      maxDuration: 360,
-      defaultRating: 5,
-      defaultYear: 2025,
+      maxDuration: getEnvInt("MAX_DURATION", 360),
+      defaultRating: getEnvInt("DEFAULT_RATING", 5),
+      defaultYear: getEnvInt("DEFAULT_YEAR", new Date().getFullYear()),
     },
     audio: {
-      bitrate: "192k",
-      sampleRate: 44100,
+      bitrate: getEnv("AUDIO_BITRATE", "192k"),
+      sampleRate: getEnvInt("AUDIO_SAMPLE_RATE", 44100),
     },
     rapidapi: {
-      // Only use env vars if they exist, otherwise empty strings
-      key: process.env.RAPIDAPI_KEY || "",
-      host: process.env.RAPIDAPI_HOST || "",
+      key: getEnv("RAPIDAPI_KEY"),
+      host: getEnv("RAPIDAPI_HOST"),
     },
     ffmpeg: {
-      path: process.env.FFMPEG_PATH || undefined,
+      path: getEnv("FFMPEG_PATH") || undefined,
     },
   };
 }

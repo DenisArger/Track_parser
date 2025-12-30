@@ -1,5 +1,6 @@
-import path from "path";
-import fs from "fs-extra";
+// Dynamic imports to avoid issues during static generation
+// import path from "path";
+// import fs from "fs-extra";
 import { FtpConfig, TrackMetadata } from "@/types/track";
 
 /**
@@ -9,12 +10,12 @@ import { FtpConfig, TrackMetadata } from "@/types/track";
 function generateSafeFilename(metadata: TrackMetadata): string {
   // Создаем имя файла в формате "Artist - Title"
   let filename = "";
-  
+
   // Сначала добавляем артиста
   if (metadata.artist && metadata.artist !== "Unknown") {
     filename = metadata.artist.trim();
   }
-  
+
   // Затем добавляем тире и название
   if (metadata.title) {
     const title = metadata.title.trim();
@@ -26,29 +27,29 @@ function generateSafeFilename(metadata: TrackMetadata): string {
       }
     }
   }
-  
+
   // Если нет ни title, ни artist, используем "Unknown"
   if (!filename || filename.trim() === "") {
     filename = "Unknown";
   }
-  
+
   // Очищаем имя файла от недопустимых символов для файловой системы
   // Заменяем недопустимые символы на пробелы
   filename = filename
     .replace(/[<>:"/\\|?*\x00-\x1f]/g, " ") // Заменяем недопустимые символы на пробелы
     .replace(/\s+/g, " ") // Множественные пробелы заменяем на один
     .trim();
-  
+
   // Ограничиваем длину имени файла (оставляем место для расширения)
   if (filename.length > 200) {
     filename = filename.substring(0, 200).trim();
   }
-  
+
   // Если после очистки имя пустое, используем "Unknown"
   if (!filename || filename === "") {
     filename = "Unknown";
   }
-  
+
   // Добавляем расширение
   return `${filename}.mp3`;
 }
@@ -61,6 +62,10 @@ export async function uploadToFtp(
   ftpConfig: FtpConfig,
   metadata?: TrackMetadata
 ): Promise<void> {
+  // Dynamic imports to avoid issues during static generation
+  const fs = await import("fs-extra");
+  const path = await import("path");
+
   console.log("Starting FTP upload...");
   console.log("File path:", filePath);
   console.log("FTP host:", ftpConfig.host);
@@ -98,7 +103,7 @@ export async function uploadToFtp(
         .replace(/\/$/, ""); // Remove trailing slash only
 
       console.log("Changing to remote directory:", remoteDir);
-      
+
       if (remoteDir) {
         // Ensure directory exists (create if needed)
         // ensureDir handles both absolute and relative paths correctly
@@ -112,7 +117,8 @@ export async function uploadToFtp(
             await client.cd(remoteDir);
             console.log("Changed to directory:", remoteDir);
           } catch (cdError) {
-            const errorMessage = cdError instanceof Error ? cdError.message : String(cdError);
+            const errorMessage =
+              cdError instanceof Error ? cdError.message : String(cdError);
             console.error(
               `Could not access or create remote directory: ${remoteDir}`,
               errorMessage
@@ -126,10 +132,10 @@ export async function uploadToFtp(
     }
 
     // Use metadata to generate filename, or fallback to basename
-    const fileName = metadata 
+    const fileName = metadata
       ? generateSafeFilename(metadata)
       : path.basename(filePath);
-    
+
     console.log("Uploading file with name:", fileName);
     console.log("Original file path:", filePath);
     if (metadata) {
@@ -138,12 +144,12 @@ export async function uploadToFtp(
         artist: metadata.artist,
       });
     }
-    
+
     // Upload file
     await client.uploadFrom(filePath, fileName);
-    
+
     console.log("File uploaded successfully:", fileName);
-    
+
     // Verify upload by checking file size on server
     try {
       const remoteFileSize = await client.size(fileName);

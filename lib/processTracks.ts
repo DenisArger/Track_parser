@@ -1,4 +1,6 @@
-import path from "path";
+// Dynamic imports to avoid issues during static generation
+// import path from "path";
+// import fs from "fs-extra";
 import { Track, TrackMetadata, FtpConfig } from "@/types/track";
 import { loadConfig } from "./config";
 import {
@@ -14,7 +16,6 @@ import { detectBpm } from "./audio/bpmDetector";
 import { writeTrackTags } from "./audio/metadataWriter";
 import { uploadToFtp as uploadFileToFtp } from "./upload/ftpUploader";
 import { isServerlessEnvironment } from "./utils/environment";
-import fs from "fs-extra";
 
 /**
  * Автоматическое определение типа источника по URL
@@ -52,7 +53,9 @@ export async function downloadTrackViaYtDlp(
     );
   }
 
-  // Dynamic import to avoid loading spawn at module import time
+  // Dynamic imports to avoid issues during static generation
+  const fs = await import("fs-extra");
+  const path = await import("path");
   const { spawn } = await import("child_process");
   const { findFfmpegPath } = await import("./utils/ffmpegFinder");
 
@@ -296,6 +299,8 @@ export async function downloadTrack(
     throw new Error(`Unknown source type: ${source}`);
   }
 
+  // Dynamic import to avoid issues during static generation
+  const path = await import("path");
   const filename = path.basename(filePath);
   const track: Track = {
     id: trackId,
@@ -342,6 +347,10 @@ export async function getTrack(trackId: string): Promise<Track | undefined> {
  * Отклонить трек
  */
 export async function rejectTrack(trackId: string): Promise<void> {
+  // Dynamic imports to avoid issues during static generation
+  const fs = await import("fs-extra");
+  const path = await import("path");
+  
   const config = await loadConfig();
   const track = await getTrackFromStorage(trackId);
   if (!track) throw new Error("Track not found");
@@ -394,6 +403,9 @@ export async function processTrack(
     return track;
   }
 
+  // Dynamic import to avoid issues during static generation
+  const path = await import("path");
+  
   // Обрезка с настройками или по умолчанию
   const processedPath = path.join(config.folders.processed, track.filename);
   console.log(
@@ -482,6 +494,9 @@ export async function trimTrack(
   }
 ): Promise<Track> {
   console.log("Starting trimTrack for trackId:", trackId);
+
+  // Dynamic import to avoid issues during static generation
+  const path = await import("path");
 
   const config = await loadConfig();
   const track = await getTrackFromStorage(trackId);

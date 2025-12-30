@@ -1,5 +1,6 @@
-import fs from "fs-extra";
-import path from "path";
+// Dynamic imports to avoid issues during static generation
+// import fs from "fs-extra";
+// import path from "path";
 
 export interface TrimSettings {
   startTime: number;
@@ -19,14 +20,24 @@ export async function processAudioFile(
   trimSettings?: TrimSettings,
   maxDuration?: number
 ): Promise<void> {
+  // Dynamic imports to avoid issues during static generation
+  const fs = await import("fs-extra");
+  const path = await import("path");
   const { isServerlessEnvironment } = await import("@/lib/utils/environment");
 
   // In serverless, try FFmpeg.wasm first
   if (isServerlessEnvironment()) {
     try {
-      console.log("Using FFmpeg.wasm for audio processing in serverless environment");
+      console.log(
+        "Using FFmpeg.wasm for audio processing in serverless environment"
+      );
       const { processAudioFileWasm } = await import("./audioProcessorWasm");
-      await processAudioFileWasm(inputPath, outputPath, trimSettings, maxDuration);
+      await processAudioFileWasm(
+        inputPath,
+        outputPath,
+        trimSettings,
+        maxDuration
+      );
       return;
     } catch (error) {
       console.warn(
@@ -43,7 +54,12 @@ export async function processAudioFile(
   try {
     console.log("Trying FFmpeg.wasm for audio processing...");
     const { processAudioFileWasm } = await import("./audioProcessorWasm");
-    await processAudioFileWasm(inputPath, outputPath, trimSettings, maxDuration);
+    await processAudioFileWasm(
+      inputPath,
+      outputPath,
+      trimSettings,
+      maxDuration
+    );
     return;
   } catch (wasmError) {
     console.warn(
@@ -58,7 +74,9 @@ export async function processAudioFile(
     const ffmpegPath = await findFfmpegPath();
 
     if (!ffmpegPath) {
-      console.warn("Native FFmpeg not found. Copying original file without processing.");
+      console.warn(
+        "Native FFmpeg not found. Copying original file without processing."
+      );
       await fs.copy(inputPath, outputPath);
       return;
     }
@@ -66,7 +84,7 @@ export async function processAudioFile(
     // Use FFmpeg for processing
     const ffmpeg = require("fluent-ffmpeg");
     const ffmpegInstance = ffmpeg(inputPath);
-    
+
     // Set FFmpeg path if found (with platform-specific extension)
     const ffmpegExe = process.platform === "win32" ? "ffmpeg.exe" : "ffmpeg";
     const ffprobeExe = process.platform === "win32" ? "ffprobe.exe" : "ffprobe";
@@ -133,4 +151,3 @@ export async function processAudioFile(
     await fs.copy(inputPath, outputPath);
   }
 }
-
