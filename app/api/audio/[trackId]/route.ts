@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getTrack } from "@/lib/processTracks";
-import fs from "fs-extra";
-import path from "path";
+// Dynamic imports to avoid issues in serverless
+// import fs from "fs-extra";
+// import path from "path";
 import { handleApiError, handleNotFoundError } from "@/lib/api/errorHandler";
 
 export async function GET(
@@ -9,6 +10,10 @@ export async function GET(
   { params }: { params: Promise<{ trackId: string }> }
 ) {
   try {
+    // Dynamic imports to avoid issues in serverless
+    const fs = await import("fs-extra");
+    const path = await import("path");
+    
     const { trackId } = await params;
     const { searchParams } = new URL(request.url);
     const isTrimmed = searchParams.get("trimmed") === "true";

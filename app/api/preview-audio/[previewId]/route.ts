@@ -1,12 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import fs from "fs-extra";
-import path from "path";
+// Dynamic imports to avoid issues in serverless
+// import fs from "fs-extra";
+// import path from "path";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ previewId: string }> }
 ) {
   try {
+    // Dynamic imports to avoid issues in serverless
+    const fs = await import("fs-extra");
+    const path = await import("path");
+    
     const { previewId } = await params;
     console.log("Preview audio requested for:", previewId);
 

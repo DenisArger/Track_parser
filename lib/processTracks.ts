@@ -12,9 +12,9 @@ import {
 } from "./storage/trackStorage";
 // Dynamic imports for modules that use spawn/exec to avoid issues in serverless
 // These modules are only imported when needed, not at module load time
-import { detectBpm } from "./audio/bpmDetector";
-import { writeTrackTags } from "./audio/metadataWriter";
-import { uploadToFtp as uploadFileToFtp } from "./upload/ftpUploader";
+// import { detectBpm } from "./audio/bpmDetector"; // Moved to dynamic import
+// import { writeTrackTags } from "./audio/metadataWriter"; // Moved to dynamic import
+// import { uploadToFtp as uploadFileToFtp } from "./upload/ftpUploader"; // Moved to dynamic import
 import { isServerlessEnvironment } from "./utils/environment";
 
 /**
@@ -396,6 +396,8 @@ export async function processTrack(
     console.log("Track already processed, updating metadata only");
     if (metadata) {
       Object.assign(track.metadata, metadata);
+      // Dynamic import to avoid issues in serverless
+      const { writeTrackTags } = await import("./audio/metadataWriter");
       await writeTrackTags(track.processedPath, track.metadata);
       setTrack(trackId, track);
       await saveTracksToFile();
@@ -468,6 +470,8 @@ export async function processTrack(
 
   // Записать теги
   console.log("Writing track tags...");
+  // Dynamic import to avoid issues in serverless
+  const { writeTrackTags } = await import("./audio/metadataWriter");
   await writeTrackTags(processedPath, track.metadata);
 
   track.processedPath = processedPath;
@@ -580,6 +584,8 @@ export async function uploadToFtp(
   await saveTracksToFile();
 
   try {
+    // Dynamic import to avoid issues in serverless
+    const { uploadToFtp: uploadFileToFtp } = await import("./upload/ftpUploader");
     await uploadFileToFtp(track.processedPath, ftpConfig, track.metadata);
     
     console.log("FTP upload completed successfully for track:", trackId);
