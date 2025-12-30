@@ -11,6 +11,7 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  // Ensure layout is a pure Server Component without any side effects
   return (
     <html lang="en">
       <body className="bg-gray-50 min-h-screen">

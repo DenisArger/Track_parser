@@ -53,10 +53,47 @@ function detectSourceFromUrl(
 /**
  * Получить все треки
  * Safe for production - returns empty array on error instead of throwing
+ * Ensures data is serializable for Server Components
  */
 export async function getAllTracks(): Promise<Track[]> {
   try {
-    return await getAllTracksFromLib();
+    const tracks = await getAllTracksFromLib();
+    
+    // Ensure all tracks are serializable (remove any non-serializable properties)
+    return tracks.map((track) => {
+      // Create a clean, serializable copy of the track
+      return {
+        id: track.id,
+        filename: track.filename,
+        originalPath: track.originalPath,
+        processedPath: track.processedPath,
+        metadata: {
+          title: track.metadata.title || "",
+          artist: track.metadata.artist || "",
+          album: track.metadata.album || "",
+          genre: track.metadata.genre || "Средний",
+          rating: track.metadata.rating || 0,
+          year: track.metadata.year || 0,
+          duration: track.metadata.duration,
+          bpm: track.metadata.bpm,
+          isTrimmed: track.metadata.isTrimmed,
+          trimSettings: track.metadata.trimSettings
+            ? {
+                startTime: track.metadata.trimSettings.startTime || 0,
+                endTime: track.metadata.trimSettings.endTime,
+                fadeIn: track.metadata.trimSettings.fadeIn || 0,
+                fadeOut: track.metadata.trimSettings.fadeOut || 0,
+                maxDuration: track.metadata.trimSettings.maxDuration,
+              }
+            : undefined,
+        },
+        status: track.status,
+        downloadProgress: track.downloadProgress,
+        processingProgress: track.processingProgress,
+        uploadProgress: track.uploadProgress,
+        error: track.error,
+      };
+    });
   } catch (error) {
     // Log error but don't throw in production to avoid Server Component errors
     console.error("Error fetching tracks:", error);

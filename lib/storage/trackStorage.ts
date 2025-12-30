@@ -35,6 +35,7 @@ export function generateTrackId(): string {
 
 /**
  * Загружает треки из файла
+ * Safe for production - never throws errors
  */
 export async function loadTracksFromFile(): Promise<void> {
   try {
@@ -44,8 +45,39 @@ export async function loadTracksFromFile(): Promise<void> {
       tracks.clear();
       if (Array.isArray(tracksData)) {
         tracksData.forEach((track: Track) => {
-          if (track && track.id) {
-            tracks.set(track.id, track);
+          // Validate track structure before adding
+          if (track && track.id && track.metadata && typeof track.metadata === 'object') {
+            // Ensure all required fields exist
+            const validTrack: Track = {
+              id: String(track.id),
+              filename: String(track.filename || ''),
+              originalPath: String(track.originalPath || ''),
+              processedPath: track.processedPath ? String(track.processedPath) : undefined,
+              metadata: {
+                title: String(track.metadata.title || ''),
+                artist: String(track.metadata.artist || ''),
+                album: String(track.metadata.album || ''),
+                genre: track.metadata.genre || 'Средний',
+                rating: Number(track.metadata.rating || 0),
+                year: Number(track.metadata.year || 0),
+                duration: track.metadata.duration ? Number(track.metadata.duration) : undefined,
+                bpm: track.metadata.bpm ? Number(track.metadata.bpm) : undefined,
+                isTrimmed: Boolean(track.metadata.isTrimmed),
+                trimSettings: track.metadata.trimSettings ? {
+                  startTime: Number(track.metadata.trimSettings.startTime || 0),
+                  endTime: track.metadata.trimSettings.endTime ? Number(track.metadata.trimSettings.endTime) : undefined,
+                  fadeIn: Number(track.metadata.trimSettings.fadeIn || 0),
+                  fadeOut: Number(track.metadata.trimSettings.fadeOut || 0),
+                  maxDuration: track.metadata.trimSettings.maxDuration ? Number(track.metadata.trimSettings.maxDuration) : undefined,
+                } : undefined,
+              },
+              status: String(track.status || 'downloaded') as Track['status'],
+              downloadProgress: track.downloadProgress ? Number(track.downloadProgress) : undefined,
+              processingProgress: track.processingProgress ? Number(track.processingProgress) : undefined,
+              uploadProgress: track.uploadProgress ? Number(track.uploadProgress) : undefined,
+              error: track.error ? String(track.error) : undefined,
+            };
+            tracks.set(validTrack.id, validTrack);
           }
         });
       }
@@ -54,6 +86,7 @@ export async function loadTracksFromFile(): Promise<void> {
   } catch (error) {
     console.error("Error loading tracks from file:", error);
     // Continue with empty storage if file doesn't exist or can't be read
+    // This is not an error condition - app can work with empty storage
     isInitialized = true;
   }
 }
