@@ -168,6 +168,10 @@ export async function downloadTrackViaYtDlp(
             console.log("File path:", filepath);
             console.log("Extracted title:", title);
 
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/cb117245-0fa8-4993-97a2-913e34cda7ce',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'processTracks.ts:171',message:'File downloaded and path set',data:{filename,filepath,filenameLength:filename.length,hasSpaces:filename.includes(' '),hasLeadingSpaces:filename.startsWith(' '),hasTrailingSpaces:filename.endsWith(' '),outputDir},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+            // #endregion
+
             resolve({ filePath: filepath, title });
           } catch (error) {
             reject(new Error(`Ошибка при поиске скачанного файла: ${error}`));
@@ -309,6 +313,7 @@ export async function downloadTrack(
   // Dynamic import to avoid issues during static generation
   const path = await import("path");
   const filename = path.basename(filePath);
+  
   const track: Track = {
     id: trackId,
     filename,
@@ -320,6 +325,8 @@ export async function downloadTrack(
       genre: "Средний",
       rating: config.processing.defaultRating,
       year: config.processing.defaultYear,
+      sourceUrl: url, // Save original URL for re-downloading in serverless
+      sourceType: source, // Save source type for re-downloading
     },
     status: "downloaded",
   };

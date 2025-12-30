@@ -25,6 +25,7 @@ export default function TrackPlayer({
   const [isRejecting, setIsRejecting] = useState(false);
   const [showTrimmer, setShowTrimmer] = useState(false);
   const [showTrimDetails, setShowTrimDetails] = useState(false);
+  const [isSeeking, setIsSeeking] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
 
   const downloadedTracks = tracks.filter(
@@ -60,7 +61,8 @@ export default function TrackPlayer({
   };
 
   const handleTimeUpdate = () => {
-    if (audioRef.current) {
+    // Don't update time during seeking to prevent reset
+    if (!isSeeking && audioRef.current) {
       setCurrentTime(audioRef.current.currentTime);
     }
   };
@@ -76,11 +78,67 @@ export default function TrackPlayer({
     alert("Error loading audio file. Please check the console for details.");
   };
 
+  const handleSeekStart = () => {
+    setIsSeeking(true);
+  };
+
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
     const time = parseFloat(e.target.value);
-    if (audioRef.current) {
-      audioRef.current.currentTime = time;
-      setCurrentTime(time);
+    if (audioRef.current && !isNaN(time) && time >= 0) {
+      const seekTime = duration > 0 ? Math.min(time, duration) : time;
+      setIsSeeking(true);
+      // Use requestAnimationFrame to ensure DOM is ready
+      requestAnimationFrame(() => {
+        if (audioRef.current) {
+          audioRef.current.currentTime = seekTime;
+          setCurrentTime(seekTime);
+        }
+      });
+    }
+  };
+
+  const handleSeekEnd = () => {
+    // Small delay to ensure audio element has updated
+    setTimeout(() => {
+      setIsSeeking(false);
+      if (audioRef.current) {
+        setCurrentTime(audioRef.current.currentTime);
+      }
+    }, 50);
+  };
+
+  const handleProgressBarClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    // Ignore clicks directly on the input element (it handles its own clicks)
+    if ((e.target as HTMLElement).tagName === 'INPUT') {
+      return;
+    }
+    
+    if (!audioRef.current || !duration || duration <= 0) return;
+    
+    const progressBar = e.currentTarget.querySelector('input[type="range"]') as HTMLInputElement;
+    if (!progressBar) return;
+    
+    const rect = progressBar.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const percentage = Math.max(0, Math.min(1, clickX / rect.width));
+    const newTime = percentage * duration;
+    
+    if (audioRef.current && !isNaN(newTime) && newTime >= 0 && newTime <= duration) {
+      setIsSeeking(true);
+      // Use requestAnimationFrame to ensure DOM is ready
+      requestAnimationFrame(() => {
+        if (audioRef.current) {
+          audioRef.current.currentTime = newTime;
+          setCurrentTime(newTime);
+          // Reset seeking flag after audio has seeked
+          setTimeout(() => {
+            setIsSeeking(false);
+            if (audioRef.current) {
+              setCurrentTime(audioRef.current.currentTime);
+            }
+          }, 100);
+        }
+      });
     }
   };
 
@@ -252,14 +310,25 @@ export default function TrackPlayer({
                         </svg>
                       )}
                     </button>
-                    <div className="flex-1">
+                    <div 
+                      className="flex-1 relative cursor-pointer"
+                      onClick={handleProgressBarClick}
+                    >
                       <input
                         type="range"
                         min="0"
                         max={duration || 0}
                         value={currentTime}
+                        step="0.1"
+                        onMouseDown={handleSeekStart}
+                        onTouchStart={handleSeekStart}
                         onChange={handleSeek}
-                        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                        onMouseUp={handleSeekEnd}
+                        onTouchEnd={handleSeekEnd}
+                        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer relative z-10"
+                        style={{
+                          background: `linear-gradient(to right, #2563eb 0%, #2563eb ${(duration ? (currentTime / duration) * 100 : 0)}%, #e5e7eb ${(duration ? (currentTime / duration) * 100 : 0)}%, #e5e7eb 100%)`
+                        }}
                       />
                     </div>
                     <span className="text-sm text-gray-600 min-w-[40px]">
@@ -278,8 +347,16 @@ export default function TrackPlayer({
                   }
                   onTimeUpdate={handleTimeUpdate}
                   onLoadedMetadata={handleLoadedMetadata}
+                  onSeeked={() => {
+                    // Audio has finished seeking
+                    setIsSeeking(false);
+                    if (audioRef.current) {
+                      setCurrentTime(audioRef.current.currentTime);
+                    }
+                  }}
                   onEnded={() => setIsPlaying(false)}
                   onError={handleAudioError}
+                  preload="metadata"
                 />
 
                 {/* Action Buttons */}

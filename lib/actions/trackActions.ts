@@ -163,6 +163,8 @@ export async function getAllTracks(): Promise<Track[]> {
                     : undefined,
                 }
               : undefined,
+            sourceUrl: track.metadata?.sourceUrl ? String(track.metadata.sourceUrl) : undefined,
+            sourceType: track.metadata?.sourceType as "youtube" | "youtube-music" | "yandex" | undefined,
           },
           status: String(track.status || "downloaded") as Track["status"],
           downloadProgress: track.downloadProgress ? Number(track.downloadProgress) : undefined,
