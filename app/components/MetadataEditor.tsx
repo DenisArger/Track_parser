@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Track, TrackMetadata, TrackType } from "@/types/track";
+import { Track, TrackMetadata, TrackType, TrackStatus } from "@/types/track";
 import TrackList from "./shared/TrackList";
 import TrackStatusBadge from "./shared/TrackStatusBadge";
 import { getProcessedTracks } from "@/lib/utils/trackFilters";
@@ -26,6 +26,7 @@ export default function MetadataEditor({
     year: 2025,
   });
   const [isSaving, setIsSaving] = useState(false);
+  const [isChangingStatus, setIsChangingStatus] = useState(false);
 
   const processedTracks = getProcessedTracks(tracks);
 
@@ -254,6 +255,71 @@ export default function MetadataEditor({
                       />
                     </div>
                   )}
+
+                  {/* Status Change */}
+                  <div>
+                    <label
+                      htmlFor="status"
+                      className="block text-sm font-medium text-gray-700 mb-1"
+                    >
+                      Status
+                    </label>
+                    <div className="flex items-center space-x-3">
+                      <select
+                        id="status"
+                        value={selectedTrack.status}
+                        onChange={async (e) => {
+                          const newStatus = e.target.value as TrackStatus;
+                          if (newStatus === selectedTrack.status) return;
+
+                          setIsChangingStatus(true);
+                          try {
+                            const response = await fetch(
+                              `/api/tracks/${selectedTrack.id}/status`,
+                              {
+                                method: "POST",
+                                headers: {
+                                  "Content-Type": "application/json",
+                                },
+                                body: JSON.stringify({ status: newStatus }),
+                              }
+                            );
+
+                            if (!response.ok) {
+                              const errorData = await response.json();
+                              throw new Error(errorData.error || "Failed to change status");
+                            }
+
+                            onTracksUpdate();
+                            // Update selected track status
+                            setSelectedTrack({ ...selectedTrack, status: newStatus });
+                          } catch (error) {
+                            console.error("Error changing status:", error);
+                            alert(
+                              `Error changing status: ${
+                                error instanceof Error ? error.message : "Unknown error"
+                              }`
+                            );
+                          } finally {
+                            setIsChangingStatus(false);
+                          }
+                        }}
+                        disabled={isChangingStatus}
+                        className="input flex-1 disabled:opacity-50"
+                      >
+                        <option value="downloaded">Downloaded</option>
+                        <option value="processed">Processed</option>
+                        <option value="trimmed">Trimmed</option>
+                        <option value="uploaded">Uploaded</option>
+                        <option value="rejected">Rejected</option>
+                        <option value="error">Error</option>
+                      </select>
+                      <TrackStatusBadge status={selectedTrack.status} />
+                    </div>
+                    <p className="mt-1 text-xs text-gray-500">
+                      Change status to allow re-processing, re-uploading, or editing
+                    </p>
+                  </div>
 
                   {/* Save Button */}
                   <button

@@ -10,6 +10,7 @@ import {
   uploadToFtp as uploadToFtpFromLib,
 } from "@/lib/processTracks";
 import { getTrackStats, cleanupTrackStatuses } from "@/lib/trackUtils";
+import { TrackStatus } from "@/types/track";
 import {
   getTrack as getTrackFromStorage,
   setTrack,
@@ -231,55 +232,14 @@ export async function createPreviewAction(
     const previewId = `preview_${Date.now()}`;
     const previewPath = path.join(tempDir, `${previewId}.mp3`);
 
-    // Применяем настройки обрезки с помощью FFmpeg
-    const ffmpegModule = await import("fluent-ffmpeg");
-    const ffmpeg = ffmpegModule.default || ffmpegModule;
-    await new Promise<void>((resolve, reject) => {
-      let command = ffmpeg(track.originalPath);
-
-      // Устанавливаем время начала
-      command = command.setStartTime(trimSettings.startTime);
-
-      // Устанавливаем длительность
-      if (trimSettings.endTime) {
-        const duration = trimSettings.endTime - trimSettings.startTime;
-        command = command.duration(duration);
-      } else if (trimSettings.maxDuration) {
-        command = command.duration(trimSettings.maxDuration);
-      } else {
-        command = command.duration(360); // 6 минут по умолчанию
-      }
-
-      // Применяем затухание
-      if (trimSettings.fadeIn > 0) {
-        command = command.audioFilters(
-          `afade=t=in:st=${trimSettings.startTime}:d=${trimSettings.fadeIn}`
-        );
-      }
-
-      if (trimSettings.fadeOut > 0) {
-        const fadeOutStart = trimSettings.endTime
-          ? trimSettings.endTime - trimSettings.fadeOut
-          : trimSettings.startTime +
-            (trimSettings.maxDuration || 360) -
-            trimSettings.fadeOut;
-        command = command.audioFilters(
-          `afade=t=out:st=${fadeOutStart}:d=${trimSettings.fadeOut}`
-        );
-      }
-
-      command
-        .output(previewPath)
-        .on("end", () => {
-          console.log("Preview file created successfully");
-          resolve();
-        })
-        .on("error", (error: any) => {
-          console.error("FFmpeg preview error:", error);
-          reject(error);
-        })
-        .run();
-    });
+    // Use new audio processor that works in Netlify
+    const { processAudioFile } = await import("@/lib/audio/audioProcessor");
+    await processAudioFile(
+      track.originalPath,
+      previewPath,
+      trimSettings,
+      360 // 6 minutes default
+    );
 
     return { previewId };
   } catch (error) {
@@ -412,6 +372,45 @@ export async function uploadTrackAction(
   } catch (error) {
     throw new Error(
       `FTP upload failed: ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    );
+  }
+}
+
+/**
+ * Изменить статус трека
+ */
+export async function changeTrackStatusAction(
+  trackId: string,
+  newStatus: TrackStatus
+): Promise<Track> {
+  try {
+    if (!trackId || !newStatus) {
+      throw new Error("Track ID and new status are required");
+    }
+
+    const track = await getTrackFromStorage(trackId);
+    if (!track) {
+      throw new Error("Track not found");
+    }
+
+    const oldStatus = track.status;
+    track.status = newStatus;
+    
+    // Очищаем ошибку при изменении статуса
+    if (track.error && newStatus !== "error") {
+      delete track.error;
+    }
+
+    setTrack(trackId, track);
+    await saveTracksToFile();
+
+    console.log(`Track ${trackId} status changed from ${oldStatus} to ${newStatus}`);
+    return track;
+  } catch (error) {
+    throw new Error(
+      `Failed to change track status: ${
         error instanceof Error ? error.message : String(error)
       }`
     );

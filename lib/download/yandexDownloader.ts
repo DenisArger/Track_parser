@@ -79,7 +79,19 @@ export async function downloadTrackViaYtDlp(
 
   return new Promise(async (resolve, reject) => {
     try {
-      const ytDlpPath = path.join(process.cwd(), "bin", "yt-dlp.exe");
+      // Get yt-dlp path (cross-platform)
+      const { getYtDlpPath } = await import("@/lib/utils/ytDlpFinder");
+      const ytDlpPath = await getYtDlpPath();
+
+      if (!ytDlpPath) {
+        reject(
+          new Error(
+            "yt-dlp not found. Please ensure yt-dlp is installed in the bin directory or in PATH (Linux)."
+          )
+        );
+        return;
+      }
+
       const outputTemplate = path.join(outputDir, "%(title)s.%(ext)s");
 
       // Try to find FFmpeg path

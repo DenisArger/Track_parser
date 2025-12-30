@@ -5,13 +5,6 @@
     "rejected": "rejected",
     "server_upload": "server_upload"
   },
-  "ftp": {
-    "host": "",
-    "port": 21,
-    "user": "",
-    "password": "",
-    "secure": false
-  },
   "processing": {
     "maxDuration": 360,
     "defaultRating": 5,

@@ -266,6 +266,22 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@ffmpeg/ffmpeg@npm:^0.12.15":
+  version: 0.12.15
+  resolution: "@ffmpeg/ffmpeg@npm:0.12.15"
+  dependencies:
+    "@ffmpeg/types": "npm:^0.12.4"
+  checksum: 10c0/80c44459ca31ec7596d5624572370fd4c6ecf31701c6b23ec52cce85b4bddabaaa68c3ad050adfbba4db3ae4956c5538828690c51e1c258930850fe1a182599e
+  languageName: node
+  linkType: hard
+
+"@ffmpeg/types@npm:^0.12.4":
+  version: 0.12.4
+  resolution: "@ffmpeg/types@npm:0.12.4"
+  checksum: 10c0/8dba8e728a11158fbee94baffd648bf3446ad891506f5e65ffc64f5510e8afc33dffc2dd4abcf2966736fbd7d3c4919e9ce9fcf71f7d22607015caae431b83dd
+  languageName: node
+  linkType: hard
+
 "@humanwhocodes/config-array@npm:^0.13.0":
   version: 0.13.0
   resolution: "@humanwhocodes/config-array@npm:0.13.0"
@@ -5051,6 +5067,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "track-parser@workspace:."
   dependencies:
+    "@ffmpeg/ffmpeg": "npm:^0.12.15"
     "@types/fluent-ffmpeg": "npm:^2.1.24"
     "@types/fs-extra": "npm:^11.0.1"
     "@types/node": "npm:^20.0.0"

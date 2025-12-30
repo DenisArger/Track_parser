@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Track, FtpConfig } from "@/types/track";
 import {
   getProcessedTracks,
@@ -22,14 +22,40 @@ export default function FtpUploader({
     user: "",
     password: "",
     secure: false,
+    remotePath: "",
   });
+
+  // Load FTP config from server on component mount
+  useEffect(() => {
+    const loadFtpConfig = async () => {
+      try {
+        const response = await fetch("/api/ftp-config");
+        if (response.ok) {
+          const config = await response.json();
+          setFtpConfig(config);
+        }
+      } catch (error) {
+        console.error("Failed to load FTP config:", error);
+        // Keep default empty values if loading fails
+      }
+    };
+
+    loadFtpConfig();
+  }, []);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>(
     {}
   );
   const [error, setError] = useState("");
 
-  const processedTracks = getProcessedTracks(tracks);
+  // Get tracks that can be uploaded (processed, trimmed, or uploaded with processedPath)
+  const processedTracks = tracks.filter(
+    (track) =>
+      (track.status === "processed" || 
+       track.status === "trimmed" || 
+       track.status === "uploaded") &&
+      track.processedPath
+  );
 
   const handleFtpConfigChange = (
     field: keyof FtpConfig,
@@ -46,6 +72,14 @@ export default function FtpUploader({
     setError("");
 
     try {
+      console.log("Uploading track:", trackId);
+      console.log("FTP config:", {
+        host: ftpConfig.host,
+        port: ftpConfig.port,
+        user: ftpConfig.user,
+        remotePath: ftpConfig.remotePath || "(root)",
+      });
+
       const response = await fetch("/api/upload-ftp", {
         method: "POST",
         headers: {
@@ -57,14 +91,19 @@ export default function FtpUploader({
         }),
       });
 
+      const responseData = await response.json();
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Upload failed");
+        console.error("Upload failed:", responseData);
+        throw new Error(responseData.error || "Upload failed");
       }
 
+      console.log("Upload successful:", responseData);
       onTracksUpdate();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Upload failed");
+      const errorMessage = err instanceof Error ? err.message : "Upload failed";
+      console.error("Upload error:", errorMessage);
+      setError(errorMessage);
     } finally {
       setIsUploading(false);
     }
@@ -80,33 +119,52 @@ export default function FtpUploader({
     setError("");
 
     try {
+      console.log(`Starting upload of ${processedTracks.length} tracks`);
+      
       for (const track of processedTracks) {
+        console.log(`Uploading track: ${track.id} - ${track.metadata.title}`);
         setUploadProgress((prev) => ({ ...prev, [track.id]: 0 }));
 
-        const response = await fetch("/api/upload-ftp", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            trackId: track.id,
-            ftpConfig,
-          }),
-        });
+        try {
+          const response = await fetch("/api/upload-ftp", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              trackId: track.id,
+              ftpConfig,
+            }),
+          });
 
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(
-            `Failed to upload ${track.metadata.title}: ${errorData.error}`
+          const responseData = await response.json();
+
+          if (!response.ok) {
+            const errorMsg = responseData.error || "Upload failed";
+            console.error(`Upload failed for ${track.metadata.title}:`, errorMsg);
+            throw new Error(`Failed to upload ${track.metadata.title}: ${errorMsg}`);
+          }
+
+          console.log(`Successfully uploaded: ${track.metadata.title}`);
+          setUploadProgress((prev) => ({ ...prev, [track.id]: 100 }));
+        } catch (trackError) {
+          console.error(`Error uploading track ${track.id}:`, trackError);
+          setUploadProgress((prev) => ({ ...prev, [track.id]: 0 }));
+          // Continue with next track instead of stopping all
+          setError(
+            `Failed to upload ${track.metadata.title}: ${
+              trackError instanceof Error ? trackError.message : String(trackError)
+            }`
           );
         }
-
-        setUploadProgress((prev) => ({ ...prev, [track.id]: 100 }));
       }
 
+      console.log("All uploads completed");
       onTracksUpdate();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Upload failed");
+      const errorMessage = err instanceof Error ? err.message : "Upload failed";
+      console.error("Upload all error:", errorMessage);
+      setError(errorMessage);
     } finally {
       setIsUploading(false);
       setUploadProgress({});
@@ -216,6 +274,28 @@ export default function FtpUploader({
               />
             </div>
 
+            <div>
+              <label
+                htmlFor="remotePath"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
+                Remote Directory (optional)
+              </label>
+              <input
+                type="text"
+                id="remotePath"
+                value={ftpConfig.remotePath || ""}
+                onChange={(e) =>
+                  handleFtpConfigChange("remotePath", e.target.value)
+                }
+                placeholder="/music/tracks or music/tracks"
+                className="input"
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                Leave empty to upload to root directory. Use forward slashes (/)
+              </p>
+            </div>
+
             <div className="flex items-center">
               <input
                 type="checkbox"
@@ -258,7 +338,12 @@ export default function FtpUploader({
           {processedTracks.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
               <p>No processed tracks available for upload</p>
-              <p className="text-sm">Process some tracks first</p>
+              <p className="text-sm mt-2">
+                Process or trim some tracks first. Tracks must have status "processed", "trimmed", or "uploaded" with a processed path.
+              </p>
+              <p className="text-xs mt-1 text-gray-400">
+                Available tracks: {tracks.length} total, {tracks.filter(t => (t.status === "processed" || t.status === "trimmed" || t.status === "uploaded") && t.processedPath).length} ready for upload
+              </p>
             </div>
           ) : (
             <div className="space-y-4">

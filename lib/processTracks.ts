@@ -76,7 +76,19 @@ export async function downloadTrackViaYtDlp(
 
   return new Promise(async (resolve, reject) => {
     try {
-      const ytDlpPath = path.join(process.cwd(), "bin", "yt-dlp.exe");
+      // Get yt-dlp path (cross-platform)
+      const { getYtDlpPath } = await import("./utils/ytDlpFinder");
+      const ytDlpPath = await getYtDlpPath();
+
+      if (!ytDlpPath) {
+        reject(
+          new Error(
+            "yt-dlp not found. Please ensure yt-dlp is installed in the bin directory or in PATH (Linux)."
+          )
+        );
+        return;
+      }
+
       const outputTemplate = path.join(outputDir, "%(title)s.%(ext)s");
 
       // Try to find FFmpeg path
@@ -213,11 +225,48 @@ export async function downloadTrack(
       filePath = result.filePath;
       apiTitle = result.title;
     } catch (error) {
-      // Если RapidAPI не сработал, пробуем yt-dlp
+      // Если RapidAPI не сработал, пробуем yt-dlp только если FFmpeg доступен
+      console.log("RapidAPI failed, checking if yt-dlp is available...");
+      
+      // Проверяем наличие FFmpeg перед использованием yt-dlp
+      const { findFfmpegPath } = await import("./utils/ffmpegFinder");
+      const ffmpegPath = await findFfmpegPath();
+      
+      if (!ffmpegPath) {
+        const rapidApiError = error instanceof Error ? error.message : String(error);
+        throw new Error(
+          `Не удалось скачать трек через RapidAPI: ${rapidApiError}. ` +
+          `yt-dlp требует FFmpeg для работы, но FFmpeg не найден. ` +
+          `Установите FFmpeg или проверьте настройки RapidAPI.`
+        );
+      }
+      
+      // Проверяем наличие yt-dlp
+      const { getYtDlpPath } = await import("./utils/ytDlpFinder");
+      const ytDlpPath = await getYtDlpPath();
+      
+      if (!ytDlpPath) {
+        const rapidApiError = error instanceof Error ? error.message : String(error);
+        throw new Error(
+          `Не удалось скачать трек через RapidAPI: ${rapidApiError}. ` +
+          `yt-dlp не найден. Установите yt-dlp в папку bin/ или проверьте настройки RapidAPI.`
+        );
+      }
+      
       console.log("RapidAPI failed, trying yt-dlp...");
-      const result = await downloadTrackViaYtDlp(url, config.folders.downloads);
-      filePath = result.filePath;
-      apiTitle = result.title;
+      try {
+        const result = await downloadTrackViaYtDlp(url, config.folders.downloads);
+        filePath = result.filePath;
+        apiTitle = result.title;
+      } catch (ytDlpError) {
+        const rapidApiError = error instanceof Error ? error.message : String(error);
+        const ytDlpErrorMessage = ytDlpError instanceof Error ? ytDlpError.message : String(ytDlpError);
+        throw new Error(
+          `Не удалось скачать трек. RapidAPI ошибка: ${rapidApiError}. ` +
+          `yt-dlp ошибка: ${ytDlpErrorMessage}. ` +
+          `Проверьте правильность URL и доступность трека.`
+        );
+      }
     }
   } else if (source === "youtube-music") {
     // Для YouTube Music используем yt-dlp напрямую
@@ -328,12 +377,17 @@ export async function processTrack(
 
   console.log("Track found:", track.filename, "status:", track.status);
 
-  // Проверяем, что трек еще не обработан
-  if (track.status === "processed") {
+  // Если трек уже обработан или загружен, разрешаем повторную обработку
+  // но если есть processedPath и статус processed/trimmed/uploaded, обновляем только метаданные если не переданы trimSettings
+  if (
+    (track.status === "processed" || track.status === "trimmed" || track.status === "uploaded") &&
+    track.processedPath &&
+    !trimSettings
+  ) {
     console.log("Track already processed, updating metadata only");
     if (metadata) {
       Object.assign(track.metadata, metadata);
-      await writeTrackTags(track.processedPath!, track.metadata);
+      await writeTrackTags(track.processedPath, track.metadata);
       setTrack(trackId, track);
       await saveTracksToFile();
     }
@@ -349,65 +403,19 @@ export async function processTrack(
     processedPath
   );
 
-  const ffmpeg = require("fluent-ffmpeg");
-  await new Promise<void>((resolve, reject) => {
-    let command = ffmpeg(track.originalPath);
+  // Use new audio processor that works in Netlify
+  const { processAudioFile } = await import("./audio/audioProcessor");
+  await processAudioFile(
+    track.originalPath,
+    processedPath,
+    trimSettings,
+    config.processing.maxDuration
+  );
 
-    // Применяем настройки обрезки
-    if (trimSettings) {
-      console.log("Using custom trim settings:", trimSettings);
-
-      // Устанавливаем время начала
-      command = command.setStartTime(trimSettings.startTime);
-
-      // Устанавливаем длительность
-      if (trimSettings.endTime) {
-        const duration = trimSettings.endTime - trimSettings.startTime;
-        command = command.duration(duration);
-      } else if (trimSettings.maxDuration) {
-        command = command.duration(trimSettings.maxDuration);
-      } else {
-        command = command.duration(config.processing.maxDuration);
-      }
-
-      // Применяем затухание
-      if (trimSettings.fadeIn > 0) {
-        command = command.audioFilters(
-          `afade=t=in:st=${trimSettings.startTime}:d=${trimSettings.fadeIn}`
-        );
-      }
-
-      if (trimSettings.fadeOut > 0) {
-        const fadeOutStart = trimSettings.endTime
-          ? trimSettings.endTime - trimSettings.fadeOut
-          : trimSettings.startTime +
-            (trimSettings.maxDuration || config.processing.maxDuration) -
-            trimSettings.fadeOut;
-        command = command.audioFilters(
-          `afade=t=out:st=${fadeOutStart}:d=${trimSettings.fadeOut}`
-        );
-      }
-    } else {
-      console.log("Using default trim settings");
-      command = command.setStartTime(0).duration(config.processing.maxDuration);
-    }
-
-    command
-      .output(processedPath)
-      .on("end", () => {
-        console.log("FFmpeg processing completed");
-        resolve();
-      })
-      .on("error", (error: any) => {
-        console.error("FFmpeg error:", error);
-        reject(error);
-      })
-      .run();
-  });
-
-  // Определение BPM
+  // Определение BPM (gracefully handles serverless)
   console.log("Starting BPM detection...");
-  const bpm = await detectBpm(processedPath);
+  const { detectBpmNetlify } = await import("./audio/bpmDetectorNetlify");
+  const bpm = await detectBpmNetlify(processedPath);
   if (bpm) {
     console.log("BPM detected:", bpm);
     track.metadata.bpm = bpm;
@@ -485,55 +493,14 @@ export async function trimTrack(
   const processedPath = path.join(config.folders.processed, track.filename);
   console.log("Trimming audio file:", track.originalPath, "->", processedPath);
 
-  const ffmpeg = require("fluent-ffmpeg");
-  await new Promise<void>((resolve, reject) => {
-    let command = ffmpeg(track.originalPath);
-
-    console.log("Using trim settings:", trimSettings);
-
-    // Устанавливаем время начала
-    command = command.setStartTime(trimSettings.startTime);
-
-    // Устанавливаем длительность
-    if (trimSettings.endTime) {
-      const duration = trimSettings.endTime - trimSettings.startTime;
-      command = command.duration(duration);
-    } else if (trimSettings.maxDuration) {
-      command = command.duration(trimSettings.maxDuration);
-    } else {
-      command = command.duration(config.processing.maxDuration);
-    }
-
-    // Применяем затухание
-    if (trimSettings.fadeIn > 0) {
-      command = command.audioFilters(
-        `afade=t=in:st=${trimSettings.startTime}:d=${trimSettings.fadeIn}`
-      );
-    }
-
-    if (trimSettings.fadeOut > 0) {
-      const fadeOutStart = trimSettings.endTime
-        ? trimSettings.endTime - trimSettings.fadeOut
-        : trimSettings.startTime +
-          (trimSettings.maxDuration || config.processing.maxDuration) -
-          trimSettings.fadeOut;
-      command = command.audioFilters(
-        `afade=t=out:st=${fadeOutStart}:d=${trimSettings.fadeOut}`
-      );
-    }
-
-    command
-      .output(processedPath)
-      .on("end", () => {
-        console.log("FFmpeg trimming completed");
-        resolve();
-      })
-      .on("error", (error: any) => {
-        console.error("FFmpeg error:", error);
-        reject(error);
-      })
-      .run();
-  });
+  // Use new audio processor that works in Netlify
+  const { processAudioFile } = await import("./audio/audioProcessor");
+  await processAudioFile(
+    track.originalPath,
+    processedPath,
+    trimSettings,
+    config.processing.maxDuration
+  );
 
   // Сохранить информацию об обрезке
   console.log("Saving trim information:", trimSettings);
@@ -570,14 +537,53 @@ export async function uploadToFtp(
   trackId: string,
   ftpConfig: FtpConfig
 ): Promise<void> {
+  console.log("Starting FTP upload for track:", trackId);
+  
   const track = await getTrackFromStorage(trackId);
-  if (!track || !track.processedPath) {
-    throw new Error("Track not found or not processed");
+  if (!track) {
+    throw new Error(`Track not found: ${trackId}`);
   }
 
-  await uploadFileToFtp(track.processedPath, ftpConfig);
+  if (!track.processedPath) {
+    throw new Error(
+      `Track ${trackId} is not processed. Processed path is missing. Current status: ${track.status}`
+    );
+  }
 
-  track.status = "uploaded";
+  console.log("Track found:", track.filename);
+  console.log("Processed path:", track.processedPath);
+  console.log("FTP config:", {
+    host: ftpConfig.host,
+    port: ftpConfig.port,
+    user: ftpConfig.user,
+    remotePath: ftpConfig.remotePath || "(root)",
+  });
+
+  // Update status to uploading
+  track.status = "uploading";
   setTrack(trackId, track);
   await saveTracksToFile();
+
+  try {
+    await uploadFileToFtp(track.processedPath, ftpConfig, track.metadata);
+    
+    console.log("FTP upload completed successfully for track:", trackId);
+    
+    // Update status to uploaded
+    track.status = "uploaded";
+    setTrack(trackId, track);
+    await saveTracksToFile();
+    
+    console.log("Track status updated to 'uploaded'");
+  } catch (error) {
+    console.error("FTP upload failed for track:", trackId, error);
+    
+    // Update status to error
+    track.status = "error";
+    track.error = error instanceof Error ? error.message : String(error);
+    setTrack(trackId, track);
+    await saveTracksToFile();
+    
+    throw error;
+  }
 }

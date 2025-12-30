@@ -16,10 +16,12 @@ function getExecAsync() {
 
 /**
  * Finds FFmpeg executable path
- * Tries multiple methods:
- * 1. Check if ffmpeg is in PATH
- * 2. Check common installation locations on Windows
- * 3. Return null if not found
+ * Tries multiple methods (in order of priority):
+ * 1. Check FFMPEG_PATH environment variable
+ * 2. Check config.json ffmpeg.path setting
+ * 3. Check if ffmpeg is in PATH
+ * 4. Check common installation locations (Windows/Linux)
+ * 5. Return null if not found
  *
  * This function is safe to call in production and will never throw errors.
  * It gracefully handles all failures and returns null if FFmpeg is not found.
@@ -31,6 +33,82 @@ export async function findFfmpegPath(): Promise<string | null> {
   if (isServerlessEnvironment()) {
     console.log("Skipping FFmpeg search in serverless environment");
     return null;
+  }
+
+  // Check local bin directory first (highest priority for bundled binaries)
+  try {
+    const localBinDir = path.join(process.cwd(), "bin");
+    const ffmpegExe = path.join(
+      localBinDir,
+      process.platform === "win32" ? "ffmpeg.exe" : "ffmpeg"
+    );
+    const ffprobeExe = path.join(
+      localBinDir,
+      process.platform === "win32" ? "ffprobe.exe" : "ffprobe"
+    );
+
+    if (
+      (await fs.pathExists(ffmpegExe)) &&
+      (await fs.pathExists(ffprobeExe))
+    ) {
+      console.log("Found FFmpeg in local bin directory:", localBinDir);
+      return localBinDir;
+    }
+  } catch (error) {
+    // Ignore - local bin might not exist
+  }
+
+  // Check environment variable (second priority)
+  if (process.env.FFMPEG_PATH) {
+    try {
+      const envPath = process.env.FFMPEG_PATH;
+      const ffmpegExe = path.join(
+        envPath,
+        process.platform === "win32" ? "ffmpeg.exe" : "ffmpeg"
+      );
+      const ffprobeExe = path.join(
+        envPath,
+        process.platform === "win32" ? "ffprobe.exe" : "ffprobe"
+      );
+
+      if (
+        (await fs.pathExists(ffmpegExe)) &&
+        (await fs.pathExists(ffprobeExe))
+      ) {
+        console.log("Found FFmpeg via FFMPEG_PATH environment variable:", envPath);
+        return envPath;
+      }
+    } catch (error) {
+      console.warn("FFMPEG_PATH environment variable set but path invalid:", error);
+    }
+  }
+
+  // Check config.json (third priority)
+  try {
+    const { loadConfig } = await import("@/lib/config");
+    const config = await loadConfig();
+    if (config.ffmpeg?.path) {
+      const configPath = config.ffmpeg.path;
+      const ffmpegExe = path.join(
+        configPath,
+        process.platform === "win32" ? "ffmpeg.exe" : "ffmpeg"
+      );
+      const ffprobeExe = path.join(
+        configPath,
+        process.platform === "win32" ? "ffprobe.exe" : "ffprobe"
+      );
+
+      if (
+        (await fs.pathExists(ffmpegExe)) &&
+        (await fs.pathExists(ffprobeExe))
+      ) {
+        console.log("Found FFmpeg via config.json:", configPath);
+        return configPath;
+      }
+    }
+  } catch (error) {
+    // Ignore config errors - not critical
+    console.warn("Error checking config.json for FFmpeg path:", error);
   }
 
   // Wrap everything in try-catch to ensure it never throws in production
@@ -67,10 +145,13 @@ export async function findFfmpegPath(): Promise<string | null> {
       // exec might not be available in some production environments
     }
 
-    // Check common Windows installation locations
-    if (process.platform === "win32") {
-      try {
-        const commonPaths = [
+    // Check common installation locations based on platform
+    try {
+      let commonPaths: string[] = [];
+
+      if (process.platform === "win32") {
+        // Windows common paths (local bin already checked above)
+        commonPaths = [
           "C:\\ffmpeg\\bin",
           "C:\\Program Files\\ffmpeg\\bin",
           "C:\\Program Files (x86)\\ffmpeg\\bin",
@@ -85,27 +166,42 @@ export async function findFfmpegPath(): Promise<string | null> {
             "bin"
           ),
         ];
-
-        for (const ffmpegDir of commonPaths) {
-          try {
-            const ffmpegExe = path.join(ffmpegDir, "ffmpeg.exe");
-            const ffprobeExe = path.join(ffmpegDir, "ffprobe.exe");
-
-            if (
-              (await fs.pathExists(ffmpegExe)) &&
-              (await fs.pathExists(ffprobeExe))
-            ) {
-              console.log("Found FFmpeg in common location:", ffmpegDir);
-              return ffmpegDir;
-            }
-          } catch (pathError) {
-            // Continue to next path
-            continue;
-          }
-        }
-      } catch (error) {
-        // Ignore errors when checking common paths
+      } else {
+        // Linux/Unix common paths (local bin already checked above)
+        commonPaths = [
+          "/usr/bin",
+          "/usr/local/bin",
+          "/opt/ffmpeg/bin",
+          "/opt/local/bin",
+          path.join(process.env.HOME || "/home", "ffmpeg", "bin"),
+        ];
       }
+
+      for (const ffmpegDir of commonPaths) {
+        try {
+          const ffmpegExe = path.join(
+            ffmpegDir,
+            process.platform === "win32" ? "ffmpeg.exe" : "ffmpeg"
+          );
+          const ffprobeExe = path.join(
+            ffmpegDir,
+            process.platform === "win32" ? "ffprobe.exe" : "ffprobe"
+          );
+
+          if (
+            (await fs.pathExists(ffmpegExe)) &&
+            (await fs.pathExists(ffprobeExe))
+          ) {
+            console.log("Found FFmpeg in common location:", ffmpegDir);
+            return ffmpegDir;
+          }
+        } catch (pathError) {
+          // Continue to next path
+          continue;
+        }
+      }
+    } catch (error) {
+      // Ignore errors when checking common paths
     }
 
     // Check if ffmpeg is available via which/where (alternative method)

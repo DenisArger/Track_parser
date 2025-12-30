@@ -28,10 +28,11 @@ export function getDownloadedTracks(tracks: Track[]): Track[] {
 }
 
 /**
- * Получает обработанные треки (processed)
+ * Получает обработанные треки (processed, trimmed, uploaded)
+ * Включает uploaded треки для возможности повторной обработки
  */
 export function getProcessedTracks(tracks: Track[]): Track[] {
-  return filterTracksByStatus(tracks, "processed");
+  return filterTracksByStatuses(tracks, ["processed", "trimmed", "uploaded"]);
 }
 
 /**

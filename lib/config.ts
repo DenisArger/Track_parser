@@ -49,6 +49,9 @@ export interface AppConfig {
     key: string;
     host: string;
   };
+  ffmpeg?: {
+    path?: string; // Optional path to FFmpeg directory
+  };
 }
 
 /**
@@ -67,11 +70,11 @@ function getDefaultConfig(): AppConfig {
       server_upload: "server_upload",
     },
     ftp: {
-      host: "",
-      port: 21,
-      user: "",
-      password: "",
-      secure: false,
+      host: process.env.FTP_HOST || "",
+      port: process.env.FTP_PORT ? parseInt(process.env.FTP_PORT, 10) : 21,
+      user: process.env.FTP_USER || "",
+      password: process.env.FTP_PASSWORD || "",
+      secure: process.env.FTP_SECURE === "true",
     },
     processing: {
       maxDuration: 360,
@@ -86,6 +89,9 @@ function getDefaultConfig(): AppConfig {
       // Only use env vars if they exist, otherwise empty strings
       key: process.env.RAPIDAPI_KEY || "",
       host: process.env.RAPIDAPI_HOST || "",
+    },
+    ffmpeg: {
+      path: process.env.FFMPEG_PATH || undefined,
     },
   };
 }
@@ -117,22 +123,37 @@ export async function loadConfig(): Promise<AppConfig> {
       return getDefaultConfig();
     }
 
-    let config: AppConfig;
+    let configData: any;
     try {
-      config = await fs.readJson(configPath);
+      configData = await fs.readJson(configPath);
     } catch (error) {
       // If we can't read config file, use defaults
       console.warn("Error reading config file, using defaults:", error);
       return getDefaultConfig();
     }
 
-    // Обновляем конфигурацию из переменных окружения
-    if (process.env.RAPIDAPI_KEY) {
-      config.rapidapi.key = process.env.RAPIDAPI_KEY;
-    }
-    if (process.env.RAPIDAPI_HOST) {
-      config.rapidapi.host = process.env.RAPIDAPI_HOST;
-    }
+    // Build config object, always using environment variables for FTP
+    const config: AppConfig = {
+      folders: configData.folders || getDefaultConfig().folders,
+      ftp: {
+        // FTP settings always from environment variables, never from config.json
+        host: process.env.FTP_HOST || "",
+        port: process.env.FTP_PORT ? parseInt(process.env.FTP_PORT, 10) : 21,
+        user: process.env.FTP_USER || "",
+        password: process.env.FTP_PASSWORD || "",
+        secure: process.env.FTP_SECURE === "true",
+        remotePath: process.env.FTP_REMOTE_PATH || undefined,
+      },
+      processing: configData.processing || getDefaultConfig().processing,
+      audio: configData.audio || getDefaultConfig().audio,
+      rapidapi: {
+        key: process.env.RAPIDAPI_KEY || configData.rapidapi?.key || "",
+        host: process.env.RAPIDAPI_HOST || configData.rapidapi?.host || "",
+      },
+      ffmpeg: {
+        path: process.env.FFMPEG_PATH || configData.ffmpeg?.path || undefined,
+      },
+    };
 
     // Создаем папки, если они не существуют (with error handling)
     // In serverless, we skip directory creation as file system might be read-only

@@ -43,6 +43,7 @@ export interface FtpConfig {
   user: string;
   password: string;
   secure: boolean;
+  remotePath?: string; // Optional remote directory path on FTP server
 }
 
 export interface ProcessingConfig {

@@ -11,6 +11,7 @@
     "check": "node scripts/check-ffmpeg.js"
   },
   "dependencies": {
+    "@ffmpeg/ffmpeg": "^0.12.15",
     "@types/node": "^20.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
