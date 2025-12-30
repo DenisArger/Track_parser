@@ -7,27 +7,8 @@
 //   getSafeWorkingDirectory,
 // } from "@/lib/utils/environment";
 
-// Загружаем переменные окружения (Next.js автоматически загружает .env, но для серверной части используем dotenv)
-// Safe for production - dotenv.config() is safe to call multiple times
-// Wrapped in try-catch to prevent any errors during module import
-// Skip during build time to avoid issues with static generation
-if (
-  typeof window === "undefined" &&
-  typeof process !== "undefined" &&
-  process.env.NEXT_PHASE !== "phase-production-build"
-) {
-  try {
-    // Use dynamic require to avoid issues if dotenv is not available
-    const dotenv = require("dotenv");
-    if (dotenv && typeof dotenv.config === "function") {
-      dotenv.config();
-    }
-  } catch (error) {
-    // dotenv is optional - Next.js handles .env files automatically
-    // This is just a fallback for server-side code
-    // Silently ignore - this is expected in many environments
-  }
-}
+// Note: Next.js automatically loads .env files, so we don't need to call dotenv.config()
+// This module is safe for Server Components - no top-level code execution
 
 export interface AppConfig {
   folders: {
@@ -84,12 +65,24 @@ function getDefaultConfig(): AppConfig {
     return value ? parseInt(value, 10) : defaultValue;
   };
 
+  // Check if we're in serverless environment
+  const isServerless = 
+    typeof process !== "undefined" && 
+    process.env && 
+    (!!process.env.NETLIFY || 
+     !!process.env.VERCEL || 
+     !!process.env.AWS_LAMBDA_FUNCTION_NAME);
+  
+  // In serverless, use /tmp for all folders
+  const tmpDir = process.env?.TMPDIR || process.env?.TMP || "/tmp";
+  const baseDir = isServerless ? tmpDir : "";
+
   return {
     folders: {
-      downloads: getEnv("DOWNLOADS_FOLDER", "downloads"),
-      processed: getEnv("PROCESSED_FOLDER", "processed"),
-      rejected: getEnv("REJECTED_FOLDER", "rejected"),
-      server_upload: getEnv("SERVER_UPLOAD_FOLDER", "server_upload"),
+      downloads: getEnv("DOWNLOADS_FOLDER", isServerless ? `${tmpDir}/downloads` : "downloads"),
+      processed: getEnv("PROCESSED_FOLDER", isServerless ? `${tmpDir}/processed` : "processed"),
+      rejected: getEnv("REJECTED_FOLDER", isServerless ? `${tmpDir}/rejected` : "rejected"),
+      server_upload: getEnv("SERVER_UPLOAD_FOLDER", isServerless ? `${tmpDir}/server_upload` : "server_upload"),
     },
     ftp: {
       host: getEnv("FTP_HOST"),
@@ -171,8 +164,20 @@ export async function loadConfig(): Promise<AppConfig> {
     }
 
     // Build config object, always using environment variables for FTP
+    // In serverless, override folder paths to use /tmp
+    const defaultConfig = getDefaultConfig();
+    const isServerless = isServerlessEnvironment();
+    const tmpDir = process.env?.TMPDIR || process.env?.TMP || "/tmp";
+    
     const config: AppConfig = {
-      folders: configData.folders || getDefaultConfig().folders,
+      folders: isServerless 
+        ? {
+            downloads: `${tmpDir}/downloads`,
+            processed: `${tmpDir}/processed`,
+            rejected: `${tmpDir}/rejected`,
+            server_upload: `${tmpDir}/server_upload`,
+          }
+        : (configData.folders || defaultConfig.folders),
       ftp: {
         // FTP settings always from environment variables, never from config.json
         host: process.env.FTP_HOST || "",
@@ -194,33 +199,29 @@ export async function loadConfig(): Promise<AppConfig> {
     };
 
     // Создаем папки, если они не существуют (with error handling)
-    // In serverless, we skip directory creation as file system might be read-only
-    if (!isServerlessEnvironment()) {
-      try {
-        await fs.ensureDir(config.folders.downloads);
-      } catch (error) {
-        console.warn("Error creating downloads directory:", error);
-      }
+    // In serverless, we can create directories in /tmp
+    try {
+      await fs.ensureDir(config.folders.downloads);
+    } catch (error) {
+      console.warn("Error creating downloads directory:", error);
+    }
 
-      try {
-        await fs.ensureDir(config.folders.processed);
-      } catch (error) {
-        console.warn("Error creating processed directory:", error);
-      }
+    try {
+      await fs.ensureDir(config.folders.processed);
+    } catch (error) {
+      console.warn("Error creating processed directory:", error);
+    }
 
-      try {
-        await fs.ensureDir(config.folders.rejected);
-      } catch (error) {
-        console.warn("Error creating rejected directory:", error);
-      }
+    try {
+      await fs.ensureDir(config.folders.rejected);
+    } catch (error) {
+      console.warn("Error creating rejected directory:", error);
+    }
 
-      try {
-        await fs.ensureDir(config.folders.server_upload);
-      } catch (error) {
-        console.warn("Error creating server_upload directory:", error);
-      }
-    } else {
-      console.log("Skipping directory creation in serverless environment");
+    try {
+      await fs.ensureDir(config.folders.server_upload);
+    } catch (error) {
+      console.warn("Error creating server_upload directory:", error);
     }
 
     return config;

@@ -1,6 +1,8 @@
-import fs from "fs-extra";
-import path from "path";
-import { isServerlessEnvironment } from "@/lib/utils/environment";
+// Dynamic imports to avoid issues during static generation
+// import fs from "fs-extra";
+// import path from "path";
+// Dynamic import to avoid issues during static generation
+// import { isServerlessEnvironment } from "@/lib/utils/environment";
 
 /**
  * Извлекает ID трека из URL Яндекс.Музыки
@@ -42,6 +44,10 @@ export async function downloadTrackViaYtDlp(
   url: string,
   outputDir: string
 ): Promise<{ filePath: string; title: string }> {
+  // Dynamic imports to avoid issues during static generation
+  const fs = await import("fs-extra");
+  const path = await import("path");
+  
   await fs.ensureDir(outputDir);
 
   // Проверяем валидность URL
@@ -65,6 +71,9 @@ export async function downloadTrackViaYtDlp(
     console.log("Error cleaning old files:", error);
   }
 
+  // Dynamic import to avoid issues during static generation
+  const { isServerlessEnvironment } = await import("@/lib/utils/environment");
+  
   // In serverless, spawn may not work - reject early with helpful message
   if (isServerlessEnvironment()) {
     throw new Error(

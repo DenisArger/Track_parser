@@ -1,5 +1,7 @@
-import fs from "fs-extra";
-import { isServerlessEnvironment } from "@/lib/utils/environment";
+// Dynamic imports to avoid issues during static generation
+// import fs from "fs-extra";
+// Dynamic import to avoid issues during static generation
+// import { isServerlessEnvironment } from "@/lib/utils/environment";
 
 export interface TrimSettings {
   startTime: number;
@@ -19,6 +21,10 @@ export async function processAudioFileWasm(
   trimSettings?: TrimSettings,
   maxDuration?: number
 ): Promise<void> {
+  // Dynamic imports to avoid issues during static generation
+  // Import fs at the beginning so it's available in catch block
+  const fs = await import("fs-extra");
+  
   try {
     // Dynamic import to avoid loading in environments where it's not needed
     const { FFmpeg } = await import("@ffmpeg/ffmpeg");

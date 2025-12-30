@@ -1,7 +1,9 @@
-import fs from "fs-extra";
-import path from "path";
+// Dynamic imports to avoid issues in serverless
+// import fs from "fs-extra";
+// import path from "path";
 import axios from "axios";
-import { loadConfig } from "@/lib/config";
+// Dynamic import to avoid issues in serverless
+// import { loadConfig } from "@/lib/config";
 
 /**
  * Извлекает ID видео из URL YouTube
@@ -21,8 +23,26 @@ export async function downloadTrackViaRapidAPI(
   url: string,
   outputDir: string
 ): Promise<{ filePath: string; title: string }> {
+  // Dynamic imports to avoid issues in serverless
+  const fs = await import("fs-extra");
+  const path = await import("path");
+  const { loadConfig } = await import("@/lib/config");
+  const { isServerlessEnvironment } = await import("@/lib/utils/environment");
+  
   const config = await loadConfig();
-  await fs.ensureDir(outputDir);
+  
+  // Ensure directory exists - in serverless this should be /tmp
+  try {
+    await fs.ensureDir(outputDir);
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("[DEBUG] downloadTrackViaRapidAPI: Error creating directory", {
+      outputDir,
+      errorMessage,
+      isServerless: isServerlessEnvironment()
+    });
+    throw new Error(`Failed to create output directory: ${errorMessage}`);
+  }
   const videoId = extractVideoId(url);
 
   // Прямой запрос к youtube-mp36 API

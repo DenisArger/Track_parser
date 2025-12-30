@@ -1,12 +1,17 @@
-import fs from "fs-extra";
-import MusicTempo from "music-tempo";
+// Dynamic imports to avoid issues during static generation
+// import fs from "fs-extra";
+// Dynamic import to avoid issues during static generation
+// import MusicTempo from "music-tempo";
 
 /**
  * Определяет BPM трека через music-tempo
  */
 export async function detectBpm(filePath: string): Promise<number | null> {
+  // Dynamic imports to avoid issues during static generation
+  const fs = await import("fs-extra");
+  const ffmpeg = (await import("fluent-ffmpeg")).default;
+  
   const wavPath = filePath.replace(/\.[^.]+$/, ".bpm.wav");
-  const ffmpeg = require("fluent-ffmpeg");
 
   // 1. Сконвертировать в wav (моно, 44.1kHz)
   await new Promise<void>((resolve, reject) => {
@@ -34,6 +39,8 @@ export async function detectBpm(filePath: string): Promise<number | null> {
     const audioData = Array.from(pcm).map((x) => x / 32768);
 
     // 4. Определить BPM
+    // Dynamic import to avoid issues during static generation
+    const MusicTempo = (await import("music-tempo")).default;
     const mt = new MusicTempo(audioData);
     return mt.tempo || null;
   } finally {

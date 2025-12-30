@@ -1,0 +1,29 @@
+# Cache files
+.next/cache/
+.next/dev/
+
+# Binary files (not needed in serverless)
+bin/
+*.exe
+
+# Audio files and folders
+downloads/
+processed/
+rejected/
+server_upload/
+temp/
+
+# Track data
+tracks.json
+
+# Development files
+.env.local
+.env*.local
+
+# Logs
+*.log
+logs/
+
+# Node modules (should be installed during build)
+node_modules/
+

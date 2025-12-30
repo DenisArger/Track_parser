@@ -1,12 +1,14 @@
-import path from "path";
-import fs from "fs-extra";
+// Dynamic imports to avoid issues during static generation
+// import path from "path";
+// import fs from "fs-extra";
 
 // Lazy initialization of exec to avoid issues in serverless
 // Don't create execAsync at module level - create it when needed
-function getExecAsync() {
+async function getExecAsync() {
   try {
-    const { exec } = require("child_process");
-    const { promisify } = require("util");
+    // Dynamic imports to avoid issues during static generation
+    const { exec } = await import("child_process");
+    const { promisify } = await import("util");
     return promisify(exec);
   } catch (error) {
     // exec may not be available in serverless
@@ -27,6 +29,10 @@ function getExecAsync() {
  * It gracefully handles all failures and returns null if FFmpeg is not found.
  */
 export async function findFfmpegPath(): Promise<string | null> {
+  // Dynamic imports to avoid issues during static generation
+  const path = await import("path");
+  const fs = await import("fs-extra");
+
   // In serverless environments, exec/spawn may not be available
   // Skip FFmpeg search in serverless to avoid errors
   const { isServerlessEnvironment } = await import("./environment");
@@ -37,7 +43,14 @@ export async function findFfmpegPath(): Promise<string | null> {
 
   // Check local bin directory first (highest priority for bundled binaries)
   try {
-    const localBinDir = path.join(process.cwd(), "bin");
+    // Safe process.cwd() call - use /tmp if it fails
+    let cwd: string;
+    try {
+      cwd = process.cwd();
+    } catch (error) {
+      cwd = "/tmp";
+    }
+    const localBinDir = path.join(cwd, "bin");
     const ffmpegExe = path.join(
       localBinDir,
       process.platform === "win32" ? "ffmpeg.exe" : "ffmpeg"
@@ -115,7 +128,7 @@ export async function findFfmpegPath(): Promise<string | null> {
   try {
     // Try to find ffmpeg in PATH
     try {
-      const execAsync = getExecAsync();
+      const execAsync = await getExecAsync();
       if (!execAsync) {
         // exec not available, skip PATH check
         throw new Error("exec not available");
@@ -206,7 +219,7 @@ export async function findFfmpegPath(): Promise<string | null> {
 
     // Check if ffmpeg is available via which/where (alternative method)
     try {
-      const execAsync = getExecAsync();
+      const execAsync = await getExecAsync();
       if (!execAsync) {
         // exec not available, skip
         throw new Error("exec not available");

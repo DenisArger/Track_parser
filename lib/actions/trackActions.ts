@@ -16,7 +16,8 @@ import {
   setTrack,
   saveTracksToFile,
 } from "@/lib/storage/trackStorage";
-import { writeTrackTags } from "@/lib/audio/metadataWriter";
+// Dynamic import to avoid issues in serverless
+// import { writeTrackTags } from "@/lib/audio/metadataWriter";
 import {
   Track,
   TrackMetadata,
@@ -58,69 +59,149 @@ function detectSourceFromUrl(
  * Handles static generation and serverless environments
  */
 export async function getAllTracks(): Promise<Track[]> {
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/cb117245-0fa8-4993-97a2-913e34cda7ce',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/actions/trackActions.ts:61',message:'getAllTracks entry',data:{hasProcess:typeof process!=='undefined',hasEnv:typeof process!=='undefined'&&!!process.env},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+  // #endregion
   try {
+    // Early return for build-time environment - before any imports or operations
     // Check if we're in a build-time environment
     // During static generation, return empty array immediately
-    if (typeof process !== "undefined") {
-      const isBuildTime =
-        process.env.NEXT_PHASE === "phase-production-build" ||
-        (process.env.NODE_ENV === "production" &&
-          (process.env.NETLIFY === "true" || process.env.VERCEL === "1") &&
-          !process.env.NETLIFY_DEV &&
-          !process.env.VERCEL_ENV);
+    if (typeof process !== "undefined" && process.env) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/cb117245-0fa8-4993-97a2-913e34cda7ce',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/actions/trackActions.ts:67',message:'getAllTracks env check',data:{nextPhase:process.env.NEXT_PHASE,nodeEnv:process.env.NODE_ENV,netlifyUrl:process.env.NETLIFY_URL,vercelUrl:process.env.VERCEL_URL,awsLambda:process.env.AWS_LAMBDA_FUNCTION_NAME,netlifyDev:process.env.NETLIFY_DEV},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
+      // Check for Next.js build phase (most reliable indicator)
+      if (process.env.NEXT_PHASE === "phase-production-build") {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/cb117245-0fa8-4993-97a2-913e34cda7ce',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/actions/trackActions.ts:69',message:'getAllTracks build phase return',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+        // #endregion
+        return [];
+      }
       
-      if (isBuildTime) {
-        console.log("Build time detected, returning empty tracks array");
+      // Additional safety check: if we're in production but don't have runtime indicators
+      // This helps catch cases where static generation is happening
+      // BUT: In Netlify, NETLIFY=true is set, so we should check for that too
+      const isNetlify = !!process.env.NETLIFY;
+      const hasRuntimeIndicator = 
+        process.env.NETLIFY_URL ||
+        process.env.VERCEL_URL ||
+        process.env.AWS_LAMBDA_FUNCTION_NAME ||
+        process.env.NETLIFY_DEV ||
+        isNetlify;
+      
+      if (
+        process.env.NODE_ENV === "production" &&
+        !hasRuntimeIndicator
+      ) {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/cb117245-0fa8-4993-97a2-913e34cda7ce',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/actions/trackActions.ts:82',message:'getAllTracks static gen return',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+        // #endregion
+        console.error("[DEBUG] getAllTracks: Static generation detected, returning empty array", {
+          nodeEnv: process.env.NODE_ENV,
+          netlify: process.env.NETLIFY,
+          netlifyUrl: process.env.NETLIFY_URL,
+          hasRuntimeIndicator
+        });
+        // Likely static generation, return empty array
         return [];
       }
     }
     
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/cb117245-0fa8-4993-97a2-913e34cda7ce',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/actions/trackActions.ts:87',message:'getAllTracks before getAllTracksFromLib',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
+    // Try to get tracks - this will handle all error cases internally
     const tracks = await getAllTracksFromLib();
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/cb117245-0fa8-4993-97a2-913e34cda7ce',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/actions/trackActions.ts:88',message:'getAllTracks after getAllTracksFromLib',data:{tracksIsArray:Array.isArray(tracks),tracksLength:tracks?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
     
     // Ensure all tracks are serializable (remove any non-serializable properties)
-    return tracks.map((track) => {
+    // This is critical for Server Components - all data must be serializable
+    if (!Array.isArray(tracks)) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/cb117245-0fa8-4993-97a2-913e34cda7ce',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/actions/trackActions.ts:91',message:'getAllTracks non-array warning',data:{tracksType:typeof tracks},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+      // #endregion
+      console.warn("getAllTracksFromLib returned non-array, returning empty array");
+      return [];
+    }
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/cb117245-0fa8-4993-97a2-913e34cda7ce',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/actions/trackActions.ts:96',message:'getAllTracks before mapping',data:{tracksCount:tracks.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
+    const mappedTracks: Track[] = [];
+    
+    for (const track of tracks) {
       // Create a clean, serializable copy of the track
-      return {
-        id: String(track.id || ""),
-        filename: String(track.filename || ""),
-        originalPath: String(track.originalPath || ""),
-        processedPath: track.processedPath ? String(track.processedPath) : undefined,
-        metadata: {
-          title: String(track.metadata?.title || ""),
-          artist: String(track.metadata?.artist || ""),
-          album: String(track.metadata?.album || ""),
-          genre: (track.metadata?.genre || "Средний") as Track["metadata"]["genre"],
-          rating: Number(track.metadata?.rating || 0),
-          year: Number(track.metadata?.year || 0),
-          duration: track.metadata?.duration ? Number(track.metadata.duration) : undefined,
-          bpm: track.metadata?.bpm ? Number(track.metadata.bpm) : undefined,
-          isTrimmed: Boolean(track.metadata?.isTrimmed),
-          trimSettings: track.metadata?.trimSettings
-            ? {
-                startTime: Number(track.metadata.trimSettings.startTime || 0),
-                endTime: track.metadata.trimSettings.endTime
-                  ? Number(track.metadata.trimSettings.endTime)
-                  : undefined,
-                fadeIn: Number(track.metadata.trimSettings.fadeIn || 0),
-                fadeOut: Number(track.metadata.trimSettings.fadeOut || 0),
-                maxDuration: track.metadata.trimSettings.maxDuration
-                  ? Number(track.metadata.trimSettings.maxDuration)
-                  : undefined,
-              }
+      // Ensure all values are primitives or plain objects
+      try {
+        const mappedTrack: Track = {
+          id: String(track.id || ""),
+          filename: String(track.filename || ""),
+          originalPath: String(track.originalPath || ""),
+          processedPath: track.processedPath ? String(track.processedPath) : undefined,
+          metadata: {
+            title: String(track.metadata?.title || ""),
+            artist: String(track.metadata?.artist || ""),
+            album: String(track.metadata?.album || ""),
+            genre: (track.metadata?.genre || "Средний") as Track["metadata"]["genre"],
+            rating: Number(track.metadata?.rating || 0),
+            year: Number(track.metadata?.year || 0),
+            duration: track.metadata?.duration ? Number(track.metadata.duration) : undefined,
+            bpm: track.metadata?.bpm ? Number(track.metadata.bpm) : undefined,
+            isTrimmed: Boolean(track.metadata?.isTrimmed),
+            trimSettings: track.metadata?.trimSettings
+              ? {
+                  startTime: Number(track.metadata.trimSettings.startTime || 0),
+                  endTime: track.metadata.trimSettings.endTime
+                    ? Number(track.metadata.trimSettings.endTime)
+                    : undefined,
+                  fadeIn: Number(track.metadata.trimSettings.fadeIn || 0),
+                  fadeOut: Number(track.metadata.trimSettings.fadeOut || 0),
+                  maxDuration: track.metadata.trimSettings.maxDuration
+                    ? Number(track.metadata.trimSettings.maxDuration)
+                    : undefined,
+                }
+              : undefined,
+          },
+          status: String(track.status || "downloaded") as Track["status"],
+          downloadProgress: track.downloadProgress ? Number(track.downloadProgress) : undefined,
+          processingProgress: track.processingProgress
+            ? Number(track.processingProgress)
             : undefined,
-        },
-        status: String(track.status || "downloaded") as Track["status"],
-        downloadProgress: track.downloadProgress ? Number(track.downloadProgress) : undefined,
-        processingProgress: track.processingProgress
-          ? Number(track.processingProgress)
-          : undefined,
-        uploadProgress: track.uploadProgress ? Number(track.uploadProgress) : undefined,
-        error: track.error ? String(track.error) : undefined,
-      };
-    });
+          uploadProgress: track.uploadProgress ? Number(track.uploadProgress) : undefined,
+          error: track.error ? String(track.error) : undefined,
+        };
+        mappedTracks.push(mappedTrack);
+      } catch (mapError) {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/cb117245-0fa8-4993-97a2-913e34cda7ce',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/actions/trackActions.ts:140',message:'getAllTracks track mapping error',data:{errorMessage:mapError instanceof Error?mapError.message:String(mapError),trackId:track?.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+        // #endregion
+        // If mapping fails for a single track, log and skip it
+        console.error("Error mapping track:", mapError, track);
+        // Continue to next track - don't add this one to the result
+      }
+    }
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/cb117245-0fa8-4993-97a2-913e34cda7ce',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/actions/trackActions.ts:147',message:'getAllTracks success return',data:{mappedTracksCount:mappedTracks.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
+    return mappedTracks;
   } catch (error) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/cb117245-0fa8-4993-97a2-913e34cda7ce',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/actions/trackActions.ts:149',message:'getAllTracks catch error',data:{errorMessage:error instanceof Error?error.message:String(error),errorStack:error instanceof Error?error.stack:undefined},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
     // Log error but don't throw in production to avoid Server Component errors
-    console.error("Error fetching tracks:", error);
+    // This is critical - Server Actions must not throw during render
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    console.error("[DEBUG] getAllTracks: Error fetching tracks", {
+      errorMessage,
+      errorStack,
+      nodeEnv: typeof process !== "undefined" && process.env ? process.env.NODE_ENV : "unknown",
+      netlify: typeof process !== "undefined" && process.env ? process.env.NETLIFY : "unknown",
+      nextPhase: typeof process !== "undefined" && process.env ? process.env.NEXT_PHASE : "unknown"
+    });
     // Return empty array instead of throwing to prevent Server Component render errors
     return [];
   }
@@ -258,22 +339,30 @@ export async function createPreviewAction(
       throw new Error("Track not found");
     }
 
+    // Dynamic import to avoid issues in serverless
+    const { getSafeWorkingDirectory } = await import("@/lib/utils/environment");
+    const workingDir = getSafeWorkingDirectory();
+
     // Проверяем существование файла
     if (!(await fs.pathExists(track.originalPath))) {
       // Попробуем найти файл в папке downloads
-      const downloadsDir = path.join(process.cwd(), "downloads");
-      const files = await fs.readdir(downloadsDir);
-      const mp3Files = files.filter((file) => file.endsWith(".mp3"));
+      const downloadsDir = path.join(workingDir, "downloads");
+      try {
+        const files = await fs.readdir(downloadsDir);
+        const mp3Files = files.filter((file) => file.endsWith(".mp3"));
 
-      if (mp3Files.length > 0) {
-        track.originalPath = path.join(downloadsDir, mp3Files[0]);
-      } else {
+        if (mp3Files.length > 0) {
+          track.originalPath = path.join(downloadsDir, mp3Files[0]);
+        } else {
+          throw new Error("Audio file not found");
+        }
+      } catch (error) {
         throw new Error("Audio file not found");
       }
     }
 
     // Создаем временный файл для предварительного прослушивания
-    const tempDir = path.join(process.cwd(), "temp");
+    const tempDir = path.join(workingDir, "temp");
     await fs.ensureDir(tempDir);
 
     // Очищаем старые предварительные файлы (старше 1 часа)
@@ -339,6 +428,8 @@ export async function updateMetadataAction(
     // Write metadata to audio file if processed path exists
     if (track.processedPath) {
       try {
+        // Dynamic import to avoid issues in serverless
+        const { writeTrackTags } = await import("@/lib/audio/metadataWriter");
         await writeTrackTags(track.processedPath, track.metadata);
         console.log("Metadata written to audio file:", track.processedPath);
       } catch (error) {

@@ -1,5 +1,7 @@
-import fs from "fs-extra";
-import MusicTempo from "music-tempo";
+// Dynamic imports to avoid issues during static generation
+// import fs from "fs-extra";
+// Dynamic import to avoid issues during static generation
+// import MusicTempo from "music-tempo";
 
 /**
  * Detects BPM using FFmpeg.wasm for conversion and music-tempo for detection
@@ -9,6 +11,8 @@ export async function detectBpmWasm(
   filePath: string
 ): Promise<number | null> {
   try {
+    // Dynamic imports to avoid issues during static generation
+    const fs = await import("fs-extra");
     // Dynamic import to avoid loading in environments where it's not needed
     const { FFmpeg } = await import("@ffmpeg/ffmpeg");
     
@@ -59,6 +63,8 @@ export async function detectBpmWasm(
     const audioData = Array.from(pcm).map((x) => x / 32768);
 
     // Detect BPM
+    // Dynamic import to avoid issues during static generation
+    const MusicTempo = (await import("music-tempo")).default;
     const mt = new MusicTempo(audioData);
     const bpm = mt.tempo || null;
 

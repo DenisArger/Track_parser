@@ -1,4 +1,5 @@
-import NodeID3 from "node-id3";
+// Dynamic import to avoid issues during static generation
+// import NodeID3 from "node-id3";
 import { TrackMetadata } from "@/types/track";
 
 /**
@@ -8,6 +9,9 @@ export async function writeTrackTags(
   filePath: string,
   metadata: TrackMetadata
 ): Promise<boolean> {
+  // Dynamic import to avoid issues during static generation
+  const NodeID3 = (await import("node-id3")).default;
+  
   const tags = {
     title: metadata.title,
     artist: metadata.artist,

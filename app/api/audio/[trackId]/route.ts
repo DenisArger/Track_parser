@@ -49,26 +49,34 @@ export async function GET(
       console.log("File does not exist at path:", filePath);
 
       // Try to find the file in downloads directory with a different name
-      const downloadsDir = path.join(process.cwd(), "downloads");
-      const files = await fs.readdir(downloadsDir);
-      const mp3Files = files.filter((file) => file.endsWith(".mp3"));
+      // Use safe working directory for serverless
+      const { getSafeWorkingDirectory } = await import("@/lib/utils/environment");
+      const workingDir = getSafeWorkingDirectory();
+      const downloadsDir = path.join(workingDir, "downloads");
+      
+      try {
+        const files = await fs.readdir(downloadsDir);
+        const mp3Files = files.filter((file) => file.endsWith(".mp3"));
 
-      if (mp3Files.length > 0) {
-        // Use the first MP3 file found
-        const fallbackPath = path.join(downloadsDir, mp3Files[0]);
-        console.log("Using fallback file:", fallbackPath);
+        if (mp3Files.length > 0) {
+          // Use the first MP3 file found
+          const fallbackPath = path.join(downloadsDir, mp3Files[0]);
+          console.log("Using fallback file:", fallbackPath);
 
-        const fileBuffer = await fs.readFile(fallbackPath);
-        const fileName = path.basename(fallbackPath);
-        const encodedFileName = encodeURIComponent(fileName);
+          const fileBuffer = await fs.readFile(fallbackPath);
+          const fileName = path.basename(fallbackPath);
+          const encodedFileName = encodeURIComponent(fileName);
 
-        return new NextResponse(fileBuffer, {
-          headers: {
-            "Content-Type": "audio/mpeg",
-            "Content-Disposition": `inline; filename="${encodedFileName}"; filename*=UTF-8''${encodedFileName}`,
-            "Content-Length": fileBuffer.length.toString(),
-          },
-        });
+          return new NextResponse(fileBuffer, {
+            headers: {
+              "Content-Type": "audio/mpeg",
+              "Content-Disposition": `inline; filename="${encodedFileName}"; filename*=UTF-8''${encodedFileName}`,
+              "Content-Length": fileBuffer.length.toString(),
+            },
+          });
+        }
+      } catch (error) {
+        console.log("Error reading downloads directory:", error);
       }
 
       return handleNotFoundError("Audio file not found");

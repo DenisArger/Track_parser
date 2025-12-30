@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
-import { loadConfig } from "@/lib/config";
+// Dynamic import to avoid issues during static generation
+// import { loadConfig } from "@/lib/config";
 
 export async function GET() {
   try {
+    // Dynamic import to avoid issues during static generation
+    const { loadConfig } = await import("@/lib/config");
     const config = await loadConfig();
     return NextResponse.json({
       host: config.ftp.host,

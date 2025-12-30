@@ -79,7 +79,8 @@ export async function uploadToFtp(
   const fileStats = await fs.stat(filePath);
   console.log("File size:", fileStats.size, "bytes");
 
-  const { Client } = require("basic-ftp");
+  // Dynamic import to avoid issues during static generation
+  const { Client } = await import("basic-ftp");
   const client = new Client();
 
   try {

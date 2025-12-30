@@ -82,7 +82,8 @@ export async function processAudioFile(
     }
 
     // Use FFmpeg for processing
-    const ffmpeg = require("fluent-ffmpeg");
+    // Dynamic import to avoid issues during static generation
+    const ffmpeg = (await import("fluent-ffmpeg")).default;
     const ffmpegInstance = ffmpeg(inputPath);
 
     // Set FFmpeg path if found (with platform-specific extension)

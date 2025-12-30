@@ -2,7 +2,8 @@
 // import path from "path";
 // import fs from "fs-extra";
 import { Track, TrackMetadata, FtpConfig } from "@/types/track";
-import { loadConfig } from "./config";
+// Dynamic import to avoid issues during static generation
+// import { loadConfig } from "./config";
 import {
   generateTrackId,
   getAllTracks as getAllTracksFromStorage,
@@ -15,7 +16,8 @@ import {
 // import { detectBpm } from "./audio/bpmDetector"; // Moved to dynamic import
 // import { writeTrackTags } from "./audio/metadataWriter"; // Moved to dynamic import
 // import { uploadToFtp as uploadFileToFtp } from "./upload/ftpUploader"; // Moved to dynamic import
-import { isServerlessEnvironment } from "./utils/environment";
+// Dynamic import to avoid issues during static generation
+// import { isServerlessEnvironment } from "./utils/environment";
 
 /**
  * Автоматическое определение типа источника по URL
@@ -45,6 +47,9 @@ export async function downloadTrackViaYtDlp(
   url: string,
   outputDir: string
 ): Promise<{ filePath: string; title: string }> {
+  // Dynamic import to avoid issues during static generation
+  const { isServerlessEnvironment } = await import("./utils/environment");
+  
   // In serverless, spawn may not work - reject early with helpful message
   if (isServerlessEnvironment()) {
     throw new Error(
@@ -209,6 +214,8 @@ export async function downloadTrack(
   url: string,
   source: "youtube" | "youtube-music" | "yandex"
 ): Promise<Track> {
+  // Dynamic import to avoid issues during static generation
+  const { loadConfig } = await import("./config");
   const config = await loadConfig();
   const trackId = generateTrackId();
 
@@ -328,6 +335,26 @@ export async function downloadTrack(
  */
 export async function getAllTracks(): Promise<Track[]> {
   try {
+    // Early return for build-time environment - before any operations
+    if (typeof process !== "undefined" && process.env) {
+      // Check for Next.js build phase (most reliable indicator)
+      if (process.env.NEXT_PHASE === "phase-production-build") {
+        return [];
+      }
+      
+      // Additional safety check: if we're in production but don't have runtime indicators
+      if (
+        process.env.NODE_ENV === "production" &&
+        !process.env.NETLIFY_URL &&
+        !process.env.VERCEL_URL &&
+        !process.env.AWS_LAMBDA_FUNCTION_NAME &&
+        !process.env.NETLIFY_DEV
+      ) {
+        // Likely static generation, return empty array
+        return [];
+      }
+    }
+    
     return await getAllTracksFromStorage();
   } catch (error) {
     // Never throw - return empty array to prevent Server Component errors
@@ -351,6 +378,8 @@ export async function rejectTrack(trackId: string): Promise<void> {
   const fs = await import("fs-extra");
   const path = await import("path");
   
+  // Dynamic import to avoid issues during static generation
+  const { loadConfig } = await import("./config");
   const config = await loadConfig();
   const track = await getTrackFromStorage(trackId);
   if (!track) throw new Error("Track not found");
@@ -380,6 +409,8 @@ export async function processTrack(
 ): Promise<Track> {
   console.log("Starting processTrack for trackId:", trackId);
 
+  // Dynamic import to avoid issues during static generation
+  const { loadConfig } = await import("./config");
   const config = await loadConfig();
   const track = await getTrackFromStorage(trackId);
   if (!track) throw new Error("Track not found");
@@ -502,6 +533,8 @@ export async function trimTrack(
   // Dynamic import to avoid issues during static generation
   const path = await import("path");
 
+  // Dynamic import to avoid issues during static generation
+  const { loadConfig } = await import("./config");
   const config = await loadConfig();
   const track = await getTrackFromStorage(trackId);
   if (!track) throw new Error("Track not found");

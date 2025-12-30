@@ -10,6 +10,9 @@ import TrackManager from "./components/TrackManager";
 import { Track } from "@/types/track";
 import { getAllTracks } from "@/lib/actions/trackActions";
 
+// Force dynamic rendering to prevent static generation issues
+export const dynamic = 'force-dynamic';
+
 export default function HomePage() {
   const [tracks, setTracks] = useState<Track[]>([]);
   const [activeTab, setActiveTab] = useState("download");

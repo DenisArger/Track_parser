@@ -15,7 +15,10 @@ export async function GET(
     const { previewId } = await params;
     console.log("Preview audio requested for:", previewId);
 
-    const tempDir = path.join(process.cwd(), "temp");
+    // Use safe working directory for serverless
+    const { getSafeWorkingDirectory } = await import("@/lib/utils/environment");
+    const workingDir = getSafeWorkingDirectory();
+    const tempDir = path.join(workingDir, "temp");
     const previewPath = path.join(tempDir, `${previewId}.mp3`);
 
     if (!(await fs.pathExists(previewPath))) {

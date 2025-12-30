@@ -1,5 +1,6 @@
-import fs from "fs-extra";
-import { isServerlessEnvironment } from "@/lib/utils/environment";
+// Dynamic imports to avoid issues during static generation
+// import fs from "fs-extra";
+// import { isServerlessEnvironment } from "@/lib/utils/environment";
 
 /**
  * Detects BPM using music-tempo library
@@ -9,6 +10,7 @@ import { isServerlessEnvironment } from "@/lib/utils/environment";
 export async function detectBpmNetlify(
   filePath: string
 ): Promise<number | null> {
+  // Dynamic import to avoid issues during static generation
   const { isServerlessEnvironment } = await import("@/lib/utils/environment");
 
   // Try FFmpeg.wasm first (works in serverless)
@@ -49,9 +51,10 @@ export async function detectBpmNetlify(
  * Detects BPM from audio buffer (for client-side processing)
  * This can be used in browser with Web Audio API
  */
-export function detectBpmFromBuffer(audioBuffer: Float32Array): number | null {
+export async function detectBpmFromBuffer(audioBuffer: Float32Array): Promise<number | null> {
   try {
-    const MusicTempo = require("music-tempo");
+    // Dynamic import to avoid issues during static generation
+    const MusicTempo = (await import("music-tempo")).default;
     const audioData = Array.from(audioBuffer);
     const mt = new MusicTempo(audioData);
     return mt.tempo || null;

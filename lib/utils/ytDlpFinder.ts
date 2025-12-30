@@ -1,6 +1,8 @@
-import path from "path";
-import fs from "fs-extra";
-import { isServerlessEnvironment } from "./environment";
+// Dynamic imports to avoid issues during static generation
+// import path from "path";
+// import fs from "fs-extra";
+// Dynamic import to avoid issues during static generation
+// import { isServerlessEnvironment } from "./environment";
 
 /**
  * Gets the path to yt-dlp executable
@@ -8,13 +10,27 @@ import { isServerlessEnvironment } from "./environment";
  * Returns null in serverless environments
  */
 export async function getYtDlpPath(): Promise<string | null> {
+  // Dynamic import to avoid issues during static generation
+  const { isServerlessEnvironment } = await import("./environment");
+  
   // In serverless environments, we can't use yt-dlp
   if (isServerlessEnvironment()) {
     return null;
   }
 
   try {
-    const binDir = path.join(process.cwd(), "bin");
+    // Dynamic imports to avoid issues during static generation
+    const path = await import("path");
+    const fs = await import("fs-extra");
+
+    // Safe process.cwd() call - use /tmp if it fails
+    let cwd: string;
+    try {
+      cwd = process.cwd();
+    } catch (error) {
+      cwd = "/tmp";
+    }
+    const binDir = path.join(cwd, "bin");
     const executableName =
       process.platform === "win32" ? "yt-dlp.exe" : "yt-dlp";
     const ytDlpPath = path.join(binDir, executableName);
@@ -27,8 +43,9 @@ export async function getYtDlpPath(): Promise<string | null> {
     // Try to find yt-dlp in PATH (for Linux systems where it might be installed globally)
     if (process.platform !== "win32") {
       try {
-        const { exec } = require("child_process");
-        const { promisify } = require("util");
+        // Dynamic imports to avoid issues during static generation
+        const { exec } = await import("child_process");
+        const { promisify } = await import("util");
         const execAsync = promisify(exec);
 
         const { stdout } = await execAsync("which yt-dlp", { timeout: 5000 });
