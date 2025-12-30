@@ -35,6 +35,7 @@ export interface AppConfig {
     user: string;
     password: string;
     secure: boolean;
+    remotePath?: string;
   };
   processing: {
     maxDuration: number;
@@ -75,6 +76,7 @@ function getDefaultConfig(): AppConfig {
       user: process.env.FTP_USER || "",
       password: process.env.FTP_PASSWORD || "",
       secure: process.env.FTP_SECURE === "true",
+      remotePath: process.env.FTP_REMOTE_PATH || undefined,
     },
     processing: {
       maxDuration: 360,

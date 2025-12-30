@@ -10,17 +10,16 @@ export async function detectBpmWasm(
 ): Promise<number | null> {
   try {
     // Dynamic import to avoid loading in environments where it's not needed
-    const { createFFmpeg } = await import("@ffmpeg/ffmpeg");
+    const { FFmpeg } = await import("@ffmpeg/ffmpeg");
     
-    const ffmpeg = createFFmpeg({
-      log: false,
-      corePath: "https://unpkg.com/@ffmpeg/core@0.12.6/dist/ffmpeg-core.js",
-    });
+    const ffmpeg = new FFmpeg();
 
     // Load FFmpeg.wasm
-    if (!ffmpeg.isLoaded()) {
+    if (!ffmpeg.loaded) {
       console.log("Loading FFmpeg.wasm for BPM detection...");
-      await ffmpeg.load();
+      await ffmpeg.load({
+        coreURL: "https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm/ffmpeg-core.js",
+      });
     }
 
     // Read input file
@@ -29,10 +28,10 @@ export async function detectBpmWasm(
     const outputFileName = "output.wav";
 
     // Write input file to FFmpeg's virtual filesystem
-    ffmpeg.FS("writeFile", inputFileName, new Uint8Array(inputData));
+    await ffmpeg.writeFile(inputFileName, new Uint8Array(inputData));
 
     // Convert to WAV (mono, 44.1kHz) for BPM detection
-    await ffmpeg.run(
+    await ffmpeg.exec([
       "-i",
       inputFileName,
       "-ac",
@@ -41,11 +40,11 @@ export async function detectBpmWasm(
       "44100",
       "-f",
       "wav",
-      outputFileName
-    );
+      outputFileName,
+    ]);
 
     // Read output WAV file from virtual filesystem
-    const wavData = ffmpeg.FS("readFile", outputFileName);
+    const wavData = await ffmpeg.readFile(outputFileName);
 
     // Parse WAV file
     // WAV PCM starts at byte 44 (header)
@@ -64,8 +63,8 @@ export async function detectBpmWasm(
     const bpm = mt.tempo || null;
 
     // Cleanup
-    ffmpeg.FS("unlink", inputFileName);
-    ffmpeg.FS("unlink", outputFileName);
+    await ffmpeg.deleteFile(inputFileName);
+    await ffmpeg.deleteFile(outputFileName);
 
     return bpm;
   } catch (error) {

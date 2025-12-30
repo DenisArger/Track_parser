@@ -21,17 +21,21 @@ export async function processAudioFileWasm(
 ): Promise<void> {
   try {
     // Dynamic import to avoid loading in environments where it's not needed
-    const { createFFmpeg } = await import("@ffmpeg/ffmpeg");
-    
-    const ffmpeg = createFFmpeg({
-      log: false, // Set to true for debugging
-      corePath: "https://unpkg.com/@ffmpeg/core@0.12.6/dist/ffmpeg-core.js",
+    const { FFmpeg } = await import("@ffmpeg/ffmpeg");
+
+    const ffmpeg = new FFmpeg();
+
+    ffmpeg.on("log", ({ message }) => {
+      // Optional: log FFmpeg messages
     });
 
     // Load FFmpeg.wasm
-    if (!ffmpeg.isLoaded()) {
+    if (!ffmpeg.loaded) {
       console.log("Loading FFmpeg.wasm...");
-      await ffmpeg.load();
+      await ffmpeg.load({
+        coreURL:
+          "https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm/ffmpeg-core.js",
+      });
     }
 
     // Read input file
@@ -40,7 +44,7 @@ export async function processAudioFileWasm(
     const outputFileName = "output.mp3";
 
     // Write input file to FFmpeg's virtual filesystem
-    ffmpeg.FS("writeFile", inputFileName, new Uint8Array(inputData));
+    await ffmpeg.writeFile(inputFileName, new Uint8Array(inputData));
 
     // Build FFmpeg command
     const args: string[] = ["-i", inputFileName];
@@ -67,7 +71,7 @@ export async function processAudioFileWasm(
 
       // Build audio filter for fade in/out
       const audioFilters: string[] = [];
-      
+
       // Apply fade in
       if (trimSettings.fadeIn > 0) {
         audioFilters.push(
@@ -98,17 +102,17 @@ export async function processAudioFileWasm(
 
     // Run FFmpeg
     console.log("Running FFmpeg.wasm with args:", args.join(" "));
-    await ffmpeg.run(...args);
+    await ffmpeg.exec(args);
 
     // Read output file from virtual filesystem
-    const outputData = ffmpeg.FS("readFile", outputFileName);
+    const outputData = await ffmpeg.readFile(outputFileName);
 
     // Write output file
     await fs.writeFile(outputPath, Buffer.from(outputData));
 
     // Cleanup
-    ffmpeg.FS("unlink", inputFileName);
-    ffmpeg.FS("unlink", outputFileName);
+    await ffmpeg.deleteFile(inputFileName);
+    await ffmpeg.deleteFile(outputFileName);
 
     console.log("Audio processing completed with FFmpeg.wasm");
   } catch (error) {
@@ -123,4 +127,3 @@ export async function processAudioFileWasm(
     );
   }
 }
-
