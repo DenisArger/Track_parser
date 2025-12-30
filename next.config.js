@@ -4,10 +4,11 @@ const nextConfig = {
   // These packages will be loaded using native require() at runtime
   serverExternalPackages: ["fluent-ffmpeg"],
 
-  // Output configuration for Netlify
-  output: "standalone",
+  // Turbopack configuration (Next.js 16 uses Turbopack by default)
+  // Empty object to silence the warning and use default Turbopack behavior
+  turbopack: {},
 
-  // Ensure config.json is included in build
+  // Webpack configuration for compatibility (only used if webpack flag is explicitly set)
   webpack: (config, { isServer }) => {
     if (isServer) {
       // Exclude binary files from server bundle (not needed in serverless)
@@ -17,11 +18,6 @@ const nextConfig = {
       });
     }
     return config;
-  },
-
-  // Experimental features for better serverless support
-  experimental: {
-    serverComponentsExternalPackages: ["fluent-ffmpeg"],
   },
 };
 
