@@ -1,8 +1,8 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js'
+import { createBrowserClient } from '@supabase/ssr'
 
-let _client: SupabaseClient | null = null
+let _client: ReturnType<typeof createBrowserClient> | null = null
 
-function getSupabase(): SupabaseClient {
+function getSupabase() {
   if (_client) return _client
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -14,7 +14,7 @@ function getSupabase(): SupabaseClient {
       'NEXT_PUBLIC_SUPABASE_URL содержит плейсхолдер. Замените на ваш Project URL из Supabase Dashboard (Settings → API).'
     )
   }
-  _client = createClient(supabaseUrl, supabaseAnonKey)
+  _client = createBrowserClient(supabaseUrl, supabaseAnonKey)
   return _client
 }
 
@@ -25,7 +25,7 @@ export { getSupabase }
  * а не при загрузке модуля — чтобы не ломать Server Components / сборку.
  * @deprecated Для нового кода предпочтительно getSupabase().
  */
-export const supabase = new Proxy({} as SupabaseClient, {
+export const supabase = new Proxy({} as ReturnType<typeof createBrowserClient>, {
   get(_, prop) {
     const c = getSupabase() as any
     const v = c[prop]

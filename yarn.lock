@@ -2770,6 +2770,18 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@supabase/ssr@npm:^0.5.2":
+  version: 0.5.2
+  resolution: "@supabase/ssr@npm:0.5.2"
+  dependencies:
+    "@types/cookie": "npm:^0.6.0"
+    cookie: "npm:^0.7.0"
+  peerDependencies:
+    "@supabase/supabase-js": ^2.43.4
+  checksum: 10c0/5dcf74d05771d1e88225fbc782e2594d8b23d9b5c9303009ffe5ebedf68293aa033ece4d4a45a530933a5f282cc770a43cfd5e727e07a6609883ffa8b488bbfd
+  languageName: node
+  linkType: hard
+
 "@supabase/storage-js@npm:2.91.0":
   version: 2.91.0
   resolution: "@supabase/storage-js@npm:2.91.0"
@@ -2852,6 +2864,13 @@ __metadata:
   dependencies:
     tslib: "npm:^2.4.0"
   checksum: 10c0/044feba55c1e2af703aa4946139969badb183ce1a659a75ed60bc195a90e73a3f3fc53bcd643497c9954597763ddb051fec62f80962b2ca6fc716ba897dc696e
+  languageName: node
+  linkType: hard
+
+"@types/cookie@npm:^0.6.0":
+  version: 0.6.0
+  resolution: "@types/cookie@npm:0.6.0"
+  checksum: 10c0/5b326bd0188120fb32c0be086b141b1481fec9941b76ad537f9110e10d61ee2636beac145463319c71e4be67a17e85b81ca9e13ceb6e3bb63b93d16824d6c149
   languageName: node
   linkType: hard
 
@@ -12628,6 +12647,7 @@ __metadata:
   resolution: "track-parser@workspace:."
   dependencies:
     "@ffmpeg/ffmpeg": "npm:^0.12.15"
+    "@supabase/ssr": "npm:^0.5.2"
     "@supabase/supabase-js": "npm:^2.39.0"
     "@types/fluent-ffmpeg": "npm:^2.1.24"
     "@types/fs-extra": "npm:^11.0.1"

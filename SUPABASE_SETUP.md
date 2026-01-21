@@ -18,6 +18,30 @@
 3. Скопируйте содержимое и выполните в SQL Editor
 4. Убедитесь, что таблица `tracks` создана успешно
 
+## Шаг 2.1: Таблица users и авторизация
+
+1. **Миграция 002 — таблица `public.users`**  
+   В SQL Editor выполните содержимое `supabase/migrations/002_create_users_table.sql`.  
+   Таблица `users` дополняет `auth.users` (id, email, created_at, updated_at). Триггер при INSERT в `auth.users` создаёт запись в `public.users`. RLS разрешает пользователю только чтение и обновление своей строки.
+
+2. **Бэкфилл (если в `auth.users` уже есть пользователи):**
+   ```sql
+   INSERT INTO public.users (id, email) SELECT id, email FROM auth.users ON CONFLICT (id) DO NOTHING;
+   ```
+
+3. **Authentication → Providers → Email:**  
+   Включите **Email**. Оставьте включённым **Confirm email** — после регистрации пользователь получает письмо со ссылкой; перейдя по ней, он попадает в приложение уже авторизованным.
+
+4. **URL Configuration (Authentication):**  
+   - **Site URL:** `http://localhost:3000` (dev) или `https://<ваш-домен>` (prod)  
+   - **Redirect URLs** (обязательно для писем подтверждения и сброса пароля):  
+     `http://localhost:3000/auth/callback`  
+     `https://<ваш-домен>/auth/callback`
+
+При регистрации приложение передаёт `emailRedirectTo=/auth/callback` — ссылка из письма ведёт на этот маршрут, где обменивается `code` на сессию и выполняется редирект на главную.
+
+После этого вход и регистрация (с подтверждением по почте) работают по email и паролю. Подробнее: [Supabase Auth](https://supabase.com/docs/guides/auth).
+
 ## Шаг 3: Настройка Storage
 
 1. В Supabase Dashboard перейдите в **Storage**
@@ -118,11 +142,13 @@ yarn dev
 
 ## Проверка работы
 
-1. Откройте приложение в браузере
-2. Попробуйте скачать трек - он должен загрузиться в Supabase Storage
-3. Проверьте Supabase Dashboard:
+1. Откройте приложение в браузере — при необходимости вы будете перенаправлены на `/login`.
+2. Войдите или зарегистрируйтесь (email + пароль), затем откройте главную страницу.
+3. Попробуйте скачать трек — он должен загрузиться в Supabase Storage.
+4. Проверьте Supabase Dashboard:
    - В таблице `tracks` должны появиться записи
    - В Storage bucket `downloads` должны появиться файлы
+   - В таблице `users` — записи о вошедших пользователях (после регистрации)
 
 ## Устранение проблем
 

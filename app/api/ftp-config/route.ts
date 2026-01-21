@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-// Dynamic import to avoid issues during static generation
-// import { loadConfig } from "@/lib/config";
+import { getAuthUser } from "@/lib/supabase/server";
 
 export async function GET() {
   try {
-    // Dynamic import to avoid issues during static generation
+    const user = await getAuthUser();
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     const { loadConfig } = await import("@/lib/config");
     const config = await loadConfig();
     return NextResponse.json({

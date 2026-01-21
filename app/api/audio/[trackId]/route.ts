@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getTrack } from "@/lib/processTracks";
 import { handleApiError, handleNotFoundError } from "@/lib/api/errorHandler";
+import { getAuthUser } from "@/lib/supabase/server";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ trackId: string }> }
 ) {
   try {
+    const user = await getAuthUser();
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     const { trackId } = await params;
     const { searchParams } = new URL(request.url);
     const isTrimmed = searchParams.get("trimmed") === "true";

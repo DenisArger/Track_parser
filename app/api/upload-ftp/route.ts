@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { uploadTrackAction } from "@/lib/actions/trackActions";
 import { FtpConfig } from "@/types/track";
+import { getAuthUser } from "@/lib/supabase/server";
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await getAuthUser();
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     const body = await request.json();
     const { trackId, ftpConfig } = body;
 

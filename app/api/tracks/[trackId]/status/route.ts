@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { changeTrackStatusAction } from "@/lib/actions/trackActions";
 import { TrackStatus } from "@/types/track";
+import { getAuthUser } from "@/lib/supabase/server";
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ trackId: string }> }
 ) {
   try {
+    const user = await getAuthUser();
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     const { trackId } = await params;
     const body = await request.json();
     const { status } = body;

@@ -25,6 +25,7 @@ import {
   ProcessingRequest,
   UploadRequest,
 } from "@/types/track";
+import { requireAuth } from "@/lib/supabase/server";
 
 /**
  * Автоматическое определение типа источника по URL
@@ -72,6 +73,8 @@ export async function getAllTracks(): Promise<Track[]> {
         return [];
       }
     }
+
+    await requireAuth();
 
     const tracks = await getAllTracksFromLib();
 
@@ -150,6 +153,7 @@ export async function downloadTrackAction(
   source?: "youtube" | "youtube-music" | "yandex"
 ): Promise<DownloadTrackResult> {
   try {
+    await requireAuth();
     if (!url) {
       return { ok: false, error: "URL is required" };
     }
@@ -207,6 +211,7 @@ export async function processTrackAction(
   trimSettings?: TrimSettings
 ): Promise<Track> {
   try {
+    await requireAuth();
     if (!trackId) {
       throw new Error("Track ID is required");
     }
@@ -231,6 +236,7 @@ export async function processTrackAction(
  */
 export async function rejectTrackAction(trackId: string): Promise<void> {
   try {
+    await requireAuth();
     if (!trackId) {
       throw new Error("Track ID is required");
     }
@@ -254,6 +260,7 @@ export async function trimTrackAction(
   trimSettings: TrimSettings
 ): Promise<Track> {
   try {
+    await requireAuth();
     if (!trackId) {
       throw new Error("Track ID is required");
     }
@@ -279,6 +286,7 @@ export async function createPreviewAction(
   trimSettings: TrimSettings
 ): Promise<{ previewId: string }> {
   try {
+    await requireAuth();
     const fs = await import("fs-extra");
     const path = await import("path");
 
@@ -345,6 +353,7 @@ export async function updateMetadataAction(
   metadata: TrackMetadata
 ): Promise<Track> {
   try {
+    await requireAuth();
     if (!trackId || !metadata) {
       throw new Error("Track ID and metadata are required");
     }
@@ -409,6 +418,7 @@ export async function getTrackStatsAction(): Promise<{
   rejected: number;
 }> {
   try {
+    await requireAuth();
     return await getTrackStats();
   } catch (error) {
     console.error("[getTrackStatsAction] Error:", error instanceof Error ? error.message : String(error), (error as Error)?.stack);
@@ -440,6 +450,7 @@ export async function cleanupTracksAction(): Promise<{
   };
 }> {
   try {
+    await requireAuth();
     // Получаем статистику до очистки
     const statsBefore = await getTrackStats();
 
@@ -468,6 +479,7 @@ export async function uploadTrackAction(
   ftpConfig: FtpConfig
 ): Promise<void> {
   try {
+    await requireAuth();
     if (!trackId || !ftpConfig) {
       throw new Error("Track ID and FTP config are required");
     }
@@ -491,6 +503,7 @@ export async function changeTrackStatusAction(
   newStatus: TrackStatus
 ): Promise<Track> {
   try {
+    await requireAuth();
     if (!trackId || !newStatus) {
       throw new Error("Track ID and new status are required");
     }
@@ -532,6 +545,7 @@ export async function resetAllDataAction(): Promise<{
   error?: string;
 }> {
   try {
+    await requireAuth();
     const { deleted, cleared } = await deleteAllTracks();
     return { ok: true, deleted, cleared };
   } catch (error) {
@@ -549,6 +563,7 @@ export async function testFtpConnectionAction(
   ftpConfig: FtpConfig
 ): Promise<void> {
   try {
+    await requireAuth();
     if (!ftpConfig.host || !ftpConfig.user) {
       throw new Error("Host and username are required");
     }
