@@ -12,6 +12,7 @@ import { downloadTrackAction } from "@/lib/actions/trackActions";
 interface DownloadTrackProps {
   onTracksUpdate: () => void;
   tracks: Track[];
+  onRadioMap?: Record<string, boolean>;
 }
 
 export default function DownloadTrack({

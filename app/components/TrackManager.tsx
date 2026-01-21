@@ -12,9 +12,12 @@ interface TrackStats {
 
 interface TrackManagerProps {
   onTracksUpdate?: () => void;
+  onRadioMap?: Record<string, boolean>;
 }
 
-export default function TrackManager({ onTracksUpdate }: TrackManagerProps) {
+export default function TrackManager({
+  onTracksUpdate,
+}: TrackManagerProps) {
   const [stats, setStats] = useState<TrackStats | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState("");

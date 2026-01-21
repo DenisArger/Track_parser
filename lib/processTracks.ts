@@ -766,9 +766,24 @@ export async function uploadToFtp(
     // Dynamic import to avoid issues in serverless
     const { uploadToFtp: uploadFileToFtp } = await import("./upload/ftpUploader");
     await uploadFileToFtp(track.processedPath, ftpConfig, track.metadata, track.id);
-    
+
+    // Добавляем в radio_tracks для проверки «на радио» (ошибку не пробрасываем)
+    try {
+      const { addRadioTrack } = await import("@/lib/radio/radioTracks");
+      const { generateSafeFilename, normalizeForMatch } = await import(
+        "@/lib/utils/filenameUtils"
+      );
+      const rawName = generateSafeFilename(track.metadata);
+      const normalizedName = normalizeForMatch(rawName);
+      if (normalizedName) {
+        await addRadioTrack({ normalizedName, rawName, source: "ftp_upload" });
+      }
+    } catch (radioErr) {
+      console.warn("[uploadToFtp] addRadioTrack failed:", radioErr);
+    }
+
     console.log("FTP upload completed successfully for track:", trackId);
-    
+
     // Update status to uploaded
     track.status = "uploaded";
     await setTrack(trackId, track);

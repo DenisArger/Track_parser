@@ -10,6 +10,7 @@ interface TrackListProps {
   selectedTrackId?: string;
   showStatus?: boolean;
   showDuration?: boolean;
+  onRadioMap?: Record<string, boolean>;
   emptyMessage?: string;
   emptySubMessage?: string;
   maxHeight?: string;
@@ -21,6 +22,7 @@ export default function TrackList({
   selectedTrackId,
   showStatus = false,
   showDuration = false,
+  onRadioMap,
   emptyMessage = "No tracks available",
   emptySubMessage,
   maxHeight = "max-h-96",
@@ -56,6 +58,11 @@ export default function TrackList({
               </p>
               <div className="flex items-center space-x-2 mt-1">
                 {showStatus && <TrackStatusBadge status={track.status} />}
+                {onRadioMap?.[track.id] && (
+                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700">
+                    На радио
+                  </span>
+                )}
                 {showDuration && (
                   <span className="text-xs text-gray-500">
                     {formatDuration(track.metadata.duration)}

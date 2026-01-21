@@ -10,6 +10,7 @@
 - **Обрезка треков**: Автоматическая обрезка до 6 минут (требует FFmpeg)
 - **Редактирование метаданных**: Полный редактор с тегированием
 - **FTP загрузка**: Загрузка обработанных треков на сервер
+- **Проверка «На радио»**: Сопоставление с плейлистом Streaming.Center (плейлист id=1), бейдж в списке треков
 - **Прогресс-бары**: Отображение прогресса для всех операций
 - **Организация файлов**: Автоматическое управление папками
 - **✅ Полная поддержка Netlify**: Все функции работают с FFmpeg.wasm (WebAssembly версия FFmpeg)
@@ -67,7 +68,19 @@ FTP_REMOTE_PATH=/media/Server_1/0 0 ALL_TRACK  # Optional: remote directory on F
 
 # FFmpeg Configuration (optional)
 # FFMPEG_PATH=C:\ffmpeg\bin
+
+# Streaming.Center (проверка «трек уже на радио», плейлист «все треки»)
+STREAMING_CENTER_API_URL=https://your-server.streaming.center:1030
+STREAMING_CENTER_API_KEY=your_api_key_here
+# STREAMING_CENTER_PLAYLIST_ID=1
 ```
+
+**Streaming.Center (опционально):** для проверки «трек уже на радио» в плейлисте укажите:
+- `STREAMING_CENTER_API_URL` — базовый URL (например `https://your-server.streaming.center:1030`)
+- `STREAMING_CENTER_API_KEY` — ключ API
+- `STREAMING_CENTER_PLAYLIST_ID` — ID плейлиста со всеми треками (по умолчанию 1)
+
+Без этих переменных проверка отключена, бейдж «На радио» не показывается.
 
 **Важно:** 
 - Получите ваш RapidAPI ключ на [rapidapi.com](https://rapidapi.com/)
@@ -236,6 +249,7 @@ track-parser/
 - `POST /api/update-metadata` - Обновление метаданных
 - `POST /api/upload-ftp` - Загрузка на FTP
 - `POST /api/test-ftp` - Тест FTP соединения
+- `POST /api/radio/check-batch` - Проверка, какие треки уже есть в плейлисте Streaming.Center
 - `GET /api/audio/[trackId]` - Получение аудиофайла
 
 ## Технологии

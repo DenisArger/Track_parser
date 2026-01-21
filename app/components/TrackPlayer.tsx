@@ -12,11 +12,13 @@ import TrimDetails from "./TrimDetails";
 interface TrackPlayerProps {
   onTracksUpdate: () => void;
   tracks: Track[];
+  onRadioMap?: Record<string, boolean>;
 }
 
 export default function TrackPlayer({
   onTracksUpdate,
   tracks,
+  onRadioMap,
 }: TrackPlayerProps) {
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -211,6 +213,7 @@ export default function TrackPlayer({
             onTrackSelect={handleTrackSelect}
             selectedTrackId={currentTrack?.id}
             showDuration={true}
+            onRadioMap={onRadioMap}
             emptyMessage="No tracks available for review"
             emptySubMessage="Download some tracks first"
           />

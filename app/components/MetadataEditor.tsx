@@ -11,11 +11,13 @@ import { getUserFacingErrorMessage } from "@/lib/utils/errorMessage";
 interface MetadataEditorProps {
   onTracksUpdate: () => void;
   tracks: Track[];
+  onRadioMap?: Record<string, boolean>;
 }
 
 export default function MetadataEditor({
   onTracksUpdate,
   tracks,
+  onRadioMap,
 }: MetadataEditorProps) {
   const [selectedTrack, setSelectedTrack] = useState<Track | null>(null);
   const [metadata, setMetadata] = useState<TrackMetadata>({
@@ -96,6 +98,7 @@ export default function MetadataEditor({
             onTrackSelect={handleTrackSelect}
             selectedTrackId={selectedTrack?.id}
             showStatus={false}
+            onRadioMap={onRadioMap}
             emptyMessage="No processed tracks available"
             emptySubMessage="Process some tracks first"
           />

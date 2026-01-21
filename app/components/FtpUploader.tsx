@@ -11,6 +11,7 @@ import { getUserFacingErrorMessage } from "@/lib/utils/errorMessage";
 interface FtpUploaderProps {
   onTracksUpdate: () => void;
   tracks: Track[];
+  onRadioMap?: Record<string, boolean>;
 }
 
 export default function FtpUploader({
