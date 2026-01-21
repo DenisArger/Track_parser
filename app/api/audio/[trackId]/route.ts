@@ -90,7 +90,8 @@ export async function GET(
     }
 
     // Re-download to Storage (serverless only) and serve
-    const isServerless = typeof process !== "undefined" && !!process.env.NETLIFY;
+    const { isServerlessEnvironment } = await import("@/lib/utils/environment");
+    const isServerless = isServerlessEnvironment();
     const sourceUrl = track.metadata.sourceUrl;
     const sourceType = track.metadata.sourceType;
     if (isServerless && sourceUrl && (sourceType === "youtube" || sourceType === "youtube-music")) {

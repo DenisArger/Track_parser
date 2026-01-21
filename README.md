@@ -23,7 +23,7 @@
 
 **Платформы:** Windows, Linux, macOS (кроссплатформенная поддержка)
 
-**Деплой:** ✅ Netlify (полная поддержка с FFmpeg.wasm), VPS, выделенный сервер
+**Деплой:** ✅ Netlify, ✅ Vercel (с FFmpeg.wasm), VPS, выделенный сервер
 
 **Обработка аудио:** Используется FFmpeg.wasm (WebAssembly) - работает везде, включая Netlify, без установки бинарных файлов
 
@@ -267,7 +267,19 @@ yarn lint         # Проверка кода
 NEXT_PUBLIC_API_URL=http://localhost:3000
 ```
 
-## Деплой в Netlify
+## Деплой
+
+### Деплой на Vercel
+
+✅ **Проект поддерживает деплой на [Vercel](https://vercel.com).**
+
+1. Подключите репозиторий к Vercel.
+2. Добавьте переменные окружения (Supabase, RapidAPI, FTP) — см. [VERCEL_DEPLOY.md](./VERCEL_DEPLOY.md).
+3. Деплой выполняется автоматически при `git push`.
+
+Ограничения те же, что и на Netlify: yt-dlp недоступен, обработка через FFmpeg.wasm.
+
+### Деплой в Netlify
 
 ✅ **Проект полностью поддерживает деплой в Netlify!**
 

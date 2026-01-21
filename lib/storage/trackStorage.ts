@@ -121,6 +121,7 @@ export async function getAllTracks(): Promise<Track[]> {
       process.env.NODE_ENV === "production" &&
       !process.env.NETLIFY_URL &&
       !process.env.VERCEL_URL &&
+      !process.env.VERCEL &&
       !process.env.AWS_LAMBDA_FUNCTION_NAME &&
       !process.env.NETLIFY
     ) {
