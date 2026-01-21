@@ -16,7 +16,7 @@ export async function GET(
     const fileName = `${previewId}.mp3`;
     const encodedFileName = encodeURIComponent(fileName);
 
-    return new NextResponse(fileBuffer, {
+    return new NextResponse(new Uint8Array(fileBuffer), {
       headers: {
         "Content-Type": "audio/mpeg",
         "Content-Disposition": `inline; filename="${encodedFileName}"; filename*=UTF-8''${encodedFileName}`,
