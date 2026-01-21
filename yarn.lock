@@ -14437,6 +14437,7 @@ __metadata:
     typescript: "npm:^5.0.0"
     vite: "npm:^6.0.3"
     vitest: "npm:^2.1.8"
+    wavesurfer.js: "npm:^7.12.1"
   languageName: unknown
   linkType: soft
 
@@ -15313,6 +15314,13 @@ __metadata:
   dependencies:
     xml-name-validator: "npm:^5.0.0"
   checksum: 10c0/8712774c1aeb62dec22928bf1cdfd11426c2c9383a1a63f2bcae18db87ca574165a0fbe96b312b73652149167ac6c7f4cf5409f2eb101d9c805efe0e4bae798b
+  languageName: node
+  linkType: hard
+
+"wavesurfer.js@npm:^7.12.1":
+  version: 7.12.1
+  resolution: "wavesurfer.js@npm:7.12.1"
+  checksum: 10c0/976d754cc05cc137e1c7d179d90eca185aadef303b421d26d1155a84d4cea5769a68aca2e9a71488683ea77af31abeab51ab9e6e4bf0fcc6374fbe388ddcb9fe
   languageName: node
   linkType: hard
 

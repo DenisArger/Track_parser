@@ -3,6 +3,8 @@
 import { useState, useEffect, useRef } from "react";
 import { Track, TrimSettings } from "@/types/track";
 import { getUserFacingErrorMessage } from "@/lib/utils/errorMessage";
+import { formatTimeMs, parseTimeMs } from "@/lib/utils/timeFormatter";
+import WaveformTrimEditor from "./WaveformTrimEditor";
 
 interface TrackTrimmerProps {
   track: Track;
@@ -16,7 +18,7 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
   const [fadeOut, setFadeOut] = useState(0);
   const [maxDuration, setMaxDuration] = useState(360);
   const [useEndTime, setUseEndTime] = useState(false);
-  const [duration, setDuration] = useState(0);
+  const [duration, setDuration] = useState(() => (track.metadata.duration as number) ?? 0);
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const [isPreviewPlaying, setIsPreviewPlaying] = useState(false);
@@ -24,40 +26,43 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
   const [previewDuration, setPreviewDuration] = useState(0);
   const previewAudioRef = useRef<HTMLAudioElement>(null);
 
-  // Получаем длительность трека при загрузке
+  const [startInput, setStartInput] = useState(() => formatTimeMs(0));
+  const [endInput, setEndInput] = useState(() => formatTimeMs(360));
+  const startFocusedRef = useRef(false);
+  const endFocusedRef = useRef(false);
+
+  // Синхронизация полей MM:SS.ms при изменении из волновой формы
   useEffect(() => {
-    const audio = new Audio(`/api/audio/${track.id}`);
-    audio.addEventListener("loadedmetadata", () => {
-      setDuration(audio.duration);
-      if (!endTime) {
-        setEndTime(Math.min(audio.duration, maxDuration));
-      }
-    });
-  }, [track.id, maxDuration]);
+    if (!startFocusedRef.current) setStartInput(formatTimeMs(startTime));
+  }, [startTime]);
+  useEffect(() => {
+    if (!endFocusedRef.current) {
+      const e = useEndTime && endTime != null ? endTime : startTime + maxDuration;
+      setEndInput(formatTimeMs(e));
+    }
+  }, [endTime, useEndTime, startTime, maxDuration]);
+
+  const handleDurationLoaded = (d: number) => {
+    setDuration(d);
+    setEndTime((prev) => (prev != null ? prev : Math.min(d, 360)));
+  };
 
   // Автоматически обновляем предварительный просмотр при изменении настроек
   useEffect(() => {
     if (previewId) {
       const timeoutId = setTimeout(() => {
         updatePreview();
-      }, 1000); // Задержка в 1 секунду после изменения настроек
-
+      }, 1000);
       return () => clearTimeout(timeoutId);
     }
   }, [startTime, endTime, fadeIn, fadeOut, maxDuration, useEndTime]);
-
-  const formatTime = (seconds: number) => {
-    const minutes = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${minutes}:${secs.toString().padStart(2, "0")}`;
-  };
 
   const handleTrim = async () => {
     const trimSettings: TrimSettings = {
       startTime,
       fadeIn,
       fadeOut,
-      ...(useEndTime && endTime ? { endTime } : { maxDuration }),
+      ...(useEndTime && endTime != null ? { endTime } : { maxDuration }),
     };
 
     try {
@@ -80,7 +85,7 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
         startTime,
         fadeIn,
         fadeOut,
-        ...(useEndTime && endTime ? { endTime } : { maxDuration }),
+        ...(useEndTime && endTime != null ? { endTime } : { maxDuration }),
       };
 
       const { createPreviewAction } = await import(
@@ -146,7 +151,7 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
           startTime,
           fadeIn,
           fadeOut,
-          ...(useEndTime && endTime ? { endTime } : { maxDuration }),
+          ...(useEndTime && endTime != null ? { endTime } : { maxDuration }),
         };
 
         const { createPreviewAction } = await import(
@@ -166,300 +171,205 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
   };
 
   const totalDuration =
-    useEndTime && endTime ? endTime - startTime : maxDuration;
+    useEndTime && endTime != null ? endTime - startTime : maxDuration;
+
+  const commitStartInput = () => {
+    const sec = parseTimeMs(startInput, startTime);
+    setStartTime(sec);
+    setStartInput(formatTimeMs(sec));
+  };
+  const commitEndInput = () => {
+    const fallback = useEndTime && endTime != null ? endTime : startTime + maxDuration;
+    const sec = parseTimeMs(endInput, fallback);
+    if (useEndTime) {
+      setEndTime(sec);
+      setEndInput(formatTimeMs(sec));
+    } else {
+      const d = Math.max(1, sec - startTime);
+      setMaxDuration(d);
+      setEndInput(formatTimeMs(startTime + d));
+    }
+  };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
-        <h3 className="text-lg font-semibold mb-4">Настройки обрезки трека</h3>
-        <p className="text-sm text-gray-600 mb-4">{track.metadata.title}</p>
-
-        <div className="space-y-4">
-          {/* Время начала */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Время начала
-            </label>
-            <div className="flex items-center space-x-2">
-              <input
-                type="range"
-                min="0"
-                max={duration}
-                value={startTime}
-                onChange={(e) => setStartTime(parseFloat(e.target.value))}
-                className="flex-1"
-              />
-              <span className="text-sm text-gray-600 min-w-[40px]">
-                {formatTime(startTime)}
-              </span>
-            </div>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-6xl max-h-[95vh] flex flex-col overflow-hidden">
+        {/* Шапка */}
+        <div className="flex-shrink-0 px-6 py-3 border-b border-gray-200 flex items-baseline justify-between gap-4">
+          <div className="min-w-0">
+            <h3 className="text-lg font-semibold text-gray-900 truncate">Настройки обрезки трека</h3>
+            <p className="text-sm text-gray-500 truncate">{track.metadata.title}</p>
           </div>
+        </div>
 
-          {/* Тип окончания */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Тип окончания
-            </label>
-            <div className="flex space-x-4">
-              <label className="flex items-center">
-                <input
-                  type="radio"
-                  checked={!useEndTime}
-                  onChange={() => setUseEndTime(false)}
-                  className="mr-2"
-                />
-                Максимальная длительность
-              </label>
-              <label className="flex items-center">
-                <input
-                  type="radio"
-                  checked={useEndTime}
-                  onChange={() => setUseEndTime(true)}
-                  className="mr-2"
-                />
-                Конкретное время
-              </label>
-            </div>
-          </div>
+        {/* Основной контент: 2 колонки, без скролла */}
+        <div className="flex-1 min-h-0 flex px-6 py-4 gap-6">
+          {/* Левая колонка: волна + параметры обрезки */}
+          <div className="flex-1 min-w-0 flex flex-col gap-3">
+            <WaveformTrimEditor
+              audioUrl={`/api/audio/${track.id}`}
+              durationFallback={track.metadata.duration}
+              startTime={startTime}
+              endTime={endTime}
+              maxDuration={maxDuration}
+              useEndTime={useEndTime}
+              onStartChange={setStartTime}
+              onEndChange={setEndTime}
+              onMaxDurationChange={setMaxDuration}
+              onDurationLoaded={handleDurationLoaded}
+            />
 
-          {/* Время окончания или максимальная длительность */}
-          {useEndTime ? (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Время окончания
-              </label>
-              <div className="flex items-center space-x-2">
+            {/* Строка: начало | тип окончания | конец/макс.длительность */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Время начала</label>
                 <input
-                  type="range"
-                  min={startTime}
-                  max={duration}
-                  value={endTime || startTime}
-                  onChange={(e) => setEndTime(parseFloat(e.target.value))}
-                  className="flex-1"
+                  type="text"
+                  value={startInput}
+                  onChange={(e) => setStartInput(e.target.value)}
+                  onFocus={() => { startFocusedRef.current = true; }}
+                  onBlur={() => { startFocusedRef.current = false; commitStartInput(); }}
+                  onKeyDown={(e) => { if (e.key === "Enter") { startFocusedRef.current = false; commitStartInput(); (e.target as HTMLInputElement).blur(); } }}
+                  placeholder="M:SS.ms"
+                  className="input font-mono py-1.5 text-sm"
                 />
-                <span className="text-sm text-gray-600 min-w-[40px]">
-                  {formatTime(endTime || startTime)}
-                </span>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Тип окончания</label>
+                <div className="flex flex-wrap gap-3 pt-1.5">
+                  <label className="flex items-center gap-1.5 text-sm cursor-pointer">
+                    <input type="radio" checked={!useEndTime} onChange={() => setUseEndTime(false)} className="w-3.5 h-3.5" />
+                    <span>Макс. длительность</span>
+                  </label>
+                  <label className="flex items-center gap-1.5 text-sm cursor-pointer">
+                    <input
+                      type="radio"
+                      checked={useEndTime}
+                      onChange={() => { setUseEndTime(true); setEndTime((prev) => (prev != null ? prev : startTime + maxDuration)); }}
+                      className="w-3.5 h-3.5"
+                    />
+                    <span>Конкретное время</span>
+                  </label>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">
+                  {useEndTime ? "Время окончания" : "Макс. длительность (с)"}
+                </label>
+                {useEndTime ? (
+                  <input
+                    type="text"
+                    value={endInput}
+                    onChange={(e) => setEndInput(e.target.value)}
+                    onFocus={() => { endFocusedRef.current = true; }}
+                    onBlur={() => { endFocusedRef.current = false; commitEndInput(); }}
+                    onKeyDown={(e) => { if (e.key === "Enter") { endFocusedRef.current = false; commitEndInput(); (e.target as HTMLInputElement).blur(); } }}
+                    placeholder="M:SS.ms"
+                    className="input font-mono py-1.5 text-sm"
+                  />
+                ) : (
+                  <input
+                    type="number"
+                    min="1"
+                    max="600"
+                    value={maxDuration}
+                    onChange={(e) => setMaxDuration(parseInt(e.target.value) || 1)}
+                    className="input py-1.5 text-sm"
+                  />
+                )}
               </div>
             </div>
-          ) : (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Максимальная длительность (секунды)
-              </label>
-              <input
-                type="number"
-                min="1"
-                max="600"
-                value={maxDuration}
-                onChange={(e) => setMaxDuration(parseInt(e.target.value))}
-                className="input"
-              />
-            </div>
-          )}
 
-          {/* Затухание в начале */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Затухание в начале (секунды)
-            </label>
-            <input
-              type="number"
-              min="0"
-              max="10"
-              step="0.1"
-              value={fadeIn}
-              onChange={(e) => setFadeIn(parseFloat(e.target.value))}
-              className="input"
-            />
+            {/* Затухание: 2 колонки */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Затухание в начале (с)</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="10"
+                  step="0.1"
+                  value={fadeIn}
+                  onChange={(e) => setFadeIn(parseFloat(e.target.value) || 0)}
+                  className="input py-1.5 text-sm"
+                  title="0 = без затухания"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Затухание в конце (с)</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="10"
+                  step="0.1"
+                  value={fadeOut}
+                  onChange={(e) => setFadeOut(parseFloat(e.target.value) || 0)}
+                  className="input py-1.5 text-sm"
+                  title="0 = без затухания"
+                />
+              </div>
+            </div>
           </div>
 
-          {/* Затухание в конце */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Затухание в конце (секунды)
-            </label>
-            <input
-              type="number"
-              min="0"
-              max="10"
-              step="0.1"
-              value={fadeOut}
-              onChange={(e) => setFadeOut(parseFloat(e.target.value))}
-              className="input"
-            />
-          </div>
-
-          {/* Предварительный просмотр */}
-          <div className="bg-gray-50 rounded-lg p-3">
-            <h4 className="font-medium text-gray-900 mb-2">
-              Предварительный просмотр
-            </h4>
-            <div className="text-sm text-gray-600 space-y-1">
-              <p>Начало: {formatTime(startTime)}</p>
-              <p>
-                Окончание:{" "}
-                {formatTime(
-                  useEndTime && endTime ? endTime : startTime + maxDuration
-                )}
-              </p>
-              <p>Длительность: {formatTime(totalDuration)}</p>
-              <p>Затухание в начале: {fadeIn}s</p>
-              <p>Затухание в конце: {fadeOut}s</p>
-            </div>
-
-            {/* Кнопка предварительного прослушивания */}
-            <div className="mt-3">
+          {/* Правая колонка: превью */}
+          <div className="w-80 flex-shrink-0 flex flex-col gap-3">
+            <div className="bg-gray-50 rounded-lg p-3 flex flex-col gap-2 flex-1 min-h-0">
+              <h4 className="font-medium text-gray-900 text-sm flex-shrink-0">Предварительный просмотр</h4>
+              <div className="text-xs text-gray-600 grid grid-cols-2 gap-x-3 gap-y-0.5 flex-shrink-0">
+                <span>Начало:</span><span className="font-mono">{formatTimeMs(startTime)}</span>
+                <span>Окончание:</span><span className="font-mono">{formatTimeMs(useEndTime && endTime != null ? endTime : startTime + maxDuration)}</span>
+                <span>Длительность:</span><span className="font-mono">{formatTimeMs(totalDuration)}</span>
+                <span>Fade in:</span><span>{fadeIn}s</span>
+                <span>Fade out:</span><span>{fadeOut}s</span>
+              </div>
               <button
                 onClick={handlePreviewPlayPause}
                 disabled={isPreviewLoading}
-                className="btn btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed"
+                className="btn btn-primary py-2 text-sm flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isPreviewLoading ? (
-                  <div className="flex items-center justify-center">
-                    <svg
-                      className="animate-spin -ml-1 mr-3 h-4 w-4 text-white"
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      ></circle>
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      ></path>
-                    </svg>
-                    Создание предварительного просмотра...
-                  </div>
-                ) : isPreviewPlaying ? (
-                  "Остановить предварительное прослушивание"
-                ) : (
-                  "Предварительное прослушивание"
-                )}
-              </button>
-            </div>
-
-            {/* Плеер предварительного прослушивания */}
-            {previewId && (
-              <div className="mt-4 bg-white rounded-lg p-3 border">
-                <h5 className="font-medium text-gray-900 mb-3">
-                  Плеер предварительного просмотра
-                </h5>
-
-                {/* Элементы управления */}
-                <div className="flex items-center space-x-3 mb-3">
-                  <button
-                    onClick={handlePreviewPlayPause}
-                    className="w-8 h-8 rounded-full bg-primary-600 text-white flex items-center justify-center hover:bg-primary-700"
-                  >
-                    {isPreviewPlaying ? (
-                      <svg
-                        className="w-4 h-4"
-                        fill="currentColor"
-                        viewBox="0 0 20 20"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                    ) : (
-                      <svg
-                        className="w-4 h-4"
-                        fill="currentColor"
-                        viewBox="0 0 20 20"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                    )}
-                  </button>
-
-                  <div className="flex-1">
-                    <input
-                      type="range"
-                      min="0"
-                      max={previewDuration || 0}
-                      value={previewCurrentTime}
-                      onChange={handlePreviewSeek}
-                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                    />
-                  </div>
-
-                  <span className="text-sm text-gray-600 min-w-[60px]">
-                    {formatTime(previewCurrentTime)} /{" "}
-                    {formatTime(previewDuration)}
+                  <span className="inline-flex items-center gap-2">
+                    <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>
+                    Создание…
                   </span>
-                </div>
-
-                {/* Информация о настройках */}
-                <div className="text-xs text-gray-500 space-y-1">
-                  <p>
-                    Обрезанный фрагмент: {formatTime(startTime)} -{" "}
-                    {formatTime(
-                      useEndTime && endTime ? endTime : startTime + maxDuration
-                    )}
-                  </p>
-                  <p>
-                    Затухание в начале: {fadeIn}s | Затухание в конце: {fadeOut}
-                    s
-                  </p>
-                </div>
-
-                {/* Кнопка обновления предварительного просмотра */}
-                <div className="mt-3">
-                  <button
-                    onClick={updatePreview}
-                    disabled={isPreviewLoading}
-                    className="btn btn-secondary w-full text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isPreviewLoading
-                      ? "Обновление..."
-                      : "Обновить предварительный просмотр"}
+                ) : isPreviewPlaying ? "Стоп" : "Предв. прослушивание"}
+              </button>
+              {previewId && (
+                <div className="flex flex-col gap-1.5 flex-shrink-0">
+                  <div className="flex items-center gap-2">
+                    <button onClick={handlePreviewPlayPause} className="w-8 h-8 rounded-full bg-primary-600 text-white flex items-center justify-center hover:bg-primary-700 flex-shrink-0" aria-label={isPreviewPlaying ? "Стоп" : "Старт"}>
+                      {isPreviewPlaying ? <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" /></svg> : <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" /></svg>}
+                    </button>
+                    <input type="range" min="0" max={previewDuration || 0} value={previewCurrentTime} onChange={handlePreviewSeek} className="flex-1 h-1.5 accent-primary-600" />
+                    <span className="text-xs text-gray-500 font-mono tabular-nums w-14">{formatTimeMs(previewCurrentTime)} / {formatTimeMs(previewDuration)}</span>
+                  </div>
+                  <button type="button" onClick={updatePreview} disabled={isPreviewLoading} className="text-xs text-gray-500 hover:text-gray-700 disabled:opacity-50">
+                    {isPreviewLoading ? "Обновление…" : "Обновить превью"}
                   </button>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
-
-          {/* Скрытый аудио элемент для предварительного прослушивания */}
-          {previewId && (
-            <audio
-              ref={previewAudioRef}
-              src={`/api/preview-audio/${previewId}`}
-              onTimeUpdate={handlePreviewTimeUpdate}
-              onLoadedMetadata={handlePreviewLoadedMetadata}
-              onEnded={handlePreviewEnded}
-              onError={(error) => {
-                console.error("Preview audio error:", error);
-                alert("Ошибка воспроизведения предварительного просмотра");
-              }}
-            />
-          )}
         </div>
 
-        {/* Кнопки */}
-        <div className="flex space-x-3 mt-6">
-          <button onClick={handleTrim} className="btn btn-primary flex-1">
-            Обрезать трек
-          </button>
-          <button onClick={onCancel} className="btn btn-secondary flex-1">
-            Отмена
-          </button>
+        {/* Подвал с кнопками */}
+        <div className="flex-shrink-0 px-6 py-3 border-t border-gray-200 flex gap-3">
+          <button onClick={handleTrim} className="btn btn-primary flex-1">Обрезать трек</button>
+          <button onClick={onCancel} className="btn btn-secondary flex-1">Отмена</button>
         </div>
       </div>
+
+      {previewId && (
+        <audio
+          ref={previewAudioRef}
+          src={`/api/preview-audio/${previewId}`}
+          onTimeUpdate={handlePreviewTimeUpdate}
+          onLoadedMetadata={handlePreviewLoadedMetadata}
+          onEnded={handlePreviewEnded}
+          onError={(e) => { console.error("Preview audio error:", e); alert("Ошибка воспроизведения предварительного просмотра"); }}
+          className="hidden"
+        />
+      )}
     </div>
   );
 }

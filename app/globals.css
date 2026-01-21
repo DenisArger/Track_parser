@@ -45,3 +45,6 @@
     @apply bg-primary-600 h-2 rounded-full transition-all duration-300;
   }
 }
+
+/* Wavesurfer.js trim region: color set in WaveformTrimEditor addRegion/enableDragSelection.
+   To override region/handle appearance (e.g. border), use the element’s ::part() if exposed. */
