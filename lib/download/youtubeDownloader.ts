@@ -71,7 +71,14 @@ export async function downloadTrackViaRapidAPI(
   }
 
   if (!response.data.link) {
-    throw new Error("No download link received from RapidAPI");
+    const status = response.data.status;
+    const msg = response.data.msg;
+    console.warn("[RapidAPI] No link in response:", { status, msg, hasTitle: !!response.data.title });
+    throw new Error(
+      "No download link received from RapidAPI. " +
+      "Возможные причины: ограничения видео (регион, возраст), премиум/авторские, лимиты подписки RapidAPI или youtube-mp36 не поддерживает этот тип ссылки. " +
+      "Попробуйте другое видео или проверьте квоты на rapidapi.com."
+    );
   }
 
   // Скачиваем аудиофайл

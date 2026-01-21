@@ -129,28 +129,31 @@ export async function loadConfig(): Promise<AppConfig> {
       return getDefaultConfig();
     }
 
-    // Загружаем базовую конфигурацию
-    // Use safe working directory for serverless environments
-    const workingDir = getSafeWorkingDirectory();
-    const configPath = path.join(workingDir, "config.json");
-
-    // Check if config file exists
+    // Сначала ищем config.json в корне проекта (репо на Vercel, локально).
+    // В serverless /tmp обычно пустой — не логируем путь, чтобы не засорять вывод.
+    const projectConfig = path.join(process.cwd(), "config.json");
+    let configPath = projectConfig;
     let configExists = false;
     try {
-      configExists = await fs.pathExists(configPath);
-    } catch (error) {
-      // If we can't check file existence, assume it doesn't exist
-      console.warn("Error checking config file existence:", error);
+      configExists = await fs.pathExists(projectConfig);
+    } catch {
       configExists = false;
     }
-
+    if (!configExists && isServerlessEnvironment()) {
+      const tmpPath = path.join(getSafeWorkingDirectory(), "config.json");
+      try {
+        configExists = await fs.pathExists(tmpPath);
+        if (configExists) configPath = tmpPath;
+      } catch {
+        configExists = false;
+      }
+    }
     if (!configExists) {
-      // In serverless or if file doesn't exist, use defaults
-      console.warn(
-        `Config file not found at ${configPath}, using defaults${
-          isServerlessEnvironment() ? " (serverless)" : ""
-        }`
-      );
+      if (isServerlessEnvironment()) {
+        console.warn("Config: using env defaults (no config.json in project).");
+      } else {
+        console.warn(`Config file not found at ${projectConfig}, using defaults.`);
+      }
       return getDefaultConfig();
     }
 

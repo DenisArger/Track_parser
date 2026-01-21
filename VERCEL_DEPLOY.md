@@ -65,6 +65,12 @@
 
 Приложение определяет Vercel через `VERCEL=1` и `VERCEL_URL` и переключается на serverless-режим (то же поведение, что и для Netlify).
 
+## Логи и предупреждения
+
+- **`Config: using env defaults (no config.json in project).`** — в serverless конфиг берётся из переменных окружения; это нормально.
+- **`[DEP0169] url.parse() DeprecationWarning`** — из зависимости (Supabase/другие), на работу не влияет. Чтобы скрыть: в Vercel добавьте `NODE_OPTIONS` = `--no-deprecation` (по желанию).
+- **`No download link received from RapidAPI`** — youtube-mp36 не вернул ссылку: ограничения видео (регион, возраст, авторские), лимиты/план RapidAPI или тип ссылки. В логах есть `[RapidAPI] No link in response: { status, msg }`. Попробуйте другое видео, проверьте квоты на rapidapi.com и что `RAPIDAPI_HOST` = `youtube-mp36.p.rapidapi.com`.
+
 ## Полезные ссылки
 
 - [Документация Vercel](https://vercel.com/docs)
