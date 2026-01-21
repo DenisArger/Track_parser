@@ -55,7 +55,8 @@ export async function GET(
           const end = m[2] ? parseInt(m[2], 10) : fileSize - 1;
           const chunkSize = end - start + 1;
           if (start >= 0 && start < fileSize && end < fileSize && start <= end) {
-            return new NextResponse(fileBuffer.slice(start, end + 1), {
+            const chunk = new Uint8Array(fileBuffer.slice(start, end + 1));
+            return new NextResponse(chunk, {
               status: 206,
               headers: {
                 "Content-Type": "audio/mpeg",
@@ -68,7 +69,7 @@ export async function GET(
           }
         }
       }
-      return new NextResponse(fileBuffer, {
+      return new NextResponse(new Uint8Array(fileBuffer), {
         headers: {
           "Content-Type": "audio/mpeg",
           "Content-Disposition": `inline; filename="${encoded}"; filename*=UTF-8''${encoded}`,
