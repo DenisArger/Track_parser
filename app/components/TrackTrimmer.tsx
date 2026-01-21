@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { Track, TrimSettings } from "@/types/track";
+import { getUserFacingErrorMessage } from "@/lib/utils/errorMessage";
 
 interface TrackTrimmerProps {
   track: Track;
@@ -68,11 +69,7 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
       onCancel();
     } catch (error) {
       console.error("Error trimming track:", error);
-      alert(
-        `Error trimming track: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`
-      );
+      alert(`Error trimming track: ${getUserFacingErrorMessage(error, "Unknown error")}`);
     }
   };
 
@@ -94,11 +91,7 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
       console.log("Preview created:", result.previewId);
     } catch (error) {
       console.error("Error creating preview:", error);
-      alert(
-        `Error creating preview: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`
-      );
+      alert(`Error creating preview: ${getUserFacingErrorMessage(error, "Unknown error")}`);
     } finally {
       setIsPreviewLoading(false);
     }

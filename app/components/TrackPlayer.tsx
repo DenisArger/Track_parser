@@ -4,6 +4,7 @@ import { useState, useRef } from "react";
 import { Track } from "@/types/track";
 import TrackList from "./shared/TrackList";
 import { getDownloadedTracks } from "@/lib/utils/trackFilters";
+import { getUserFacingErrorMessage } from "@/lib/utils/errorMessage";
 import { formatTime } from "@/lib/utils/timeFormatter";
 import TrackTrimmer from "./TrackTrimmer";
 import TrimDetails from "./TrimDetails";
@@ -161,11 +162,7 @@ export default function TrackPlayer({
       setIsPlaying(false);
     } catch (error) {
       console.error("Error processing track:", error);
-      alert(
-        `Error processing track: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`
-      );
+      alert(`Error processing track: ${getUserFacingErrorMessage(error, "Unknown error")}`);
     } finally {
       setIsAccepting(false);
     }
@@ -187,11 +184,7 @@ export default function TrackPlayer({
       setIsPlaying(false);
     } catch (error) {
       console.error("Error rejecting track:", error);
-      alert(
-        `Error rejecting track: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`
-      );
+      alert(`Error rejecting track: ${getUserFacingErrorMessage(error, "Unknown error")}`);
     } finally {
       setIsRejecting(false);
     }

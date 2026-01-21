@@ -6,6 +6,7 @@ import TrackList from "./shared/TrackList";
 import TrackStatusBadge from "./shared/TrackStatusBadge";
 import { getProcessedTracks } from "@/lib/utils/trackFilters";
 import { formatTime } from "@/lib/utils/timeFormatter";
+import { getUserFacingErrorMessage } from "@/lib/utils/errorMessage";
 
 interface MetadataEditorProps {
   onTracksUpdate: () => void;
@@ -69,11 +70,7 @@ export default function MetadataEditor({
       });
     } catch (error) {
       console.error("Error updating metadata:", error);
-      alert(
-        `Error updating metadata: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`
-      );
+      alert(`Error updating metadata: ${getUserFacingErrorMessage(error, "Unknown error")}`);
     } finally {
       setIsSaving(false);
     }
@@ -295,11 +292,7 @@ export default function MetadataEditor({
                             setSelectedTrack({ ...selectedTrack, status: newStatus });
                           } catch (error) {
                             console.error("Error changing status:", error);
-                            alert(
-                              `Error changing status: ${
-                                error instanceof Error ? error.message : "Unknown error"
-                              }`
-                            );
+                            alert(`Error changing status: ${getUserFacingErrorMessage(error, "Unknown error")}`);
                           } finally {
                             setIsChangingStatus(false);
                           }

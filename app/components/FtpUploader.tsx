@@ -6,6 +6,7 @@ import {
   getProcessedTracks,
   getUploadedTracks,
 } from "@/lib/utils/trackFilters";
+import { getUserFacingErrorMessage } from "@/lib/utils/errorMessage";
 
 interface FtpUploaderProps {
   onTracksUpdate: () => void;
@@ -101,7 +102,7 @@ export default function FtpUploader({
       console.log("Upload successful:", responseData);
       onTracksUpdate();
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Upload failed";
+      const errorMessage = getUserFacingErrorMessage(err, "Upload failed");
       console.error("Upload error:", errorMessage);
       setError(errorMessage);
     } finally {
@@ -162,7 +163,7 @@ export default function FtpUploader({
       console.log("All uploads completed");
       onTracksUpdate();
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Upload failed";
+      const errorMessage = getUserFacingErrorMessage(err, "Upload failed");
       console.error("Upload all error:", errorMessage);
       setError(errorMessage);
     } finally {

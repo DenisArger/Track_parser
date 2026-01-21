@@ -10,6 +10,7 @@ import TrackManager from "./components/TrackManager";
 import { Track } from "@/types/track";
 import { getAllTracks, changeTrackStatusAction } from "@/lib/actions/trackActions";
 import { useTracksRealtime } from "@/lib/hooks/useTracksRealtime";
+import { getUserFacingErrorMessage } from "@/lib/utils/errorMessage";
 
 // Force dynamic rendering to prevent static generation issues
 export const dynamic = 'force-dynamic';
@@ -18,6 +19,7 @@ export default function HomePage() {
   const [tracks, setTracks] = useState<Track[]>([]);
   const [activeTab, setActiveTab] = useState("download");
   const [clearingErrorId, setClearingErrorId] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // Подписка на изменения треков в реальном времени
   const { isConnected } = useTracksRealtime(
@@ -45,11 +47,13 @@ export default function HomePage() {
   }, []);
 
   const fetchTracks = async () => {
+    setLoadError(null);
     try {
       const tracksData = await getAllTracks();
       setTracks(tracksData);
     } catch (error) {
       console.error("Error fetching tracks:", error);
+      setLoadError(getUserFacingErrorMessage(error, "Не удалось загрузить список треков"));
     }
   };
 
@@ -66,6 +70,11 @@ export default function HomePage() {
 
   return (
     <div className="space-y-6">
+      {loadError && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-red-800 text-sm">
+          {loadError}
+        </div>
+      )}
       {/* Navigation Tabs */}
       <nav className="flex space-x-1 bg-white rounded-lg p-1 shadow-sm">
         {tabs.map((tab) => (

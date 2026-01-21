@@ -6,6 +6,7 @@ import {
   getDownloadingTracks,
   getDownloadedTracks,
 } from "@/lib/utils/trackFilters";
+import { getUserFacingErrorMessage } from "@/lib/utils/errorMessage";
 import { downloadTrackAction } from "@/lib/actions/trackActions";
 
 interface DownloadTrackProps {
@@ -42,7 +43,7 @@ export default function DownloadTrack({
       setUrl("");
       onTracksUpdate();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Download failed");
+      setError(getUserFacingErrorMessage(err, "Download failed"));
     } finally {
       setIsDownloading(false);
     }
