@@ -17,30 +17,30 @@ export function extractVideoId(url: string): string {
 }
 
 /**
- * Скачивает трек через RapidAPI
+ * Скачивает трек через RapidAPI и загружает в Supabase Storage
  */
 export async function downloadTrackViaRapidAPI(
   url: string,
-  outputDir: string
-): Promise<{ filePath: string; title: string }> {
+  outputDir: string,
+  trackId?: string
+): Promise<{ filePath: string; title: string; storagePath: string }> {
   // Dynamic imports to avoid issues in serverless
   const fs = await import("fs-extra");
   const path = await import("path");
   const { loadConfig } = await import("@/lib/config");
-  const { isServerlessEnvironment } = await import("@/lib/utils/environment");
-  
+  const {
+    uploadFileToStorage,
+    STORAGE_BUCKETS,
+    sanitizeFilenameForStorage,
+  } = await import("@/lib/storage/supabaseStorage");
+
   const config = await loadConfig();
-  
+
   // Ensure directory exists - in serverless this should be /tmp
   try {
     await fs.ensureDir(outputDir);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("[DEBUG] downloadTrackViaRapidAPI: Error creating directory", {
-      outputDir,
-      errorMessage,
-      isServerless: isServerlessEnvironment()
-    });
     throw new Error(`Failed to create output directory: ${errorMessage}`);
   }
   const videoId = extractVideoId(url);
@@ -85,15 +85,38 @@ export async function downloadTrackViaRapidAPI(
     },
   });
 
-  // Создаем безопасное имя файла
-  const safeTitle = response.data.title
-    .replace(/[^\w\s-]/g, "")
-    .substring(0, 100);
-  const filename = `${safeTitle}.mp3`;
+  // Создаем безопасное имя файла для Storage (без кириллицы/пробелов — Invalid key)
+  const rawTitle = (response.data.title || "audio").substring(0, 100);
+  const filename = sanitizeFilenameForStorage(`${rawTitle}.mp3`);
   const filepath = path.join(outputDir, filename);
 
-  // Сохраняем файл
+  // Сохраняем файл временно (для обработки или как fallback)
   await fs.writeFile(filepath, audioResponse.data);
 
-  return { filePath: filepath, title: response.data.title };
+  // Загружаем в Supabase Storage
+  const storagePath = trackId ? `${trackId}/${filename}` : `${Date.now()}_${filename}`;
+  const fileBuffer = Buffer.from(audioResponse.data);
+  
+  const { path: uploadedPath } = await uploadFileToStorage(
+    STORAGE_BUCKETS.downloads,
+    storagePath,
+    fileBuffer,
+    {
+      contentType: "audio/mpeg",
+      upsert: true,
+    }
+  );
+
+  // Всегда удаляем локальный файл после успешной загрузки в Storage
+  try {
+    await fs.remove(filepath);
+  } catch (e) {
+    // Игнорируем ошибки удаления
+  }
+
+  return {
+    filePath: uploadedPath,
+    title: response.data.title,
+    storagePath: uploadedPath,
+  };
 }

@@ -9,7 +9,6 @@ import {
   getAllTracks as getAllTracksFromStorage,
   getTrack as getTrackFromStorage,
   setTrack,
-  saveTracksToFile,
 } from "./storage/trackStorage";
 // Dynamic imports for modules that use spawn/exec to avoid issues in serverless
 // These modules are only imported when needed, not at module load time
@@ -45,7 +44,8 @@ function detectSourceFromUrl(
  */
 export async function downloadTrackViaYtDlp(
   url: string,
-  outputDir: string
+  outputDir: string,
+  trackId: string
 ): Promise<{ filePath: string; title: string }> {
   // Dynamic import to avoid issues during static generation
   const { isServerlessEnvironment } = await import("./utils/environment");
@@ -157,24 +157,44 @@ export async function downloadTrackViaYtDlp(
               return;
             }
 
-            // Используем последний созданный файл
             const filename = mp3Files[mp3Files.length - 1];
             const filepath = path.join(outputDir, filename);
-
-            // Извлекаем название из имени файла (убираем .mp3 и восстанавливаем оригинальные символы)
             const title = filename.replace(".mp3", "");
 
-            console.log("Found downloaded file:", filename);
-            console.log("File path:", filepath);
-            console.log("Extracted title:", title);
+            const {
+              uploadFileToStorage,
+              STORAGE_BUCKETS,
+              sanitizeFilenameForStorage,
+            } = await import("./storage/supabaseStorage");
+            const fileBuffer = await fs.readFile(filepath);
+            const safeFilename = sanitizeFilenameForStorage(filename);
+            const storagePath = `${trackId}/${safeFilename}`;
+            const { path: uploadedPath } = await uploadFileToStorage(
+              STORAGE_BUCKETS.downloads,
+              storagePath,
+              fileBuffer,
+              { contentType: "audio/mpeg", upsert: true }
+            );
 
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/cb117245-0fa8-4993-97a2-913e34cda7ce',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'processTracks.ts:171',message:'File downloaded and path set',data:{filename,filepath,filenameLength:filename.length,hasSpaces:filename.includes(' '),hasLeadingSpaces:filename.startsWith(' '),hasTrailingSpaces:filename.endsWith(' '),outputDir},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-            // #endregion
+            try {
+              await fs.remove(filepath);
+            } catch (e) {
+              // ignore
+            }
+            try {
+              const list = await fs.readdir(outputDir);
+              for (const f of list) {
+                if (f.endsWith(".webp") || f.endsWith(".json")) {
+                  await fs.remove(path.join(outputDir, f));
+                }
+              }
+            } catch (e) {
+              // ignore
+            }
 
-            resolve({ filePath: filepath, title });
+            resolve({ filePath: storagePath, title });
           } catch (error) {
-            reject(new Error(`Ошибка при поиске скачанного файла: ${error}`));
+            reject(new Error(`Ошибка при загрузке в Storage: ${error}`));
           }
         } else {
           // Improve error message for FFmpeg-related errors
@@ -225,6 +245,7 @@ export async function downloadTrack(
 
   let filePath = "";
   let apiTitle = "";
+  let storagePath = "";
 
   if (source === "youtube") {
     try {
@@ -234,10 +255,12 @@ export async function downloadTrack(
       );
       const result = await downloadTrackViaRapidAPI(
         url,
-        config.folders.downloads
+        config.folders.downloads,
+        trackId
       );
       filePath = result.filePath;
       apiTitle = result.title;
+      storagePath = result.storagePath || result.filePath;
     } catch (error) {
       // Если RapidAPI не сработал, пробуем yt-dlp только если FFmpeg доступен
       console.log("RapidAPI failed, checking if yt-dlp is available...");
@@ -269,9 +292,10 @@ export async function downloadTrack(
       
       console.log("RapidAPI failed, trying yt-dlp...");
       try {
-        const result = await downloadTrackViaYtDlp(url, config.folders.downloads);
+        const result = await downloadTrackViaYtDlp(url, config.folders.downloads, trackId);
         filePath = result.filePath;
         apiTitle = result.title;
+        storagePath = result.filePath;
       } catch (ytDlpError) {
         const rapidApiError = error instanceof Error ? error.message : String(error);
         const ytDlpErrorMessage = ytDlpError instanceof Error ? ytDlpError.message : String(ytDlpError);
@@ -283,10 +307,10 @@ export async function downloadTrack(
       }
     }
   } else if (source === "youtube-music") {
-    // Для YouTube Music используем yt-dlp напрямую
-    const result = await downloadTrackViaYtDlp(url, config.folders.downloads);
+    const result = await downloadTrackViaYtDlp(url, config.folders.downloads, trackId);
     filePath = result.filePath;
     apiTitle = result.title;
+    storagePath = result.filePath;
   } else if (source === "yandex") {
     // Для Яндекс.Музыки используем yt-dlp
     try {
@@ -295,10 +319,12 @@ export async function downloadTrack(
         await import("./download/yandexDownloader");
       const result = await downloadYandexTrackViaYtDlp(
         url,
-        config.folders.downloads
+        config.folders.downloads,
+        trackId
       );
       filePath = result.filePath;
       apiTitle = result.title;
+      storagePath = result.storagePath || result.filePath;
     } catch (error) {
       throw new Error(
         `Ошибка скачивания с Яндекс.Музыки: ${
@@ -314,10 +340,13 @@ export async function downloadTrack(
   const path = await import("path");
   const filename = path.basename(filePath);
   
+  // Используем storagePath если он был установлен, иначе filePath
+  const finalPath = storagePath || filePath;
+  
   const track: Track = {
     id: trackId,
     filename,
-    originalPath: filePath,
+    originalPath: finalPath, // Используем storagePath если доступен, иначе локальный путь
     metadata: {
       title: apiTitle || filename.replace(".mp3", ""),
       artist: "Unknown",
@@ -331,8 +360,7 @@ export async function downloadTrack(
     status: "downloaded",
   };
 
-  setTrack(trackId, track);
-  await saveTracksToFile();
+  await setTrack(trackId, track);
   return track;
 }
 
@@ -378,26 +406,34 @@ export async function getTrack(trackId: string): Promise<Track | undefined> {
 }
 
 /**
- * Отклонить трек
+ * Отклонить трек: перенос файла из downloads в rejected (Supabase Storage)
  */
 export async function rejectTrack(trackId: string): Promise<void> {
-  // Dynamic imports to avoid issues during static generation
-  const fs = await import("fs-extra");
-  const path = await import("path");
-  
-  // Dynamic import to avoid issues during static generation
-  const { loadConfig } = await import("./config");
-  const config = await loadConfig();
+  const {
+    downloadFileFromStorage,
+    uploadFileToStorage,
+    deleteFileFromStorage,
+    STORAGE_BUCKETS,
+  } = await import("./storage/supabaseStorage");
+
   const track = await getTrackFromStorage(trackId);
   if (!track) throw new Error("Track not found");
+  if (!track.originalPath) throw new Error("Track has no original file");
 
-  const rejectedPath = path.join(config.folders.rejected, track.filename);
-  await fs.move(track.originalPath, rejectedPath, { overwrite: true });
+  const buffer = await downloadFileFromStorage(
+    STORAGE_BUCKETS.downloads,
+    track.originalPath
+  );
+  await uploadFileToStorage(
+    STORAGE_BUCKETS.rejected,
+    track.originalPath,
+    buffer,
+    { contentType: "audio/mpeg", upsert: true }
+  );
+  await deleteFileFromStorage(STORAGE_BUCKETS.downloads, track.originalPath);
+
   track.status = "rejected";
-  track.originalPath = rejectedPath;
-
-  setTrack(trackId, track);
-  await saveTracksToFile();
+  await setTrack(trackId, track);
 }
 
 /**
@@ -434,40 +470,90 @@ export async function processTrack(
     console.log("Track already processed, updating metadata only");
     if (metadata) {
       Object.assign(track.metadata, metadata);
-      // Dynamic import to avoid issues in serverless
-      const { writeTrackTags } = await import("./audio/metadataWriter");
-      await writeTrackTags(track.processedPath, track.metadata);
-      setTrack(trackId, track);
-      await saveTracksToFile();
+      if (track.processedPath) {
+        try {
+          const path = await import("path");
+          const fs = await import("fs-extra");
+          const {
+            downloadFileFromStorage,
+            uploadFileToStorage,
+            STORAGE_BUCKETS,
+          } = await import("./storage/supabaseStorage");
+          const { writeTrackTags } = await import("./audio/metadataWriter");
+          const tempPath = path.join(config.folders.processed, `${trackId}_tags.mp3`);
+          const fileBuffer = await downloadFileFromStorage(STORAGE_BUCKETS.processed, track.processedPath);
+          await fs.writeFile(tempPath, fileBuffer);
+          await writeTrackTags(tempPath, track.metadata);
+          const updatedBuffer = await fs.readFile(tempPath);
+          await uploadFileToStorage(STORAGE_BUCKETS.processed, track.processedPath, updatedBuffer, { contentType: "audio/mpeg", upsert: true });
+          await fs.remove(tempPath);
+        } catch (tagError) {
+          console.error("Error writing track tags:", tagError);
+        }
+      }
+      await setTrack(trackId, track);
     }
     return track;
   }
 
-  // Dynamic import to avoid issues during static generation
   const path = await import("path");
+  const fs = await import("fs-extra");
+  const {
+    uploadFileToStorage,
+    downloadFileFromStorage,
+    STORAGE_BUCKETS,
+    sanitizeFilenameForStorage,
+  } = await import("./storage/supabaseStorage");
+
+  let tempInputPath: string | null = null;
+  const tempInputPathLoc = path.join(config.folders.downloads, `${trackId}_temp_input.mp3`);
+  const fileBuffer = await downloadFileFromStorage(STORAGE_BUCKETS.downloads, track.originalPath);
+  await fs.writeFile(tempInputPathLoc, fileBuffer);
+  tempInputPath = tempInputPathLoc;
+  const inputFilePath = tempInputPathLoc;
   
   // Обрезка с настройками или по умолчанию
-  const processedPath = path.join(config.folders.processed, track.filename);
+  // Создаем временный файл для обработки
+  const tempProcessedPath = path.join(config.folders.processed, `${trackId}_${track.filename}`);
   console.log(
     "Processing audio file:",
-    track.originalPath,
+    inputFilePath,
     "->",
-    processedPath
+    tempProcessedPath
   );
 
   // Use new audio processor that works in Netlify
   const { processAudioFile } = await import("./audio/audioProcessor");
   await processAudioFile(
-    track.originalPath,
-    processedPath,
+    inputFilePath,
+    tempProcessedPath,
     trimSettings,
     config.processing.maxDuration
   );
+  
+  const storagePath = `${trackId}/${sanitizeFilenameForStorage(track.filename)}`;
+  const processedBuffer = await fs.readFile(tempProcessedPath);
+  await uploadFileToStorage(
+    STORAGE_BUCKETS.processed,
+    storagePath,
+    processedBuffer,
+    { contentType: "audio/mpeg", upsert: true }
+  );
+  const finalProcessedPath = storagePath;
+  console.log("Processed file uploaded to Storage:", storagePath);
+
+  try {
+    if (tempInputPath && (await fs.pathExists(tempInputPath))) {
+      await fs.remove(tempInputPath);
+    }
+  } catch (e) {
+    console.warn("Error removing temp input:", e);
+  }
 
   // Определение BPM (gracefully handles serverless)
   console.log("Starting BPM detection...");
   const { detectBpmNetlify } = await import("./audio/bpmDetectorNetlify");
-  const bpm = await detectBpmNetlify(processedPath);
+  const bpm = await detectBpmNetlify(tempProcessedPath);
   if (bpm) {
     console.log("BPM detected:", bpm);
     track.metadata.bpm = bpm;
@@ -506,17 +592,31 @@ export async function processTrack(
     }
   }
 
-  // Записать теги
   console.log("Writing track tags...");
-  // Dynamic import to avoid issues in serverless
-  const { writeTrackTags } = await import("./audio/metadataWriter");
-  await writeTrackTags(processedPath, track.metadata);
+  try {
+    const { writeTrackTags } = await import("./audio/metadataWriter");
+    await writeTrackTags(tempProcessedPath, track.metadata);
+    const updatedBuffer = await fs.readFile(tempProcessedPath);
+    await uploadFileToStorage(STORAGE_BUCKETS.processed, storagePath, updatedBuffer, {
+      contentType: "audio/mpeg",
+      upsert: true,
+    });
+  } catch (tagError) {
+    console.error("Error writing track tags:", tagError);
+  }
 
-  track.processedPath = processedPath;
+  try {
+    if (await fs.pathExists(tempProcessedPath)) {
+      await fs.remove(tempProcessedPath);
+    }
+  } catch (e) {
+    console.warn("Error removing temp processed file:", e);
+  }
+
+  track.processedPath = finalProcessedPath;
   track.status = "processed";
 
-  setTrack(trackId, track);
-  await saveTracksToFile();
+  await setTrack(trackId, track);
 
   console.log("Track processing completed successfully");
   return track;
@@ -539,6 +639,13 @@ export async function trimTrack(
 
   // Dynamic import to avoid issues during static generation
   const path = await import("path");
+  const fs = await import("fs-extra");
+  const {
+    uploadFileToStorage,
+    downloadFileFromStorage,
+    STORAGE_BUCKETS,
+    sanitizeFilenameForStorage,
+  } = await import("./storage/supabaseStorage");
 
   // Dynamic import to avoid issues during static generation
   const { loadConfig } = await import("./config");
@@ -548,18 +655,37 @@ export async function trimTrack(
 
   console.log("Track found:", track.filename, "status:", track.status);
 
-  // Обрезка с настройками
-  const processedPath = path.join(config.folders.processed, track.filename);
-  console.log("Trimming audio file:", track.originalPath, "->", processedPath);
+  const tempInputPath = path.join(config.folders.downloads, `${trackId}_temp_trim_input.mp3`);
+  const fileBuffer = await downloadFileFromStorage(STORAGE_BUCKETS.downloads, track.originalPath);
+  await fs.writeFile(tempInputPath, fileBuffer);
 
-  // Use new audio processor that works in Netlify
+  const tempProcessedPath = path.join(config.folders.processed, `${trackId}_trimmed_${track.filename}`);
+  console.log("Trimming audio file:", tempInputPath, "->", tempProcessedPath);
+
   const { processAudioFile } = await import("./audio/audioProcessor");
   await processAudioFile(
-    track.originalPath,
-    processedPath,
+    tempInputPath,
+    tempProcessedPath,
     trimSettings,
     config.processing.maxDuration
   );
+
+  const storagePath = `${trackId}/${sanitizeFilenameForStorage(track.filename)}`;
+  const processedBuffer = await fs.readFile(tempProcessedPath);
+  await uploadFileToStorage(
+    STORAGE_BUCKETS.processed,
+    storagePath,
+    processedBuffer,
+    { contentType: "audio/mpeg", upsert: true }
+  );
+  console.log("Trimmed file uploaded to Storage:", storagePath);
+
+  try {
+    if (await fs.pathExists(tempInputPath)) await fs.remove(tempInputPath);
+    if (await fs.pathExists(tempProcessedPath)) await fs.remove(tempProcessedPath);
+  } catch (e) {
+    console.warn("Error removing temp files:", e);
+  }
 
   // Сохранить информацию об обрезке
   console.log("Saving trim information:", trimSettings);
@@ -580,10 +706,9 @@ export async function trimTrack(
     console.log("No real trimming applied, keeping track as original");
   }
 
-  track.processedPath = processedPath;
+  track.processedPath = storagePath;
   track.status = "trimmed";
-  setTrack(trackId, track);
-  await saveTracksToFile();
+  await setTrack(trackId, track);
 
   console.log("Track trimming completed successfully");
   return track;
@@ -620,21 +745,19 @@ export async function uploadToFtp(
 
   // Update status to uploading
   track.status = "uploading";
-  setTrack(trackId, track);
-  await saveTracksToFile();
+  await setTrack(trackId, track);
 
   try {
     // Dynamic import to avoid issues in serverless
     const { uploadToFtp: uploadFileToFtp } = await import("./upload/ftpUploader");
-    await uploadFileToFtp(track.processedPath, ftpConfig, track.metadata);
+    await uploadFileToFtp(track.processedPath, ftpConfig, track.metadata, track.id);
     
     console.log("FTP upload completed successfully for track:", trackId);
     
     // Update status to uploaded
     track.status = "uploaded";
-    setTrack(trackId, track);
-    await saveTracksToFile();
-    
+    await setTrack(trackId, track);
+
     console.log("Track status updated to 'uploaded'");
   } catch (error) {
     console.error("FTP upload failed for track:", trackId, error);
@@ -642,9 +765,8 @@ export async function uploadToFtp(
     // Update status to error
     track.status = "error";
     track.error = error instanceof Error ? error.message : String(error);
-    setTrack(trackId, track);
-    await saveTracksToFile();
-    
+    await setTrack(trackId, track);
+
     throw error;
   }
 }

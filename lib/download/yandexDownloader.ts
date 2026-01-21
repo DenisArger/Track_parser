@@ -38,12 +38,13 @@ export function isValidYandexMusicUrl(url: string): boolean {
 }
 
 /**
- * Скачивание трека через yt-dlp для Яндекс.Музыки
+ * Скачивание трека через yt-dlp для Яндекс.Музыки и загрузка в Supabase Storage
  */
 export async function downloadTrackViaYtDlp(
   url: string,
-  outputDir: string
-): Promise<{ filePath: string; title: string }> {
+  outputDir: string,
+  trackId?: string
+): Promise<{ filePath: string; title: string; storagePath: string }> {
   // Dynamic imports to avoid issues during static generation
   const fs = await import("fs-extra");
   const path = await import("path");
@@ -176,7 +177,48 @@ export async function downloadTrackViaYtDlp(
             console.log("File path:", filepath);
             console.log("Extracted title:", title);
 
-            resolve({ filePath: filepath, title });
+            const {
+              uploadFileToStorage,
+              STORAGE_BUCKETS,
+              sanitizeFilenameForStorage,
+            } = await import("@/lib/storage/supabaseStorage");
+            const fileBuffer = await fs.readFile(filepath);
+            const safeFilename = sanitizeFilenameForStorage(filename);
+            const storagePath = trackId
+              ? `${trackId}/${safeFilename}`
+              : `${Date.now()}_${safeFilename}`;
+
+            const { path: uploadedPath } = await uploadFileToStorage(
+              STORAGE_BUCKETS.downloads,
+              storagePath,
+              fileBuffer,
+              {
+                contentType: "audio/mpeg",
+                upsert: true,
+              }
+            );
+
+            try {
+              await fs.remove(filepath);
+            } catch (e) {
+              // ignore
+            }
+            try {
+              const list = await fs.readdir(outputDir);
+              for (const f of list) {
+                if (f.endsWith(".webp") || f.endsWith(".json")) {
+                  await fs.remove(path.join(outputDir, f));
+                }
+              }
+            } catch (e) {
+              // ignore
+            }
+
+            resolve({
+              filePath: uploadedPath,
+              title,
+              storagePath: uploadedPath,
+            });
           } catch (error) {
             reject(new Error(`Ошибка при поиске скачанного файла: ${error}`));
           }

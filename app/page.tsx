@@ -8,7 +8,8 @@ import FtpUploader from "./components/FtpUploader";
 import TrackStatusBadge from "./components/shared/TrackStatusBadge";
 import TrackManager from "./components/TrackManager";
 import { Track } from "@/types/track";
-import { getAllTracks } from "@/lib/actions/trackActions";
+import { getAllTracks, changeTrackStatusAction } from "@/lib/actions/trackActions";
+import { useTracksRealtime } from "@/lib/hooks/useTracksRealtime";
 
 // Force dynamic rendering to prevent static generation issues
 export const dynamic = 'force-dynamic';
@@ -16,6 +17,27 @@ export const dynamic = 'force-dynamic';
 export default function HomePage() {
   const [tracks, setTracks] = useState<Track[]>([]);
   const [activeTab, setActiveTab] = useState("download");
+  const [clearingErrorId, setClearingErrorId] = useState<string | null>(null);
+
+  // Подписка на изменения треков в реальном времени
+  const { isConnected } = useTracksRealtime(
+    (updatedTrack) => {
+      // Обновляем трек в списке
+      setTracks((prevTracks) =>
+        prevTracks.map((t) => (t.id === updatedTrack.id ? updatedTrack : t))
+      );
+    },
+    (newTrack) => {
+      // Добавляем новый трек в список
+      setTracks((prevTracks) => [...prevTracks, newTrack]);
+    },
+    (deletedTrackId) => {
+      // Удаляем трек из списка
+      setTracks((prevTracks) =>
+        prevTracks.filter((t) => t.id !== deletedTrackId)
+      );
+    }
+  );
 
   useEffect(() => {
     // Load tracks from server
@@ -81,9 +103,32 @@ export default function HomePage() {
                   <TrackStatusBadge status={track.status} />
                 </div>
                 {track.error && (
-                  <p className="text-xs text-danger-600 mt-1">
-                    Error: {track.error}
-                  </p>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <p className="text-xs text-danger-600 flex-1 min-w-0">
+                      Error: {track.error}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        if (clearingErrorId) return;
+                        setClearingErrorId(track.id);
+                        try {
+                          await changeTrackStatusAction(
+                            track.id,
+                            track.processedPath ? "trimmed" : "downloaded"
+                          );
+                          await fetchTracks();
+                        } finally {
+                          setClearingErrorId(null);
+                        }
+                      }}
+                      disabled={!!clearingErrorId}
+                      className="text-xs px-2 py-1 rounded bg-gray-200 hover:bg-gray-300 text-gray-700 disabled:opacity-50"
+                    >
+                      {clearingErrorId === track.id ? "…" : "Сбросить ошибку"}
+                    </button>
+                  </div>
                 )}
               </div>
             ))}

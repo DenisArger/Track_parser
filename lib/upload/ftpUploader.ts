@@ -60,7 +60,8 @@ function generateSafeFilename(metadata: TrackMetadata): string {
 export async function uploadToFtp(
   filePath: string,
   ftpConfig: FtpConfig,
-  metadata?: TrackMetadata
+  metadata?: TrackMetadata,
+  trackId?: string
 ): Promise<void> {
   // Dynamic imports to avoid issues during static generation
   const fs = await import("fs-extra");
@@ -71,12 +72,78 @@ export async function uploadToFtp(
   console.log("FTP host:", ftpConfig.host);
   console.log("FTP remote path:", ftpConfig.remotePath || "(root)");
 
-  // Check if file exists
-  if (!(await fs.pathExists(filePath))) {
-    throw new Error(`File not found: ${filePath}`);
+  // Проверяем, является ли путь путем в Storage
+  const isStoragePath = !filePath.includes(path.sep) || 
+                       filePath.startsWith('downloads/') || 
+                       filePath.startsWith('processed/') ||
+                       filePath.startsWith('rejected/') ||
+                       filePath.includes('/');
+
+  let actualFilePath = filePath;
+  let tempFilePath: string | null = null;
+
+  if (isStoragePath) {
+    // Файл в Storage - скачиваем временно
+    try {
+      const {
+        downloadFileFromStorage,
+        STORAGE_BUCKETS,
+      } = await import("@/lib/storage/supabaseStorage");
+      
+      let storageBucket: string = STORAGE_BUCKETS.processed;
+      let storagePath = filePath;
+      
+      if (filePath.startsWith('downloads/')) {
+        storageBucket = STORAGE_BUCKETS.downloads;
+        storagePath = filePath.replace('downloads/', '');
+      } else if (filePath.startsWith('processed/')) {
+        storageBucket = STORAGE_BUCKETS.processed;
+        storagePath = filePath.replace('processed/', '');
+      } else if (filePath.startsWith('rejected/')) {
+        storageBucket = STORAGE_BUCKETS.rejected;
+        storagePath = filePath.replace('rejected/', '');
+      }
+      
+      let fileBuffer: Buffer;
+      try {
+        fileBuffer = await downloadFileFromStorage(storageBucket, storagePath);
+      } catch (firstErr) {
+        if (trackId && storagePath.startsWith(trackId + "_")) {
+          const altPath = trackId + "/" + storagePath.slice((trackId + "_").length);
+          try {
+            fileBuffer = await downloadFileFromStorage(storageBucket, altPath);
+          } catch {
+            const msg = firstErr instanceof Error ? firstErr.message : String(firstErr);
+            throw new Error(`Failed to download file from Storage: ${msg}`);
+          }
+        } else {
+          const msg = firstErr instanceof Error ? firstErr.message : String(firstErr);
+          throw new Error(`Failed to download file from Storage: ${msg}`);
+        }
+      }
+      {
+        tempFilePath = path.join(
+          (await import("@/lib/config").then((m) => m.loadConfig())).folders
+            .server_upload,
+          `temp_${Date.now()}_${path.basename(filePath)}`
+        );
+        await fs.ensureDir(path.dirname(tempFilePath));
+        await fs.writeFile(tempFilePath, fileBuffer);
+        actualFilePath = tempFilePath;
+        console.log("Downloaded file from Storage to temp path:", actualFilePath);
+      }
+    } catch (storageError) {
+      console.error("Error downloading from Storage:", storageError);
+      throw storageError;
+    }
   }
 
-  const fileStats = await fs.stat(filePath);
+  // Check if file exists
+  if (!(await fs.pathExists(actualFilePath))) {
+    throw new Error(`File not found: ${actualFilePath}`);
+  }
+
+  const fileStats = await fs.stat(actualFilePath);
   console.log("File size:", fileStats.size, "bytes");
 
   // Dynamic import to avoid issues during static generation
@@ -146,8 +213,8 @@ export async function uploadToFtp(
       });
     }
 
-    // Upload file
-    await client.uploadFrom(filePath, fileName);
+    // Upload file (actualFilePath — локальный файл или скачанный из Storage во временный)
+    await client.uploadFrom(actualFilePath, fileName);
 
     console.log("File uploaded successfully:", fileName);
 
@@ -174,6 +241,16 @@ export async function uploadToFtp(
       console.log("FTP connection closed");
     } catch (closeError) {
       console.warn("Error closing FTP connection:", closeError);
+    }
+    
+    // Удаляем временный файл если он был создан
+    if (tempFilePath && await fs.pathExists(tempFilePath)) {
+      try {
+        await fs.remove(tempFilePath);
+        console.log("Temporary file removed:", tempFilePath);
+      } catch (removeError) {
+        console.warn("Error removing temporary file:", removeError);
+      }
     }
   }
 }

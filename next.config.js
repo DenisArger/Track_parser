@@ -36,7 +36,6 @@ const nextConfig = {
         "rejected/**/*",
         "server_upload/**/*",
         "temp/**/*",
-        "tracks.json",
       ],
     },
     // Ensure Server Actions work correctly in serverless environments

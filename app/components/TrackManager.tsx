@@ -10,7 +10,11 @@ interface TrackStats {
   rejected: number;
 }
 
-export default function TrackManager() {
+interface TrackManagerProps {
+  onTracksUpdate?: () => void;
+}
+
+export default function TrackManager({ onTracksUpdate }: TrackManagerProps) {
   const [stats, setStats] = useState<TrackStats | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState("");
@@ -117,6 +121,50 @@ export default function TrackManager() {
             className="btn btn-secondary w-full disabled:opacity-50"
           >
             {isLoading ? "Очистка..." : "Очистить статусы"}
+          </button>
+        </div>
+
+        {/* Начать с нуля */}
+        <div className="card border-amber-200 bg-amber-50/50">
+          <h3 className="text-lg font-medium mb-4">Начать с нуля</h3>
+          <p className="text-sm text-gray-600 mb-4">
+            Удалит все треки из базы и все файлы в хранилище (downloads, processed, rejected, previews). Действие необратимо.
+          </p>
+
+          <button
+            onClick={async () => {
+              if (
+                !window.confirm(
+                  "Все треки и все файлы в хранилище будут удалены. Продолжить?"
+                )
+              ) {
+                return;
+              }
+              setIsLoading(true);
+              try {
+                const { resetAllDataAction } = await import(
+                  "@/lib/actions/trackActions"
+                );
+                const res = await resetAllDataAction();
+                if (res.ok) {
+                  setMessage(
+                    `Готово: удалено треков ${res.deleted}, очищено файлов в бакетах: ${JSON.stringify(res.cleared)}`
+                  );
+                  setStats(null);
+                  onTracksUpdate?.();
+                } else {
+                  setMessage(`Ошибка: ${res.error || "неизвестная"}`);
+                }
+              } catch (e) {
+                setMessage(`Ошибка: ${e instanceof Error ? e.message : String(e)}`);
+              } finally {
+                setIsLoading(false);
+              }
+            }}
+            disabled={isLoading}
+            className="btn w-full disabled:opacity-50 bg-amber-600 hover:bg-amber-700 text-white"
+          >
+            {isLoading ? "Сброс..." : "Сбросить всё"}
           </button>
         </div>
       </div>

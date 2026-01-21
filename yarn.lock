@@ -2731,6 +2731,68 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@supabase/auth-js@npm:2.91.0":
+  version: 2.91.0
+  resolution: "@supabase/auth-js@npm:2.91.0"
+  dependencies:
+    tslib: "npm:2.8.1"
+  checksum: 10c0/5e5ce9914b2d05d86308cb459a39b3b1658907919420116455e6205fb93af9c1bbf5d25bf7b86983ddaaa4da2f3a00aa0aa00a1b60cee87b4718d9d9658f0137
+  languageName: node
+  linkType: hard
+
+"@supabase/functions-js@npm:2.91.0":
+  version: 2.91.0
+  resolution: "@supabase/functions-js@npm:2.91.0"
+  dependencies:
+    tslib: "npm:2.8.1"
+  checksum: 10c0/ee0924ffc014419d44c5587ccbe62b95af2012f9b756a802ba89214dbe793a7bc8306c4419714cb26ab36255337dc286cbb94fb1549ee2728caee0302eaed361
+  languageName: node
+  linkType: hard
+
+"@supabase/postgrest-js@npm:2.91.0":
+  version: 2.91.0
+  resolution: "@supabase/postgrest-js@npm:2.91.0"
+  dependencies:
+    tslib: "npm:2.8.1"
+  checksum: 10c0/858478c0a0bc2562511fc4fb90be8b20b318d2afba6fe182fe48f7cc1c9cb484364ef7adc3cebc2d1ada6c5a6923d894097fba82a7c6ff14dc71bc773fae9079
+  languageName: node
+  linkType: hard
+
+"@supabase/realtime-js@npm:2.91.0":
+  version: 2.91.0
+  resolution: "@supabase/realtime-js@npm:2.91.0"
+  dependencies:
+    "@types/phoenix": "npm:^1.6.6"
+    "@types/ws": "npm:^8.18.1"
+    tslib: "npm:2.8.1"
+    ws: "npm:^8.18.2"
+  checksum: 10c0/cb2d3080a14fc7bed9a999bebff6b6ebd14f8c93ad48a993fe0edba6dfda8fb2466d54c3c9a0bfe6716817461dbcf9afa64c33dce731c1aab3518df522fcce0e
+  languageName: node
+  linkType: hard
+
+"@supabase/storage-js@npm:2.91.0":
+  version: 2.91.0
+  resolution: "@supabase/storage-js@npm:2.91.0"
+  dependencies:
+    iceberg-js: "npm:^0.8.1"
+    tslib: "npm:2.8.1"
+  checksum: 10c0/fd860ae6ec263810954a8fe67112d16441ce6b926e6995d8efa04dc8d5404bac484f225e66b38a7cd71b25f825a0b06c9acdbc3efe959f16fe8d69fb60913970
+  languageName: node
+  linkType: hard
+
+"@supabase/supabase-js@npm:^2.39.0":
+  version: 2.91.0
+  resolution: "@supabase/supabase-js@npm:2.91.0"
+  dependencies:
+    "@supabase/auth-js": "npm:2.91.0"
+    "@supabase/functions-js": "npm:2.91.0"
+    "@supabase/postgrest-js": "npm:2.91.0"
+    "@supabase/realtime-js": "npm:2.91.0"
+    "@supabase/storage-js": "npm:2.91.0"
+  checksum: 10c0/0c1335e5b295707c78026d54f4a8986c95e489a84e4de020cf8e28ee4425f75e786cab277aed3c5c1b42903d68204789c1d34fa12ec72b922d5d8a6933fd75e5
+  languageName: node
+  linkType: hard
+
 "@swc/helpers@npm:0.5.15":
   version: 0.5.15
   resolution: "@swc/helpers@npm:0.5.15"
@@ -2883,6 +2945,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/phoenix@npm:^1.6.6":
+  version: 1.6.7
+  resolution: "@types/phoenix@npm:1.6.7"
+  checksum: 10c0/0ff8b6dc7d3d8d4a94d5b6bb4f7792db0d40ddef0dd722651929925663bd6aade2a0d41453dbcf4a31bb65471a2c982b17ba3e43eb7abc31b50c20cc489364a4
+  languageName: node
+  linkType: hard
+
 "@types/react-dom@npm:^19.2.3":
   version: 19.2.3
   resolution: "@types/react-dom@npm:19.2.3"
@@ -2912,6 +2981,15 @@ __metadata:
   version: 1.3.5
   resolution: "@types/triple-beam@npm:1.3.5"
   checksum: 10c0/d5d7f25da612f6d79266f4f1bb9c1ef8f1684e9f60abab251e1261170631062b656ba26ff22631f2760caeafd372abc41e64867cde27fba54fafb73a35b9056a
+  languageName: node
+  linkType: hard
+
+"@types/ws@npm:^8.18.1":
+  version: 8.18.1
+  resolution: "@types/ws@npm:8.18.1"
+  dependencies:
+    "@types/node": "npm:*"
+  checksum: 10c0/61aff1129143fcc4312f083bc9e9e168aa3026b7dd6e70796276dcfb2c8211c4292603f9c4864fae702f2ed86e4abd4d38aa421831c2fd7f856c931a481afbab
   languageName: node
   linkType: hard
 
@@ -5907,7 +5985,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"esbuild@npm:0.27.2":
+"esbuild@npm:0.27.2, esbuild@npm:~0.27.0":
   version: 0.27.2
   resolution: "esbuild@npm:0.27.2"
   dependencies:
@@ -7053,7 +7131,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"fsevents@npm:~2.3.2":
+"fsevents@npm:~2.3.2, fsevents@npm:~2.3.3":
   version: 2.3.3
   resolution: "fsevents@npm:2.3.3"
   dependencies:
@@ -7063,7 +7141,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"fsevents@patch:fsevents@npm%3A~2.3.2#optional!builtin<compat/fsevents>":
+"fsevents@patch:fsevents@npm%3A~2.3.2#optional!builtin<compat/fsevents>, fsevents@patch:fsevents@npm%3A~2.3.3#optional!builtin<compat/fsevents>":
   version: 2.3.3
   resolution: "fsevents@patch:fsevents@npm%3A2.3.3#optional!builtin<compat/fsevents>::version=2.3.3&hash=df0bf1"
   dependencies:
@@ -7237,6 +7315,15 @@ __metadata:
   dependencies:
     resolve-pkg-maps: "npm:^1.0.0"
   checksum: 10c0/7f8e3dabc6a49b747920a800fb88e1952fef871cdf51b79e98db48275a5de6cdaf499c55ee67df5fa6fe7ce65f0063e26de0f2e53049b408c585aa74d39ffa21
+  languageName: node
+  linkType: hard
+
+"get-tsconfig@npm:^4.7.5":
+  version: 4.13.0
+  resolution: "get-tsconfig@npm:4.13.0"
+  dependencies:
+    resolve-pkg-maps: "npm:^1.0.0"
+  checksum: 10c0/2c49ef8d3907047a107f229fd610386fe3b7fe9e42dfd6b42e7406499493cdda8c62e83e57e8d7a98125610774b9f604d3a0ff308d7f9de5c7ac6d1b07cb6036
   languageName: node
   linkType: hard
 
@@ -7663,6 +7750,13 @@ __metadata:
   version: 5.0.0
   resolution: "human-signals@npm:5.0.0"
   checksum: 10c0/5a9359073fe17a8b58e5a085e9a39a950366d9f00217c4ff5878bd312e09d80f460536ea6a3f260b5943a01fe55c158d1cea3fc7bee3d0520aeef04f6d915c82
+  languageName: node
+  linkType: hard
+
+"iceberg-js@npm:^0.8.1":
+  version: 0.8.1
+  resolution: "iceberg-js@npm:0.8.1"
+  checksum: 10c0/e504da64cc26e8ad7c5344353a7203c671a740c14eb6086f20505f5e9739cab774493e616032530c962df97f2a855115cc2e89a47dd81581df5917b21a69ec48
   languageName: node
   linkType: hard
 
@@ -12534,6 +12628,7 @@ __metadata:
   resolution: "track-parser@workspace:."
   dependencies:
     "@ffmpeg/ffmpeg": "npm:^0.12.15"
+    "@supabase/supabase-js": "npm:^2.39.0"
     "@types/fluent-ffmpeg": "npm:^2.1.24"
     "@types/fs-extra": "npm:^11.0.1"
     "@types/node": "npm:^20.0.0"
@@ -12555,6 +12650,8 @@ __metadata:
     react: "npm:^19.2.3"
     react-dom: "npm:^19.2.3"
     tailwindcss: "npm:^3.3.5"
+    ts-node: "npm:^10.9.2"
+    tsx: "npm:^4.7.0"
     typescript: "npm:^5.0.0"
   languageName: unknown
   linkType: soft
@@ -12600,7 +12697,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ts-node@npm:^10.9.1":
+"ts-node@npm:^10.9.1, ts-node@npm:^10.9.2":
   version: 10.9.2
   resolution: "ts-node@npm:10.9.2"
   dependencies:
@@ -12650,6 +12747,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"tslib@npm:2.8.1, tslib@npm:^2.1.0, tslib@npm:^2.4.0, tslib@npm:^2.5.0, tslib@npm:^2.6.3, tslib@npm:^2.8.0":
+  version: 2.8.1
+  resolution: "tslib@npm:2.8.1"
+  checksum: 10c0/9c4759110a19c53f992d9aae23aac5ced636e99887b51b9e61def52611732872ff7668757d4e4c61f19691e36f4da981cd9485e869b4a7408d689f6bf1f14e62
+  languageName: node
+  linkType: hard
+
 "tslib@npm:^1.9.0":
   version: 1.14.1
   resolution: "tslib@npm:1.14.1"
@@ -12657,10 +12761,19 @@ __metadata:
   languageName: node
   linkType: hard
 
-"tslib@npm:^2.1.0, tslib@npm:^2.4.0, tslib@npm:^2.5.0, tslib@npm:^2.6.3, tslib@npm:^2.8.0":
-  version: 2.8.1
-  resolution: "tslib@npm:2.8.1"
-  checksum: 10c0/9c4759110a19c53f992d9aae23aac5ced636e99887b51b9e61def52611732872ff7668757d4e4c61f19691e36f4da981cd9485e869b4a7408d689f6bf1f14e62
+"tsx@npm:^4.7.0":
+  version: 4.21.0
+  resolution: "tsx@npm:4.21.0"
+  dependencies:
+    esbuild: "npm:~0.27.0"
+    fsevents: "npm:~2.3.3"
+    get-tsconfig: "npm:^4.7.5"
+  dependenciesMeta:
+    fsevents:
+      optional: true
+  bin:
+    tsx: dist/cli.mjs
+  checksum: 10c0/f5072923cd8459a1f9a26df87823a2ab5754641739d69df2a20b415f61814322b751fa6be85db7c6ec73cf68ba8fac2fd1cfc76bdb0aa86ded984d84d5d2126b
   languageName: node
   linkType: hard
 
@@ -13509,6 +13622,21 @@ __metadata:
     utf-8-validate:
       optional: true
   checksum: 10c0/eac918213de265ef7cb3d4ca348b891a51a520d839aa51cdb8ca93d4fa7ff9f6ccb339ccee89e4075324097f0a55157c89fa3f7147bde9d8d7e90335dc087b53
+  languageName: node
+  linkType: hard
+
+"ws@npm:^8.18.2":
+  version: 8.19.0
+  resolution: "ws@npm:8.19.0"
+  peerDependencies:
+    bufferutil: ^4.0.1
+    utf-8-validate: ">=5.0.2"
+  peerDependenciesMeta:
+    bufferutil:
+      optional: true
+    utf-8-validate:
+      optional: true
+  checksum: 10c0/4741d9b9bc3f9c791880882414f96e36b8b254e34d4b503279d6400d9a4b87a033834856dbdd94ee4b637944df17ea8afc4bce0ff4a1560d2166be8855da5b04
   languageName: node
   linkType: hard
 
