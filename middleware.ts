@@ -1,16 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
-
-const PUBLIC_PATHS = ['/login', '/signup', '/forgot-password']
-const AUTH_PREFIX = '/auth'
-
-function isPublicPath(pathname: string): boolean {
-  if (PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/'))) return true
-  if (pathname.startsWith(AUTH_PREFIX)) return true
-  if (pathname.startsWith('/_next')) return true
-  if (pathname === '/favicon.ico' || pathname.startsWith('/favicon.')) return true
-  return false
-}
+import { isPublicPath } from '@/lib/utils/authPaths'
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({
