@@ -136,44 +136,65 @@ export async function getAllTracks(): Promise<Track[]> {
   }
 }
 
+export type DownloadTrackResult =
+  | { ok: true; track: Track }
+  | { ok: false; error: string };
+
 /**
- * Скачать трек
+ * Скачать трек.
+ * Возвращает { ok, track } или { ok: false, error } вместо throw,
+ * чтобы в production не терять текст ошибки из‑за санитизации Next.js.
  */
 export async function downloadTrackAction(
   url: string,
   source?: "youtube" | "youtube-music" | "yandex"
-): Promise<Track> {
+): Promise<DownloadTrackResult> {
   try {
     if (!url) {
-      throw new Error("URL is required");
+      return { ok: false, error: "URL is required" };
     }
 
-    // Если source не указан, определяем автоматически
     const detectedSource = source || detectSourceFromUrl(url);
-
-    return await downloadTrackFromLib(url, detectedSource);
+    const track = await downloadTrackFromLib(url, detectedSource);
+    return { ok: true, track };
   } catch (error) {
-    // Улучшаем сообщение об ошибке для пользователя
     const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("[downloadTrackAction] Error:", errorMessage, (error as Error)?.stack);
 
-    // Специальная обработка ошибок Яндекс.Музыки
     if (
       errorMessage.includes("451") ||
       errorMessage.includes("Unavailable For Legal Reasons")
     ) {
-      throw new Error(
-        "Трек недоступен для скачивания. Возможные причины: геоблокировка, требуется авторизация или трек недоступен по юридическим причинам."
-      );
+      return {
+        ok: false,
+        error:
+          "Трек недоступен для скачивания. Возможные причины: геоблокировка, требуется авторизация или трек недоступен по юридическим причинам.",
+      };
     }
 
-    // Специальная обработка ошибок yt-dlp
     if (errorMessage.includes("yt-dlp")) {
-      throw new Error(
-        `Ошибка скачивания: ${errorMessage}. Проверьте правильность URL и доступность трека.`
-      );
+      return {
+        ok: false,
+        error: `Ошибка скачивания: ${errorMessage}. Проверьте правильность URL и доступность трека.`,
+      };
     }
 
-    throw new Error(`Ошибка скачивания: ${errorMessage}`);
+    if (/Missing Supabase|SUPABASE_SERVICE_ROLE|NEXT_PUBLIC_SUPABASE/i.test(errorMessage)) {
+      return {
+        ok: false,
+        error:
+          "Не заданы переменные Supabase (NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY). Проверьте Environment Variables на Vercel.",
+      };
+    }
+    if (/RAPIDAPI|rapidapi/i.test(errorMessage) && /key|401|403|missing/i.test(errorMessage)) {
+      return {
+        ok: false,
+        error:
+          "Ошибка RapidAPI (YouTube): проверьте RAPIDAPI_KEY и RAPIDAPI_HOST в переменных окружения на Vercel.",
+      };
+    }
+
+    return { ok: false, error: `Ошибка скачивания: ${errorMessage}` };
   }
 }
 
@@ -196,6 +217,7 @@ export async function processTrackAction(
       trimSettings
     );
   } catch (error) {
+    console.error("[processTrackAction] Error:", error instanceof Error ? error.message : String(error), (error as Error)?.stack);
     throw new Error(
       `Processing failed: ${
         error instanceof Error ? error.message : String(error)
@@ -215,6 +237,7 @@ export async function rejectTrackAction(trackId: string): Promise<void> {
 
     await rejectTrackFromLib(trackId);
   } catch (error) {
+    console.error("[rejectTrackAction] Error:", error instanceof Error ? error.message : String(error), (error as Error)?.stack);
     throw new Error(
       `Failed to reject track: ${
         error instanceof Error ? error.message : String(error)
@@ -241,6 +264,7 @@ export async function trimTrackAction(
 
     return await trimTrackFromLib(trackId, trimSettings);
   } catch (error) {
+    console.error("[trimTrackAction] Error:", error instanceof Error ? error.message : String(error), (error as Error)?.stack);
     throw new Error(
       `Trim failed: ${error instanceof Error ? error.message : String(error)}`
     );
@@ -304,6 +328,7 @@ export async function createPreviewAction(
 
     return { previewId };
   } catch (error) {
+    console.error("[createPreviewAction] Error:", error instanceof Error ? error.message : String(error), (error as Error)?.stack);
     throw new Error(
       `Preview failed: ${
         error instanceof Error ? error.message : String(error)
@@ -364,6 +389,7 @@ export async function updateMetadataAction(
 
     return track;
   } catch (error) {
+    console.error("[updateMetadataAction] Error:", error instanceof Error ? error.message : String(error), (error as Error)?.stack);
     throw new Error(
       `Failed to update metadata: ${
         error instanceof Error ? error.message : String(error)
@@ -385,6 +411,7 @@ export async function getTrackStatsAction(): Promise<{
   try {
     return await getTrackStats();
   } catch (error) {
+    console.error("[getTrackStatsAction] Error:", error instanceof Error ? error.message : String(error), (error as Error)?.stack);
     throw new Error(
       `Failed to get stats: ${
         error instanceof Error ? error.message : String(error)
@@ -424,6 +451,7 @@ export async function cleanupTracksAction(): Promise<{
 
     return { statsBefore, statsAfter };
   } catch (error) {
+    console.error("[cleanupTracksAction] Error:", error instanceof Error ? error.message : String(error), (error as Error)?.stack);
     throw new Error(
       `Cleanup failed: ${
         error instanceof Error ? error.message : String(error)
@@ -446,6 +474,7 @@ export async function uploadTrackAction(
 
     await uploadToFtpFromLib(trackId, ftpConfig);
   } catch (error) {
+    console.error("[uploadTrackAction] Error:", error instanceof Error ? error.message : String(error), (error as Error)?.stack);
     throw new Error(
       `FTP upload failed: ${
         error instanceof Error ? error.message : String(error)
@@ -484,6 +513,7 @@ export async function changeTrackStatusAction(
     console.log(`Track ${trackId} status changed from ${oldStatus} to ${newStatus}`);
     return track;
   } catch (error) {
+    console.error("[changeTrackStatusAction] Error:", error instanceof Error ? error.message : String(error), (error as Error)?.stack);
     throw new Error(
       `Failed to change track status: ${
         error instanceof Error ? error.message : String(error)
@@ -539,6 +569,7 @@ export async function testFtpConnectionAction(
     }
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : String(error);
+    console.error("[testFtpConnectionAction] Error:", errMsg, (error as Error)?.stack);
     const hint = /timeout|ETIMEDOUT|ECONNREFUSED/i.test(errMsg)
       ? " Проверьте хост, порт и доступность FTP. На Netlify исходящий FTP может блокироваться."
       : "";

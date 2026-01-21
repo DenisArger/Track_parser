@@ -37,9 +37,13 @@ export default function DownloadTrack({
     try {
       const sourceParam = source === "auto" ? undefined : source;
       const result = await downloadTrackAction(url, sourceParam);
-      console.log("Download successful:", result);
 
-      // Clear form
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+
+      console.log("Download successful:", result.track);
       setUrl("");
       onTracksUpdate();
     } catch (err) {
