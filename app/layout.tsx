@@ -9,6 +9,8 @@ export const metadata: Metadata = {
   description: "Automated radio track preparation application",
 };
 
+export const dynamic = "force-dynamic";
+
 export default async function RootLayout({
   children,
 }: {
