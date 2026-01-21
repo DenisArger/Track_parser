@@ -262,13 +262,18 @@ export async function downloadTrack(
       apiTitle = result.title;
       storagePath = result.storagePath || result.filePath;
     } catch (error) {
-      // Если RapidAPI не сработал, пробуем yt-dlp только если FFmpeg доступен
+      const { isServerlessEnvironment } = await import("./utils/environment");
+      // На Vercel/Netlify yt-dlp недоступен — не пробуем, сразу даём ссылку на RapidAPI
+      if (isServerlessEnvironment()) {
+        const rapidApiError = error instanceof Error ? error.message : String(error);
+        throw new Error(
+          `Не удалось скачать через RapidAPI: ${rapidApiError}. ` +
+          `На Vercel/Netlify доступен только RapidAPI — проверьте RAPIDAPI_KEY и RAPIDAPI_HOST в переменных окружения.`
+        );
+      }
       console.log("RapidAPI failed, checking if yt-dlp is available...");
-      
-      // Проверяем наличие FFmpeg перед использованием yt-dlp
       const { findFfmpegPath } = await import("./utils/ffmpegFinder");
       const ffmpegPath = await findFfmpegPath();
-      
       if (!ffmpegPath) {
         const rapidApiError = error instanceof Error ? error.message : String(error);
         throw new Error(
@@ -277,11 +282,8 @@ export async function downloadTrack(
           `Установите FFmpeg или проверьте настройки RapidAPI.`
         );
       }
-      
-      // Проверяем наличие yt-dlp
       const { getYtDlpPath } = await import("./utils/ytDlpFinder");
       const ytDlpPath = await getYtDlpPath();
-      
       if (!ytDlpPath) {
         const rapidApiError = error instanceof Error ? error.message : String(error);
         throw new Error(
@@ -289,7 +291,6 @@ export async function downloadTrack(
           `yt-dlp не найден. Установите yt-dlp в папку bin/ или проверьте настройки RapidAPI.`
         );
       }
-      
       console.log("RapidAPI failed, trying yt-dlp...");
       try {
         const result = await downloadTrackViaYtDlp(url, config.folders.downloads, trackId);
@@ -307,14 +308,48 @@ export async function downloadTrack(
       }
     }
   } else if (source === "youtube-music") {
-    const result = await downloadTrackViaYtDlp(url, config.folders.downloads, trackId);
-    filePath = result.filePath;
-    apiTitle = result.title;
-    storagePath = result.filePath;
-  } else if (source === "yandex") {
-    // Для Яндекс.Музыки используем yt-dlp
+    // На Vercel/Netlify только RapidAPI; локально — RapidAPI, при ошибке fallback на yt-dlp
     try {
-      // Dynamic import to avoid loading at module import time
+      const { downloadTrackViaRapidAPI } = await import("./download/youtubeDownloader");
+      const result = await downloadTrackViaRapidAPI(
+        url,
+        config.folders.downloads,
+        trackId
+      );
+      filePath = result.filePath;
+      apiTitle = result.title;
+      storagePath = result.storagePath || result.filePath;
+    } catch (error) {
+      const { isServerlessEnvironment } = await import("./utils/environment");
+      if (isServerlessEnvironment()) {
+        const rapidApiError = error instanceof Error ? error.message : String(error);
+        throw new Error(
+          `Не удалось скачать через RapidAPI: ${rapidApiError}. ` +
+          `На Vercel/Netlify для YouTube Music доступен только RapidAPI — проверьте RAPIDAPI_KEY и RAPIDAPI_HOST.`
+        );
+      }
+      try {
+        const result = await downloadTrackViaYtDlp(url, config.folders.downloads, trackId);
+        filePath = result.filePath;
+        apiTitle = result.title;
+        storagePath = result.filePath;
+      } catch (ytDlpError) {
+        const rapidApiError = error instanceof Error ? error.message : String(error);
+        const ytDlpErr = ytDlpError instanceof Error ? ytDlpError.message : String(ytDlpError);
+        throw new Error(
+          `Не удалось скачать трек. RapidAPI: ${rapidApiError}. yt-dlp: ${ytDlpErr}. ` +
+          `Проверьте URL и настройки RapidAPI.`
+        );
+      }
+    }
+  } else if (source === "yandex") {
+    const { isServerlessEnvironment } = await import("./utils/environment");
+    if (isServerlessEnvironment()) {
+      throw new Error(
+        "Яндекс.Музыка на Vercel/Netlify недоступна: требуется yt-dlp и локальная среда. Используйте YouTube или YouTube Music."
+      );
+    }
+    try {
       const { downloadTrackViaYtDlp: downloadYandexTrackViaYtDlp } =
         await import("./download/yandexDownloader");
       const result = await downloadYandexTrackViaYtDlp(

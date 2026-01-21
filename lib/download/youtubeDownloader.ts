@@ -6,13 +6,19 @@ import axios from "axios";
 // import { loadConfig } from "@/lib/config";
 
 /**
- * Извлекает ID видео из URL YouTube
+ * Извлекает ID видео из URL YouTube и YouTube Music.
+ * Плейлисты не поддерживаются — нужна ссылка на один трек (watch?v=).
  */
 export function extractVideoId(url: string): string {
   const regex =
-    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/;
+    /(?:(?:youtube\.com|music\.youtube\.com)\/watch\?v=|youtu\.be\/|(?:youtube\.com|music\.youtube\.com)\/embed\/)([^&\n?#]+)/;
   const match = url.match(regex);
-  if (!match) throw new Error("Invalid YouTube URL");
+  if (!match) {
+    if (/youtube\.com|music\.youtube\.com/.test(url) && /list=|\/playlist/.test(url)) {
+      throw new Error("Плейлисты не поддерживаются. Вставьте ссылку на один трек (Watch).");
+    }
+    throw new Error("Invalid YouTube URL. Ожидается ссылка на видео (youtube.com/watch или music.youtube.com/watch).");
+  }
   return match[1];
 }
 
