@@ -22,14 +22,26 @@ function getBasename(p: string): string {
 }
 
 function nameFromNested(obj: Record<string, unknown>): string {
-  return (
-    (obj.filename && String(obj.filename).trim()) ||
-    (obj.name && String(obj.name).trim()) ||
-    (obj.meta && String(obj.meta).trim()) ||
-    (obj.public_path ? getBasename(String(obj.public_path)) : "") ||
-    (obj.path ? getBasename(String(obj.path)) : "") ||
-    ""
-  );
+  const filename = obj.filename ? String(obj.filename).trim() : "";
+  if (filename) return filename;
+  
+  const name = obj.name ? String(obj.name).trim() : "";
+  if (name) return name;
+  
+  const meta = obj.meta ? String(obj.meta).trim() : "";
+  if (meta) return meta;
+  
+  if (obj.public_path) {
+    const basename = getBasename(String(obj.public_path));
+    if (basename) return basename;
+  }
+  
+  if (obj.path) {
+    const basename = getBasename(String(obj.path));
+    if (basename) return basename;
+  }
+  
+  return "";
 }
 
 function nameFromRow(row: PlaylistTrackRow): string {
@@ -38,13 +50,22 @@ function nameFromRow(row: PlaylistTrackRow): string {
     const v = nameFromNested(t as Record<string, unknown>);
     if (v) return v;
   }
-  return (
-    (row.filename && String(row.filename).trim()) ||
-    (row.name && String(row.name).trim()) ||
-    (row.meta && String(row.meta).trim()) ||
-    (row.public_path ? getBasename(String(row.public_path)) : "") ||
-    ""
-  );
+  
+  const filename = row.filename ? String(row.filename).trim() : "";
+  if (filename) return filename;
+  
+  const name = row.name ? String(row.name).trim() : "";
+  if (name) return name;
+  
+  const meta = row.meta ? String(row.meta).trim() : "";
+  if (meta) return meta;
+  
+  if (row.public_path) {
+    const basename = getBasename(String(row.public_path));
+    if (basename) return basename;
+  }
+  
+  return "";
 }
 
 /**
