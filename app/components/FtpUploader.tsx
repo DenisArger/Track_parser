@@ -341,7 +341,7 @@ export default function FtpUploader({
             <div className="text-center py-8 text-gray-500">
               <p>No processed tracks available for upload</p>
               <p className="text-sm mt-2">
-                Process or trim some tracks first. Tracks must have status "processed", "trimmed", or "uploaded" with a processed path.
+                Process or trim some tracks first. Tracks must have status &quot;processed&quot;, &quot;trimmed&quot;, or &quot;uploaded&quot; with a processed path.
               </p>
               <p className="text-xs mt-1 text-gray-400">
                 Available tracks: {tracks.length} total, {tracks.filter(t => (t.status === "processed" || t.status === "trimmed" || t.status === "uploaded") && t.processedPath).length} ready for upload

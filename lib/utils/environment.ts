@@ -15,7 +15,7 @@ export function isServerlessEnvironment(): boolean {
     }
 
     // Netlify sets NETLIFY=true in production (set in netlify.toml)
-    if (!!process.env.NETLIFY) {
+    if (process.env.NETLIFY) {
       return true;
     }
 
@@ -32,17 +32,17 @@ export function isServerlessEnvironment(): boolean {
     }
 
     // Vercel sets VERCEL=1 in production
-    if (!!process.env.VERCEL) {
+    if (process.env.VERCEL) {
       return true;
     }
 
     // AWS Lambda
-    if (!!process.env.AWS_LAMBDA_FUNCTION_NAME) {
+    if (process.env.AWS_LAMBDA_FUNCTION_NAME) {
       return true;
     }
 
     // Generic serverless function indicator
-    if (!!process.env.FUNCTION_NAME) {
+    if (process.env.FUNCTION_NAME) {
       return true;
     }
 

@@ -81,7 +81,7 @@ export async function getAllPlaylistTrackNames(
   const set = new Set<string>();
   let offset = 0;
 
-  // eslint-disable-next-line no-constant-condition
+   
   while (true) {
     const url = `${base}/api/v2/playlists/${playlistId}/tracks/?limit=${PAGE_SIZE}&offset=${offset}`;
     const res = await fetch(url, {
@@ -153,7 +153,7 @@ export async function syncFromApi(
   const entries: SyncFromApiEntry[] = [];
   let offset = 0;
 
-  // eslint-disable-next-line no-constant-condition
+   
   while (true) {
     const url = `${base}/api/v2/playlists/${playlistId}/tracks/?limit=${PAGE_SIZE}&offset=${offset}`;
     const res = await fetch(url, {

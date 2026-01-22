@@ -97,7 +97,7 @@ export default function TrackManager({
             </div>
           ) : (
             <p className="text-gray-500">
-              Нажмите "Загрузить статистику" для просмотра
+              Нажмите &quot;Загрузить статистику&quot; для просмотра
             </p>
           )}
 
@@ -114,7 +114,7 @@ export default function TrackManager({
         <div className="card">
           <h3 className="text-lg font-medium mb-4">Очистка статусов</h3>
           <p className="text-sm text-gray-600 mb-4">
-            Исправляет неправильно помеченные треки. Убирает флаг "Обрезан" у
+            Исправляет неправильно помеченные треки. Убирает флаг &quot;Обрезан&quot; у
             треков, которые не были действительно обрезаны.
           </p>
 
