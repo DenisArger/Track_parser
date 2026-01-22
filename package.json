@@ -5,14 +5,16 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "yarn lint && yarn test:ci && next build",
     "start": "next start",
     "lint": "next lint",
     "test": "vitest",
+    "test:ci": "vitest run",
     "test:coverage": "vitest run --coverage",
     "check": "node scripts/check-ffmpeg.js",
     "migrate:tracks": "tsx scripts/migrate-tracks-to-supabase.ts",
-    "migrate:files": "tsx scripts/migrate-files-to-storage.ts"
+    "migrate:files": "tsx scripts/migrate-files-to-storage.ts",
+    "prepare": "husky"
   },
   "dependencies": {
     "@ffmpeg/ffmpeg": "^0.12.15",
@@ -45,7 +47,9 @@
     "autoprefixer": "^10.4.16",
     "eslint": "^9.39.2",
     "eslint-config-next": "^16.1.1",
+    "husky": "^9.1.7",
     "jsdom": "^25.0.1",
+    "lint-staged": "^16.2.7",
     "netlify-cli": "^23.13.0",
     "postcss": "^8.4.31",
     "tailwindcss": "^3.3.5",
