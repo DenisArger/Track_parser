@@ -9,7 +9,7 @@
     "start": "next start",
     "lint": "eslint . --ext .ts,.tsx,.js,.jsx",
     "test": "vitest",
-    "test:ci": "vitest run",
+    "test:ci": "NODE_ENV=test vitest run",
     "test:coverage": "vitest run --coverage",
     "check": "node scripts/check-ffmpeg.js",
     "migrate:tracks": "tsx scripts/migrate-tracks-to-supabase.ts",
