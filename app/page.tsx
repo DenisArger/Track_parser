@@ -153,20 +153,20 @@ export default function HomePage() {
   return (
     <div className="space-y-6">
       {loadError && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-red-800 text-sm">
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 text-red-800 dark:text-red-300 text-sm">
           {loadError}
         </div>
       )}
       {/* Navigation Tabs */}
-      <nav className="flex space-x-1 bg-white rounded-lg p-1 shadow-sm">
+      <nav className="flex space-x-1 bg-white dark:bg-gray-800 rounded-lg p-1 shadow-sm">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
               activeTab === tab.id
-                ? "bg-primary-600 text-white"
-                : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                ? "bg-primary-600 text-white dark:bg-primary-500"
+                : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700"
             }`}
           >
             {tab.label}
@@ -209,29 +209,29 @@ export default function HomePage() {
             </div>
           </div>
           {syncRadioError && (
-            <p className="text-sm text-danger-600 mb-2">{syncRadioError}</p>
+            <p className="text-sm text-danger-600 dark:text-danger-400 mb-2">{syncRadioError}</p>
           )}
           {syncRadioMessage && (
-            <p className="text-sm text-green-600 mb-2">{syncRadioMessage}</p>
+            <p className="text-sm text-green-600 dark:text-green-400 mb-2">{syncRadioMessage}</p>
           )}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {tracks.map((track) => (
-              <div key={track.id} className="border rounded-lg p-4 bg-gray-50">
-                <h4 className="font-medium text-gray-900 truncate">
+              <div key={track.id} className="border rounded-lg p-4 bg-gray-50 dark:bg-gray-800 dark:border-gray-700">
+                <h4 className="font-medium text-gray-900 dark:text-gray-100 truncate">
                   {track.metadata.title}
                 </h4>
-                <p className="text-sm text-gray-600">{track.metadata.artist}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">{track.metadata.artist}</p>
                 <div className="mt-2 flex flex-wrap items-center gap-2">
                   <TrackStatusBadge status={track.status} />
                   {onRadioMap[track.id] && (
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700">
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
                       На радио
                     </span>
                   )}
                 </div>
                 {track.error && (
                   <div className="mt-2 flex flex-wrap items-center gap-2">
-                    <p className="text-xs text-danger-600 flex-1 min-w-0">
+                    <p className="text-xs text-danger-600 dark:text-danger-400 flex-1 min-w-0">
                       Error: {track.error}
                     </p>
                     <button
@@ -251,7 +251,7 @@ export default function HomePage() {
                         }
                       }}
                       disabled={!!clearingErrorId}
-                      className="text-xs px-2 py-1 rounded bg-gray-200 hover:bg-gray-300 text-gray-700 disabled:opacity-50"
+                      className="text-xs px-2 py-1 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 disabled:opacity-50"
                     >
                       {clearingErrorId === track.id ? "…" : "Сбросить ошибку"}
                     </button>

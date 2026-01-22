@@ -31,10 +31,10 @@ export default function LoginPage() {
 
   return (
     <div className="max-w-sm mx-auto mt-16 card">
-      <h2 className="text-xl font-semibold mb-4">Вход</h2>
+      <h2 className="text-xl font-semibold mb-4 dark:text-gray-100">Вход</h2>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Email
           </label>
           <input
@@ -48,7 +48,7 @@ export default function LoginPage() {
           />
         </div>
         <div>
-          <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Пароль
           </label>
           <input
@@ -62,7 +62,7 @@ export default function LoginPage() {
           />
         </div>
         {error && (
-          <div className="text-sm text-danger-600 bg-danger-50 border border-danger-200 rounded-lg p-2">
+          <div className="text-sm text-danger-600 dark:text-danger-400 bg-danger-50 dark:bg-danger-900/20 border border-danger-200 dark:border-danger-800 rounded-lg p-2">
             {error}
           </div>
         )}
@@ -70,16 +70,16 @@ export default function LoginPage() {
           {loading ? "Вход…" : "Войти"}
         </button>
       </form>
-      <p className="mt-4 text-sm text-gray-600">
-        <Link href="/signup" className="text-primary-600 hover:underline">
+      <p className="mt-4 text-sm text-gray-600 dark:text-gray-400">
+        <Link href="/signup" className="text-primary-600 dark:text-primary-400 hover:underline">
           Регистрация
         </Link>
         {" · "}
-        <Link href="/forgot-password" className="text-primary-600 hover:underline">
+        <Link href="/forgot-password" className="text-primary-600 dark:text-primary-400 hover:underline">
           Забыли пароль?
         </Link>
       </p>
-      <p className="mt-2 text-xs text-gray-500">
+      <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
         После регистрации подтвердите email по ссылке из письма, затем войдите.
       </p>
     </div>

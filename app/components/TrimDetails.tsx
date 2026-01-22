@@ -24,25 +24,25 @@ export default function TrimDetails({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
-        <h3 className="text-lg font-semibold mb-4">Детали обрезки</h3>
+      <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md mx-4">
+        <h3 className="text-lg font-semibold mb-4 dark:text-gray-100">Детали обрезки</h3>
 
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Время начала
               </label>
-              <p className="text-lg font-mono">
+              <p className="text-lg font-mono dark:text-gray-200">
                 {formatTime(trimSettings.startTime)}
               </p>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Время окончания
               </label>
-              <p className="text-lg font-mono">
+              <p className="text-lg font-mono dark:text-gray-200">
                 {trimSettings.endTime
                   ? formatTime(trimSettings.endTime)
                   : formatTime(
@@ -53,33 +53,33 @@ export default function TrimDetails({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Общая длительность
             </label>
-            <p className="text-lg font-mono">{formatTime(totalDuration)}</p>
+            <p className="text-lg font-mono dark:text-gray-200">{formatTime(totalDuration)}</p>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Затухание в начале
               </label>
-              <p className="text-lg font-mono">{trimSettings.fadeIn}s</p>
+              <p className="text-lg font-mono dark:text-gray-200">{trimSettings.fadeIn}s</p>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Затухание в конце
               </label>
-              <p className="text-lg font-mono">{trimSettings.fadeOut}s</p>
+              <p className="text-lg font-mono dark:text-gray-200">{trimSettings.fadeOut}s</p>
             </div>
           </div>
 
-          <div className="bg-gray-50 rounded-lg p-3">
-            <h4 className="font-medium text-gray-900 mb-2">Визуализация</h4>
-            <div className="relative h-4 bg-gray-200 rounded-full overflow-hidden">
+          <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
+            <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-2">Визуализация</h4>
+            <div className="relative h-4 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden">
               {/* Фоновая полоса */}
-              <div className="absolute inset-0 bg-gray-300"></div>
+              <div className="absolute inset-0 bg-gray-300 dark:bg-gray-500"></div>
 
               {/* Обрезанный фрагмент */}
               <div
@@ -139,7 +139,7 @@ export default function TrimDetails({
               )}
             </div>
 
-            <div className="flex justify-between text-xs text-gray-600 mt-2">
+            <div className="flex justify-between text-xs text-gray-600 dark:text-gray-400 mt-2">
               <span>0:00</span>
               <span>
                 {formatTime(trimSettings.startTime + totalDuration + 60)}
