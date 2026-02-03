@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Track, TrackMetadata, TrackType, TrackStatus } from "@/types/track";
 import TrackList from "./shared/TrackList";
 import TrackStatusBadge from "./shared/TrackStatusBadge";
@@ -30,8 +30,29 @@ export default function MetadataEditor({
   });
   const [isSaving, setIsSaving] = useState(false);
   const [isChangingStatus, setIsChangingStatus] = useState(false);
+  const [artistSuggestions, setArtistSuggestions] = useState<string[]>([]);
 
   const processedTracks = getProcessedTracks(tracks);
+
+  useEffect(() => {
+    let isMounted = true;
+    const loadArtists = async () => {
+      try {
+        const res = await fetch("/api/radio/artists");
+        if (!res.ok) return;
+        const data = (await res.json()) as { artists?: string[] };
+        if (isMounted && Array.isArray(data.artists)) {
+          setArtistSuggestions(data.artists);
+        }
+      } catch (error) {
+        console.warn("Failed to load artist suggestions:", error);
+      }
+    };
+    loadArtists();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const handleTrackSelect = (track: Track) => {
     setSelectedTrack(track);
@@ -145,12 +166,20 @@ export default function MetadataEditor({
                     <input
                       type="text"
                       id="artist"
+                      list="artist-suggestions"
                       value={metadata.artist}
                       onChange={(e) =>
                         handleMetadataChange("artist", e.target.value)
                       }
                       className="input"
                     />
+                    {artistSuggestions.length > 0 && (
+                      <datalist id="artist-suggestions">
+                        {artistSuggestions.map((artist) => (
+                          <option key={artist} value={artist} />
+                        ))}
+                      </datalist>
+                    )}
                   </div>
 
                   {/* Album */}
