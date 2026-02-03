@@ -201,12 +201,17 @@ export default function MetadataEditor({
 
                   {/* Rating */}
                   <div>
-                    <label
-                      htmlFor="rating"
-                      className="block text-sm font-medium text-gray-700 mb-1"
-                    >
-                      Rating (1-10)
-                    </label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label
+                        htmlFor="rating"
+                        className="block text-sm font-medium text-gray-700"
+                      >
+                        Rating (1-10)
+                      </label>
+                      <span className="text-xs text-gray-500">
+                        10 — чаще в эфире, 1 — реже
+                      </span>
+                    </div>
                     <input
                       type="number"
                       id="rating"

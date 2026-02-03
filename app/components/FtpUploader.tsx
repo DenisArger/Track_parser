@@ -2,10 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Track, FtpConfig } from "@/types/track";
-import {
-  getProcessedTracks,
-  getUploadedTracks,
-} from "@/lib/utils/trackFilters";
+import { getUploadedTracks } from "@/lib/utils/trackFilters";
 import { getUserFacingErrorMessage } from "@/lib/utils/errorMessage";
 
 interface FtpUploaderProps {
@@ -48,26 +45,25 @@ export default function FtpUploader({
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>(
     {}
   );
+  const [hiddenTrackIds, setHiddenTrackIds] = useState<Record<string, boolean>>(
+    {}
+  );
   const [error, setError] = useState("");
 
-  // Get tracks that can be uploaded (processed, trimmed, or uploaded with processedPath)
+  useEffect(() => {
+    if (Object.keys(hiddenTrackIds).length > 0) {
+      setHiddenTrackIds({});
+    }
+  }, [tracks]);
+
+  // Get tracks that can be uploaded (processed or trimmed with processedPath)
   const processedTracks = tracks.filter(
     (track) =>
       (track.status === "processed" || 
-       track.status === "trimmed" || 
-       track.status === "uploaded") &&
-      track.processedPath
+       track.status === "trimmed") &&
+      track.processedPath &&
+      !hiddenTrackIds[track.id]
   );
-
-  const handleFtpConfigChange = (
-    field: keyof FtpConfig,
-    value: string | number | boolean
-  ) => {
-    setFtpConfig((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
-  };
 
   const handleUploadTrack = async (trackId: string) => {
     setIsUploading(true);
@@ -101,6 +97,7 @@ export default function FtpUploader({
       }
 
       console.log("Upload successful:", responseData);
+      setHiddenTrackIds((prev) => ({ ...prev, [trackId]: true }));
       onTracksUpdate();
     } catch (err) {
       const errorMessage = getUserFacingErrorMessage(err, "Upload failed");
@@ -109,6 +106,10 @@ export default function FtpUploader({
     } finally {
       setIsUploading(false);
     }
+  };
+
+  const handleRemoveFromQueue = (trackId: string) => {
+    setHiddenTrackIds((prev) => ({ ...prev, [trackId]: true }));
   };
 
   const handleUploadAll = async () => {
@@ -149,6 +150,7 @@ export default function FtpUploader({
 
           console.log(`Successfully uploaded: ${track.metadata.title}`);
           setUploadProgress((prev) => ({ ...prev, [track.id]: 100 }));
+          setHiddenTrackIds((prev) => ({ ...prev, [track.id]: true }));
         } catch (trackError) {
           console.error(`Error uploading track ${track.id}:`, trackError);
           setUploadProgress((prev) => ({ ...prev, [track.id]: 0 }));
@@ -198,132 +200,19 @@ export default function FtpUploader({
       <div>
         <h2 className="text-xl font-semibold mb-4">FTP Upload Configuration</h2>
         <p className="text-gray-600 mb-6">
-          Configure FTP settings and upload processed tracks to your server.
+          Test FTP connection and upload processed tracks to your server.
         </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* FTP Configuration */}
         <div>
-          <h3 className="text-lg font-medium mb-3">FTP Settings</h3>
-          <div className="space-y-4">
-            <div>
-              <label
-                htmlFor="host"
-                className="block text-sm font-medium text-gray-700 mb-1"
-              >
-                Host
-              </label>
-              <input
-                type="text"
-                id="host"
-                value={ftpConfig.host}
-                onChange={(e) => handleFtpConfigChange("host", e.target.value)}
-                placeholder="ftp.example.com"
-                className="input"
-              />
-            </div>
-
-            <div>
-              <label
-                htmlFor="port"
-                className="block text-sm font-medium text-gray-700 mb-1"
-              >
-                Port
-              </label>
-              <input
-                type="number"
-                id="port"
-                value={ftpConfig.port}
-                onChange={(e) =>
-                  handleFtpConfigChange("port", parseInt(e.target.value))
-                }
-                className="input"
-              />
-            </div>
-
-            <div>
-              <label
-                htmlFor="user"
-                className="block text-sm font-medium text-gray-700 mb-1"
-              >
-                Username
-              </label>
-              <input
-                type="text"
-                id="user"
-                value={ftpConfig.user}
-                onChange={(e) => handleFtpConfigChange("user", e.target.value)}
-                className="input"
-              />
-            </div>
-
-            <div>
-              <label
-                htmlFor="password"
-                className="block text-sm font-medium text-gray-700 mb-1"
-              >
-                Password
-              </label>
-              <input
-                type="password"
-                id="password"
-                value={ftpConfig.password}
-                onChange={(e) =>
-                  handleFtpConfigChange("password", e.target.value)
-                }
-                className="input"
-              />
-            </div>
-
-            <div>
-              <label
-                htmlFor="remotePath"
-                className="block text-sm font-medium text-gray-700 mb-1"
-              >
-                Remote Directory (optional)
-              </label>
-              <input
-                type="text"
-                id="remotePath"
-                value={ftpConfig.remotePath || ""}
-                onChange={(e) =>
-                  handleFtpConfigChange("remotePath", e.target.value)
-                }
-                placeholder="/music/tracks or music/tracks"
-                className="input"
-              />
-              <p className="mt-1 text-xs text-gray-500">
-                Leave empty to upload to root directory. Use forward slashes (/)
-              </p>
-            </div>
-
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="secure"
-                checked={ftpConfig.secure}
-                onChange={(e) =>
-                  handleFtpConfigChange("secure", e.target.checked)
-                }
-                className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
-              />
-              <label
-                htmlFor="secure"
-                className="ml-2 block text-sm text-gray-900"
-              >
-                Use secure connection (FTPS)
-              </label>
-            </div>
-
-            <div className="flex space-x-3">
-              <button
-                onClick={handleTestConnection}
-                className="btn btn-secondary"
-              >
-                Test Connection
-              </button>
-            </div>
+          <div className="flex space-x-3">
+            <button
+              onClick={handleTestConnection}
+              className="btn btn-secondary"
+            >
+              Test Connection
+            </button>
           </div>
         </div>
 
@@ -386,6 +275,13 @@ export default function FtpUploader({
                           className="btn btn-secondary text-sm disabled:opacity-50"
                         >
                           Upload
+                        </button>
+                        <button
+                          onClick={() => handleRemoveFromQueue(track.id)}
+                          disabled={isUploading}
+                          className="btn btn-secondary text-sm disabled:opacity-50"
+                        >
+                          Remove from queue
                         </button>
                       </div>
                     </div>

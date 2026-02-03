@@ -15,6 +15,8 @@ export async function writeTrackTags(
   const tags = {
     title: metadata.title,
     artist: metadata.artist,
+    performerInfo: metadata.artist,
+    originalArtist: metadata.artist,
     album: metadata.album,
     genre: metadata.genre,
     year: metadata.year?.toString(),
