@@ -10,7 +10,7 @@ export interface TrackMetadata {
   isTrimmed?: boolean;
   trimSettings?: TrimSettings;
   sourceUrl?: string; // Original URL used to download the track
-  sourceType?: "youtube" | "youtube-music" | "yandex"; // Source type for re-downloading
+  sourceType?: "youtube" | "youtube-music"; // Source type for re-downloading
 }
 
 export type TrackType = "Быстрый" | "Средний" | "Медленный";
@@ -78,7 +78,7 @@ export interface AppConfig {
 
 export interface DownloadRequest {
   url: string;
-  source?: "youtube" | "youtube-music" | "yandex";
+  source?: "youtube" | "youtube-music";
 }
 
 export interface ProcessingRequest {

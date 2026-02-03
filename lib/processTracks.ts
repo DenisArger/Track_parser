@@ -1,4 +1,4 @@
-// Dynamic imports to avoid issues during static generation
+﻿// Dynamic imports to avoid issues during static generation
 // import path from "path";
 // import fs from "fs-extra";
 import { Track, TrackMetadata, FtpConfig } from "@/types/track";
@@ -19,7 +19,7 @@ import {
 // import { isServerlessEnvironment } from "./utils/environment";
 
 /**
- * Скачивание трека через yt-dlp (более надежно для YouTube Music)
+ * РЎРєР°С‡РёРІР°РЅРёРµ С‚СЂРµРєР° С‡РµСЂРµР· yt-dlp (Р±РѕР»РµРµ РЅР°РґРµР¶РЅРѕ РґР»СЏ YouTube Music)
  */
 export async function downloadTrackViaYtDlp(
   url: string,
@@ -45,7 +45,7 @@ export async function downloadTrackViaYtDlp(
 
   await fs.ensureDir(outputDir);
 
-  // Очищаем старые файлы перед скачиванием нового
+  // РћС‡РёС‰Р°РµРј СЃС‚Р°СЂС‹Рµ С„Р°Р№Р»С‹ РїРµСЂРµРґ СЃРєР°С‡РёРІР°РЅРёРµРј РЅРѕРІРѕРіРѕ
   try {
     const files = await fs.readdir(outputDir);
     for (const file of files) {
@@ -127,12 +127,12 @@ export async function downloadTrackViaYtDlp(
       child.on("close", async (code) => {
         if (code === 0) {
           try {
-            // Найти скачанный файл
+            // РќР°Р№С‚Рё СЃРєР°С‡Р°РЅРЅС‹Р№ С„Р°Р№Р»
             const files = await fs.readdir(outputDir);
             const mp3Files = files.filter((file) => file.endsWith(".mp3"));
 
             if (mp3Files.length === 0) {
-              reject(new Error("Не найден скачанный MP3 файл"));
+              reject(new Error("РќРµ РЅР°Р№РґРµРЅ СЃРєР°С‡Р°РЅРЅС‹Р№ MP3 С„Р°Р№Р»"));
               return;
             }
 
@@ -173,7 +173,7 @@ export async function downloadTrackViaYtDlp(
 
             resolve({ filePath: storagePath, title });
           } catch (error) {
-            reject(new Error(`Ошибка при загрузке в Storage: ${error}`));
+            reject(new Error(`РћС€РёР±РєР° РїСЂРё Р·Р°РіСЂСѓР·РєРµ РІ Storage: ${error}`));
           }
         } else {
           // Improve error message for FFmpeg-related errors
@@ -184,24 +184,24 @@ export async function downloadTrackViaYtDlp(
             errorMessage.includes("ffprobe")
           ) {
             errorMessage =
-              `FFmpeg не найден. yt-dlp требует FFmpeg для конвертации аудио. ` +
-              `Установите FFmpeg и добавьте его в PATH, или укажите путь через --ffmpeg-location. ` +
-              `Оригинальная ошибка: ${errorMessage}`;
+              `FFmpeg РЅРµ РЅР°Р№РґРµРЅ. yt-dlp С‚СЂРµР±СѓРµС‚ FFmpeg РґР»СЏ РєРѕРЅРІРµСЂС‚Р°С†РёРё Р°СѓРґРёРѕ. ` +
+              `РЈСЃС‚Р°РЅРѕРІРёС‚Рµ FFmpeg Рё РґРѕР±Р°РІСЊС‚Рµ РµРіРѕ РІ PATH, РёР»Рё СѓРєР°Р¶РёС‚Рµ РїСѓС‚СЊ С‡РµСЂРµР· --ffmpeg-location. ` +
+              `РћСЂРёРіРёРЅР°Р»СЊРЅР°СЏ РѕС€РёР±РєР°: ${errorMessage}`;
           }
 
           reject(
-            new Error(`yt-dlp завершился с кодом ${code}: ${errorMessage}`)
+            new Error(`yt-dlp Р·Р°РІРµСЂС€РёР»СЃСЏ СЃ РєРѕРґРѕРј ${code}: ${errorMessage}`)
           );
         }
       });
 
       child.on("error", (error) => {
-        reject(new Error(`Ошибка запуска yt-dlp: ${error.message}`));
+        reject(new Error(`РћС€РёР±РєР° Р·Р°РїСѓСЃРєР° yt-dlp: ${error.message}`));
       });
     } catch (error) {
       reject(
         new Error(
-          `Ошибка при настройке yt-dlp: ${
+          `РћС€РёР±РєР° РїСЂРё РЅР°СЃС‚СЂРѕР№РєРµ yt-dlp: ${
             error instanceof Error ? error.message : String(error)
           }`
         )
@@ -211,11 +211,11 @@ export async function downloadTrackViaYtDlp(
 }
 
 /**
- * Основная функция скачивания трека
+ * РћСЃРЅРѕРІРЅР°СЏ С„СѓРЅРєС†РёСЏ СЃРєР°С‡РёРІР°РЅРёСЏ С‚СЂРµРєР°
  */
 export async function downloadTrack(
   url: string,
-  source: "youtube" | "youtube-music" | "yandex"
+  source: "youtube" | "youtube-music"
 ): Promise<Track> {
   // Dynamic import to avoid issues during static generation
   const { loadConfig } = await import("./config");
@@ -242,12 +242,12 @@ export async function downloadTrack(
       storagePath = result.storagePath || result.filePath;
     } catch (error) {
       const { isServerlessEnvironment } = await import("./utils/environment");
-      // На Vercel/Netlify yt-dlp недоступен — не пробуем, сразу даём ссылку на RapidAPI
+      // РќР° Vercel/Netlify yt-dlp РЅРµРґРѕСЃС‚СѓРїРµРЅ вЂ” РЅРµ РїСЂРѕР±СѓРµРј, СЃСЂР°Р·Сѓ РґР°С‘Рј СЃСЃС‹Р»РєСѓ РЅР° RapidAPI
       if (isServerlessEnvironment()) {
         const rapidApiError = error instanceof Error ? error.message : String(error);
         throw new Error(
-          `Не удалось скачать через RapidAPI: ${rapidApiError}. ` +
-          `На Vercel/Netlify доступен только RapidAPI — проверьте RAPIDAPI_KEY и RAPIDAPI_HOST в переменных окружения.`
+          `РќРµ СѓРґР°Р»РѕСЃСЊ СЃРєР°С‡Р°С‚СЊ С‡РµСЂРµР· RapidAPI: ${rapidApiError}. ` +
+          `РќР° Vercel/Netlify РґРѕСЃС‚СѓРїРµРЅ С‚РѕР»СЊРєРѕ RapidAPI вЂ” РїСЂРѕРІРµСЂСЊС‚Рµ RAPIDAPI_KEY Рё RAPIDAPI_HOST РІ РїРµСЂРµРјРµРЅРЅС‹С… РѕРєСЂСѓР¶РµРЅРёСЏ.`
         );
       }
       console.log("RapidAPI failed, checking if yt-dlp is available...");
@@ -256,9 +256,9 @@ export async function downloadTrack(
       if (!ffmpegPath) {
         const rapidApiError = error instanceof Error ? error.message : String(error);
         throw new Error(
-          `Не удалось скачать трек через RapidAPI: ${rapidApiError}. ` +
-          `yt-dlp требует FFmpeg для работы, но FFmpeg не найден. ` +
-          `Установите FFmpeg или проверьте настройки RapidAPI.`
+          `РќРµ СѓРґР°Р»РѕСЃСЊ СЃРєР°С‡Р°С‚СЊ С‚СЂРµРє С‡РµСЂРµР· RapidAPI: ${rapidApiError}. ` +
+          `yt-dlp С‚СЂРµР±СѓРµС‚ FFmpeg РґР»СЏ СЂР°Р±РѕС‚С‹, РЅРѕ FFmpeg РЅРµ РЅР°Р№РґРµРЅ. ` +
+          `РЈСЃС‚Р°РЅРѕРІРёС‚Рµ FFmpeg РёР»Рё РїСЂРѕРІРµСЂСЊС‚Рµ РЅР°СЃС‚СЂРѕР№РєРё RapidAPI.`
         );
       }
       const { getYtDlpPath } = await import("./utils/ytDlpFinder");
@@ -266,8 +266,8 @@ export async function downloadTrack(
       if (!ytDlpPath) {
         const rapidApiError = error instanceof Error ? error.message : String(error);
         throw new Error(
-          `Не удалось скачать трек через RapidAPI: ${rapidApiError}. ` +
-          `yt-dlp не найден. Установите yt-dlp в папку bin/ или проверьте настройки RapidAPI.`
+          `РќРµ СѓРґР°Р»РѕСЃСЊ СЃРєР°С‡Р°С‚СЊ С‚СЂРµРє С‡РµСЂРµР· RapidAPI: ${rapidApiError}. ` +
+          `yt-dlp РЅРµ РЅР°Р№РґРµРЅ. РЈСЃС‚Р°РЅРѕРІРёС‚Рµ yt-dlp РІ РїР°РїРєСѓ bin/ РёР»Рё РїСЂРѕРІРµСЂСЊС‚Рµ РЅР°СЃС‚СЂРѕР№РєРё RapidAPI.`
         );
       }
       console.log("RapidAPI failed, trying yt-dlp...");
@@ -280,14 +280,14 @@ export async function downloadTrack(
         const rapidApiError = error instanceof Error ? error.message : String(error);
         const ytDlpErrorMessage = ytDlpError instanceof Error ? ytDlpError.message : String(ytDlpError);
         throw new Error(
-          `Не удалось скачать трек. RapidAPI ошибка: ${rapidApiError}. ` +
-          `yt-dlp ошибка: ${ytDlpErrorMessage}. ` +
-          `Проверьте правильность URL и доступность трека.`
+          `РќРµ СѓРґР°Р»РѕСЃСЊ СЃРєР°С‡Р°С‚СЊ С‚СЂРµРє. RapidAPI РѕС€РёР±РєР°: ${rapidApiError}. ` +
+          `yt-dlp РѕС€РёР±РєР°: ${ytDlpErrorMessage}. ` +
+          `РџСЂРѕРІРµСЂСЊС‚Рµ РїСЂР°РІРёР»СЊРЅРѕСЃС‚СЊ URL Рё РґРѕСЃС‚СѓРїРЅРѕСЃС‚СЊ С‚СЂРµРєР°.`
         );
       }
     }
   } else if (source === "youtube-music") {
-    // На Vercel/Netlify только RapidAPI; локально — RapidAPI, при ошибке fallback на yt-dlp
+    // РќР° Vercel/Netlify С‚РѕР»СЊРєРѕ RapidAPI; Р»РѕРєР°Р»СЊРЅРѕ вЂ” RapidAPI, РїСЂРё РѕС€РёР±РєРµ fallback РЅР° yt-dlp
     try {
       const { downloadTrackViaRapidAPI } = await import("./download/youtubeDownloader");
       const result = await downloadTrackViaRapidAPI(
@@ -303,8 +303,8 @@ export async function downloadTrack(
       if (isServerlessEnvironment()) {
         const rapidApiError = error instanceof Error ? error.message : String(error);
         throw new Error(
-          `Не удалось скачать через RapidAPI: ${rapidApiError}. ` +
-          `На Vercel/Netlify для YouTube Music доступен только RapidAPI — проверьте RAPIDAPI_KEY и RAPIDAPI_HOST.`
+          `РќРµ СѓРґР°Р»РѕСЃСЊ СЃРєР°С‡Р°С‚СЊ С‡РµСЂРµР· RapidAPI: ${rapidApiError}. ` +
+          `РќР° Vercel/Netlify РґР»СЏ YouTube Music РґРѕСЃС‚СѓРїРµРЅ С‚РѕР»СЊРєРѕ RapidAPI вЂ” РїСЂРѕРІРµСЂСЊС‚Рµ RAPIDAPI_KEY Рё RAPIDAPI_HOST.`
         );
       }
       try {
@@ -316,35 +316,10 @@ export async function downloadTrack(
         const rapidApiError = error instanceof Error ? error.message : String(error);
         const ytDlpErr = ytDlpError instanceof Error ? ytDlpError.message : String(ytDlpError);
         throw new Error(
-          `Не удалось скачать трек. RapidAPI: ${rapidApiError}. yt-dlp: ${ytDlpErr}. ` +
-          `Проверьте URL и настройки RapidAPI.`
+          `РќРµ СѓРґР°Р»РѕСЃСЊ СЃРєР°С‡Р°С‚СЊ С‚СЂРµРє. RapidAPI: ${rapidApiError}. yt-dlp: ${ytDlpErr}. ` +
+          `РџСЂРѕРІРµСЂСЊС‚Рµ URL Рё РЅР°СЃС‚СЂРѕР№РєРё RapidAPI.`
         );
       }
-    }
-  } else if (source === "yandex") {
-    const { isServerlessEnvironment } = await import("./utils/environment");
-    if (isServerlessEnvironment()) {
-      throw new Error(
-        "Яндекс.Музыка на Vercel/Netlify недоступна: требуется yt-dlp и локальная среда. Используйте YouTube или YouTube Music."
-      );
-    }
-    try {
-      const { downloadTrackViaYtDlp: downloadYandexTrackViaYtDlp } =
-        await import("./download/yandexDownloader");
-      const result = await downloadYandexTrackViaYtDlp(
-        url,
-        config.folders.downloads,
-        trackId
-      );
-      filePath = result.filePath;
-      apiTitle = result.title;
-      storagePath = result.storagePath || result.filePath;
-    } catch (error) {
-      throw new Error(
-        `Ошибка скачивания с Яндекс.Музыки: ${
-          error instanceof Error ? error.message : String(error)
-        }`
-      );
     }
   } else {
     throw new Error(`Unknown source type: ${source}`);
@@ -354,18 +329,18 @@ export async function downloadTrack(
   const path = await import("path");
   const filename = path.basename(filePath);
   
-  // Используем storagePath если он был установлен, иначе filePath
+  // РСЃРїРѕР»СЊР·СѓРµРј storagePath РµСЃР»Рё РѕРЅ Р±С‹Р» СѓСЃС‚Р°РЅРѕРІР»РµРЅ, РёРЅР°С‡Рµ filePath
   const finalPath = storagePath || filePath;
   
   const track: Track = {
     id: trackId,
     filename,
-    originalPath: finalPath, // Используем storagePath если доступен, иначе локальный путь
+    originalPath: finalPath, // РСЃРїРѕР»СЊР·СѓРµРј storagePath РµСЃР»Рё РґРѕСЃС‚СѓРїРµРЅ, РёРЅР°С‡Рµ Р»РѕРєР°Р»СЊРЅС‹Р№ РїСѓС‚СЊ
     metadata: {
       title: apiTitle || filename.replace(".mp3", ""),
       artist: "Unknown",
       album: "Unknown",
-      genre: "Средний",
+      genre: "РЎСЂРµРґРЅРёР№",
       rating: config.processing.defaultRating,
       year: config.processing.defaultYear,
       sourceUrl: url, // Save original URL for re-downloading in serverless
@@ -419,7 +394,7 @@ export async function uploadLocalTrack(
       title: title || "Unknown",
       artist: "Unknown",
       album: "Unknown",
-      genre: "РЎСЂРµРґРЅРёР№",
+      genre: "Р РЋРЎР‚Р ВµР Т‘Р Р…Р С‘Р в„–",
       rating: config.processing.defaultRating,
       year: config.processing.defaultYear,
     },
@@ -431,7 +406,7 @@ export async function uploadLocalTrack(
 }
 
 /**
- * Получить все треки
+ * РџРѕР»СѓС‡РёС‚СЊ РІСЃРµ С‚СЂРµРєРё
  * Safe for production - never throws errors
  */
 export async function getAllTracks(): Promise<Track[]> {
@@ -466,14 +441,14 @@ export async function getAllTracks(): Promise<Track[]> {
 }
 
 /**
- * Получить трек по id
+ * РџРѕР»СѓС‡РёС‚СЊ С‚СЂРµРє РїРѕ id
  */
 export async function getTrack(trackId: string): Promise<Track | undefined> {
   return getTrackFromStorage(trackId);
 }
 
 /**
- * Отклонить трек: перенос файла из downloads в rejected (Supabase Storage)
+ * РћС‚РєР»РѕРЅРёС‚СЊ С‚СЂРµРє: РїРµСЂРµРЅРѕСЃ С„Р°Р№Р»Р° РёР· downloads РІ rejected (Supabase Storage)
  */
 export async function rejectTrack(trackId: string): Promise<void> {
   const {
@@ -504,7 +479,7 @@ export async function rejectTrack(trackId: string): Promise<void> {
 }
 
 /**
- * Обработать трек (обрезка, определение BPM, запись тегов)
+ * РћР±СЂР°Р±РѕС‚Р°С‚СЊ С‚СЂРµРє (РѕР±СЂРµР·РєР°, РѕРїСЂРµРґРµР»РµРЅРёРµ BPM, Р·Р°РїРёСЃСЊ С‚РµРіРѕРІ)
  */
 export async function processTrack(
   trackId: string,
@@ -527,8 +502,8 @@ export async function processTrack(
 
   console.log("Track found:", track.filename, "status:", track.status);
 
-  // Если трек уже обработан или загружен, разрешаем повторную обработку
-  // но если есть processedPath и статус processed/trimmed/uploaded, обновляем только метаданные если не переданы trimSettings
+  // Р•СЃР»Рё С‚СЂРµРє СѓР¶Рµ РѕР±СЂР°Р±РѕС‚Р°РЅ РёР»Рё Р·Р°РіСЂСѓР¶РµРЅ, СЂР°Р·СЂРµС€Р°РµРј РїРѕРІС‚РѕСЂРЅСѓСЋ РѕР±СЂР°Р±РѕС‚РєСѓ
+  // РЅРѕ РµСЃР»Рё РµСЃС‚СЊ processedPath Рё СЃС‚Р°С‚СѓСЃ processed/trimmed/uploaded, РѕР±РЅРѕРІР»СЏРµРј С‚РѕР»СЊРєРѕ РјРµС‚Р°РґР°РЅРЅС‹Рµ РµСЃР»Рё РЅРµ РїРµСЂРµРґР°РЅС‹ trimSettings
   if (
     (track.status === "processed" || track.status === "trimmed" || track.status === "uploaded") &&
     track.processedPath &&
@@ -579,8 +554,8 @@ export async function processTrack(
   tempInputPath = tempInputPathLoc;
   const inputFilePath = tempInputPathLoc;
   
-  // Обрезка с настройками или по умолчанию
-  // Создаем временный файл для обработки
+  // РћР±СЂРµР·РєР° СЃ РЅР°СЃС‚СЂРѕР№РєР°РјРё РёР»Рё РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ
+  // РЎРѕР·РґР°РµРј РІСЂРµРјРµРЅРЅС‹Р№ С„Р°Р№Р» РґР»СЏ РѕР±СЂР°Р±РѕС‚РєРё
   const tempProcessedPath = path.join(config.folders.processed, `${trackId}_${track.filename}`);
   console.log(
     "Processing audio file:",
@@ -617,32 +592,32 @@ export async function processTrack(
     console.warn("Error removing temp input:", e);
   }
 
-  // Определение BPM (gracefully handles serverless)
+  // РћРїСЂРµРґРµР»РµРЅРёРµ BPM (gracefully handles serverless)
   console.log("Starting BPM detection...");
   const { detectBpmNetlify } = await import("./audio/bpmDetectorNetlify");
   const bpm = await detectBpmNetlify(tempProcessedPath);
   if (bpm) {
     console.log("BPM detected:", bpm);
     track.metadata.bpm = bpm;
-    // Автоматически определить тип по BPM
-    if (bpm >= 130) track.metadata.genre = "Быстрый";
-    else if (bpm >= 90) track.metadata.genre = "Средний";
-    else track.metadata.genre = "Медленный";
+    // РђРІС‚РѕРјР°С‚РёС‡РµСЃРєРё РѕРїСЂРµРґРµР»РёС‚СЊ С‚РёРї РїРѕ BPM
+    if (bpm >= 130) track.metadata.genre = "Р‘С‹СЃС‚СЂС‹Р№";
+    else if (bpm >= 90) track.metadata.genre = "РЎСЂРµРґРЅРёР№";
+    else track.metadata.genre = "РњРµРґР»РµРЅРЅС‹Р№";
   } else {
     console.log("No BPM detected");
   }
 
-  // Обновить метаданные, если переданы
+  // РћР±РЅРѕРІРёС‚СЊ РјРµС‚Р°РґР°РЅРЅС‹Рµ, РµСЃР»Рё РїРµСЂРµРґР°РЅС‹
   if (metadata) {
     console.log("Updating metadata with:", metadata);
     Object.assign(track.metadata, metadata);
   }
 
-  // Сохранить информацию об обрезке только если действительно была применена обрезка
+  // РЎРѕС…СЂР°РЅРёС‚СЊ РёРЅС„РѕСЂРјР°С†РёСЋ РѕР± РѕР±СЂРµР·РєРµ С‚РѕР»СЊРєРѕ РµСЃР»Рё РґРµР№СЃС‚РІРёС‚РµР»СЊРЅРѕ Р±С‹Р»Р° РїСЂРёРјРµРЅРµРЅР° РѕР±СЂРµР·РєР°
   if (trimSettings) {
     console.log("Saving trim information:", trimSettings);
 
-    // Проверяем, была ли действительно применена обрезка
+    // РџСЂРѕРІРµСЂСЏРµРј, Р±С‹Р»Р° Р»Рё РґРµР№СЃС‚РІРёС‚РµР»СЊРЅРѕ РїСЂРёРјРµРЅРµРЅР° РѕР±СЂРµР·РєР°
     const hasRealTrimming =
       trimSettings.startTime > 0 ||
       trimSettings.endTime ||
@@ -690,7 +665,7 @@ export async function processTrack(
 }
 
 /**
- * Обрезать трек без анализа BPM
+ * РћР±СЂРµР·Р°С‚СЊ С‚СЂРµРє Р±РµР· Р°РЅР°Р»РёР·Р° BPM
  */
 export async function trimTrack(
   trackId: string,
@@ -754,10 +729,10 @@ export async function trimTrack(
     console.warn("Error removing temp files:", e);
   }
 
-  // Сохранить информацию об обрезке
+  // РЎРѕС…СЂР°РЅРёС‚СЊ РёРЅС„РѕСЂРјР°С†РёСЋ РѕР± РѕР±СЂРµР·РєРµ
   console.log("Saving trim information:", trimSettings);
 
-  // Проверяем, была ли действительно применена обрезка
+  // РџСЂРѕРІРµСЂСЏРµРј, Р±С‹Р»Р° Р»Рё РґРµР№СЃС‚РІРёС‚РµР»СЊРЅРѕ РїСЂРёРјРµРЅРµРЅР° РѕР±СЂРµР·РєР°
   const hasRealTrimming =
     trimSettings.startTime > 0 ||
     trimSettings.endTime !== undefined ||
@@ -782,7 +757,7 @@ export async function trimTrack(
 }
 
 /**
- * Загрузка на FTP
+ * Р—Р°РіСЂСѓР·РєР° РЅР° FTP
  */
 export async function uploadToFtp(
   trackId: string,
@@ -819,7 +794,7 @@ export async function uploadToFtp(
     const { uploadToFtp: uploadFileToFtp } = await import("./upload/ftpUploader");
     await uploadFileToFtp(track.processedPath, ftpConfig, track.metadata, track.id);
 
-    // Добавляем в radio_tracks для проверки «на радио» (ошибку не пробрасываем)
+    // Р”РѕР±Р°РІР»СЏРµРј РІ radio_tracks РґР»СЏ РїСЂРѕРІРµСЂРєРё В«РЅР° СЂР°РґРёРѕВ» (РѕС€РёР±РєСѓ РЅРµ РїСЂРѕР±СЂР°СЃС‹РІР°РµРј)
     try {
       const { addRadioTrack } = await import("@/lib/radio/radioTracks");
       const { generateSafeFilename, normalizeForMatch } = await import(
@@ -852,3 +827,4 @@ export async function uploadToFtp(
     throw error;
   }
 }
+

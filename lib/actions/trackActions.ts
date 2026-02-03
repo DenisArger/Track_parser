@@ -98,7 +98,10 @@ export async function getAllTracks(): Promise<Track[]> {
                 }
               : undefined,
             sourceUrl: track.metadata?.sourceUrl ? String(track.metadata.sourceUrl) : undefined,
-            sourceType: track.metadata?.sourceType as "youtube" | "youtube-music" | "yandex" | undefined,
+            sourceType: track.metadata?.sourceType as
+              | "youtube"
+              | "youtube-music"
+              | undefined,
           },
           status: String(track.status || "downloaded") as Track["status"],
           downloadProgress: track.downloadProgress ? Number(track.downloadProgress) : undefined,
@@ -132,7 +135,7 @@ export type DownloadTrackResult =
  */
 export async function downloadTrackAction(
   url: string,
-  source?: "youtube" | "youtube-music" | "yandex"
+  source?: "youtube" | "youtube-music"
 ): Promise<DownloadTrackResult> {
   try {
     await requireAuth();

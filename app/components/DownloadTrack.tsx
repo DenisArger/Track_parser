@@ -20,9 +20,9 @@ export default function DownloadTrack({
   tracks,
 }: DownloadTrackProps) {
   const [url, setUrl] = useState("");
-  const [source, setSource] = useState<
-    "youtube" | "youtube-music" | "yandex" | "auto"
-  >("auto");
+  const [source, setSource] = useState<"youtube" | "youtube-music" | "auto">(
+    "auto"
+  );
   const [isDownloading, setIsDownloading] = useState(false);
   const [isUploadingLocal, setIsUploadingLocal] = useState(false);
   const [isDragActive, setIsDragActive] = useState(false);
@@ -73,9 +73,7 @@ export default function DownloadTrack({
   };
 
   const handleSourceChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setSource(
-      e.target.value as "youtube" | "youtube-music" | "yandex" | "auto"
-    );
+    setSource(e.target.value as "youtube" | "youtube-music" | "auto");
   };
 
   const handleLocalFileUpload = async (file: File) => {
@@ -175,8 +173,8 @@ export default function DownloadTrack({
       <div>
         <h2 className="text-xl font-semibold mb-4">Download Tracks</h2>
         <p className="text-gray-600 mb-6">
-          Enter a URL from YouTube, YouTube Music, or Yandex Music to download
-          tracks for processing.
+          Enter a URL from YouTube or YouTube Music to download tracks for
+          processing.
         </p>
       </div>
 
@@ -243,7 +241,6 @@ export default function DownloadTrack({
             <option value="auto">Auto-detect</option>
             <option value="youtube">YouTube</option>
             <option value="youtube-music">YouTube Music</option>
-            <option value="yandex">Yandex Music</option>
           </select>
         </div>
 
@@ -262,12 +259,12 @@ export default function DownloadTrack({
             onChange={handleUrlChange}
             placeholder={`Enter ${
               source === "auto"
-                ? "YouTube, YouTube Music, or Yandex Music"
+                ? "YouTube or YouTube Music"
                 : source === "youtube"
                 ? "YouTube"
                 : source === "youtube-music"
                 ? "YouTube Music"
-                : "Yandex Music"
+                : "YouTube"
             } URL`}
             className="input"
             disabled={isDownloading || isUploadingLocal}

@@ -67,7 +67,7 @@ export function getSafeWorkingDirectory(): string {
     
     // In serverless, /tmp is usually writable
     if (isServerlessEnvironment()) {
-      const tmpDir = process.env.TMPDIR || process.env.TMP || "/tmp";
+      const tmpDir = process.env.TMPDIR || "/tmp";
       return tmpDir;
     }
     
