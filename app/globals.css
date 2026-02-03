@@ -48,3 +48,16 @@
 
 /* Wavesurfer.js trim region: color set in WaveformTrimEditor addRegion/enableDragSelection.
    To override region/handle appearance (e.g. border), use the element’s ::part() if exposed. */
+
+
+audio.audio-light {
+  filter: brightness(1.18) contrast(0.92) saturate(1.05);
+  background-color: #f8fafc;
+  border-radius: 10px;
+}
+
+audio.audio-light::-webkit-media-controls-panel {
+  background-color: #f8fafc;
+  border-radius: 10px;
+}
+

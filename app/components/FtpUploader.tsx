@@ -283,7 +283,7 @@ export default function FtpUploader({
                       </div>
                       <audio
                         controls
-                        className="flex-1 min-w-[240px]"
+                        className="audio-light flex-1 min-w-[240px]"
                         src={`/api/audio/${track.id}?processed=true`}
                       />
                       <div className="flex items-center space-x-2 shrink-0">

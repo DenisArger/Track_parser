@@ -273,69 +273,10 @@ export default function TrackPlayer({
                   </div>
                 )}
 
-                {/* Audio Controls */}
-                <div className="space-y-3">
-                  <div className="flex items-center space-x-3">
-                    <button
-                      onClick={handlePlayPause}
-                      className="w-10 h-10 rounded-full bg-primary-600 text-white flex items-center justify-center hover:bg-primary-700"
-                    >
-                      {isPlaying ? (
-                        <svg
-                          className="w-4 h-4"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path
-                            fillRule="evenodd"
-                            d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                      ) : (
-                        <svg
-                          className="w-4 h-4"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path
-                            fillRule="evenodd"
-                            d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                      )}
-                    </button>
-                    <div 
-                      className="flex-1 relative cursor-pointer"
-                      onClick={handleProgressBarClick}
-                    >
-                      <input
-                        type="range"
-                        min="0"
-                        max={duration || 0}
-                        value={currentTime}
-                        step="0.1"
-                        onMouseDown={handleSeekStart}
-                        onTouchStart={handleSeekStart}
-                        onChange={handleSeek}
-                        onMouseUp={handleSeekEnd}
-                        onTouchEnd={handleSeekEnd}
-                        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer relative z-10"
-                        style={{
-                          background: `linear-gradient(to right, #2563eb 0%, #2563eb ${(duration ? (currentTime / duration) * 100 : 0)}%, #e5e7eb ${(duration ? (currentTime / duration) * 100 : 0)}%, #e5e7eb 100%)`
-                        }}
-                      />
-                    </div>
-                    <span className="text-sm text-gray-600 min-w-[40px]">
-                      {formatTime(currentTime)} / {formatTime(duration)}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Hidden Audio Element */}
                 <audio
                   ref={audioRef}
+                  controls
+                  className="audio-light w-full"
                   src={
                     currentTrack.status === "trimmed"
                       ? `/api/audio/${currentTrack.id}?trimmed=true`
@@ -344,7 +285,6 @@ export default function TrackPlayer({
                   onTimeUpdate={handleTimeUpdate}
                   onLoadedMetadata={handleLoadedMetadata}
                   onSeeked={() => {
-                    // Audio has finished seeking
                     setIsSeeking(false);
                     if (audioRef.current) {
                       setCurrentTime(audioRef.current.currentTime);

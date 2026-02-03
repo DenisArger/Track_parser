@@ -313,6 +313,11 @@ export default function DownloadTrack({
                     {track.downloadProgress?.toFixed(1)}%
                   </span>
                 </div>
+                <audio
+                  controls
+                  className="audio-light w-full mb-2"
+                  src={`/api/audio/${track.id}`}
+                />
                 <div className="progress-bar">
                   <div
                     className="progress-fill"
@@ -344,9 +349,9 @@ export default function DownloadTrack({
               .map((track) => (
                 <div
                   key={track.id}
-                  className="flex justify-between items-center p-3 bg-green-50 rounded-lg"
+                  className="grid items-center gap-3 p-2 bg-green-50 rounded-lg grid-cols-[220px_1fr_auto]"
                 >
-                  <div>
+                  <div className="min-w-0">
                     <p className="font-medium text-gray-900">
                       {track.metadata.title}
                     </p>
@@ -354,7 +359,7 @@ export default function DownloadTrack({
                       {track.metadata.artist}
                     </p>
                     {track.metadata.isTrimmed && (
-                      <div className="flex items-center space-x-1 mt-1">
+                      <div className="flex items-center space-x-1 mt-0.5">
                         <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                           <svg
                             className="w-2.5 h-2.5 mr-1"
@@ -372,6 +377,15 @@ export default function DownloadTrack({
                       </div>
                     )}
                   </div>
+                  <audio
+                    controls
+                    className="audio-light w-full h-8"
+                    src={
+                      track.status === "trimmed"
+                        ? `/api/audio/${track.id}?trimmed=true`
+                        : `/api/audio/${track.id}`
+                    }
+                  />
                   <div className="flex items-center space-x-3">
                     <span className="text-sm text-green-600 font-medium">
                       {track.metadata.isTrimmed
