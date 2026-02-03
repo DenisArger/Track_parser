@@ -27,7 +27,7 @@ export async function getYtDlpPath(): Promise<string | null> {
     let cwd: string;
     try {
       cwd = process.cwd();
-    } catch (error) {
+    } catch (_error) {
       cwd = "/tmp";
     }
     const binDir = path.join(cwd, "bin");
@@ -54,7 +54,7 @@ export async function getYtDlpPath(): Promise<string | null> {
         if (pathInSystem && (await fs.pathExists(pathInSystem))) {
           return pathInSystem;
         }
-      } catch (error) {
+      } catch (_error) {
         // yt-dlp not in PATH, continue
       }
     }

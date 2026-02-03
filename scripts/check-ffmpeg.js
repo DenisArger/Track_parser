@@ -1,12 +1,12 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 const { exec } = require("child_process");
 const fs = require("fs");
-const path = require("path");
 
-console.log("🔍 Checking FFmpeg installation...");
+console.warn("Checking FFmpeg installation...");
 
-exec("ffmpeg -version", (error, stdout, stderr) => {
+exec("ffmpeg -version", (error, stdout, _stderr) => {
   if (error) {
-    console.error("❌ FFmpeg is not installed or not found in PATH");
+    console.error("FFmpeg is not installed or not found in PATH");
     console.error("Please install FFmpeg:");
     console.error("");
     console.error("Windows:");
@@ -21,24 +21,24 @@ exec("ffmpeg -version", (error, stdout, stderr) => {
     console.error("sudo apt update && sudo apt install ffmpeg");
     process.exit(1);
   } else {
-    console.log("✅ FFmpeg is installed");
-    console.log("Version:", stdout.split("\n")[0]);
+    console.warn("FFmpeg is installed");
+    console.warn("Version:", stdout.split("\n")[0]);
   }
 });
 
 // Check if required directories exist
 const requiredDirs = ["downloads", "processed", "rejected", "server_upload"];
 
-console.log("\n📁 Checking required directories...");
+console.warn("Checking required directories...");
 
 requiredDirs.forEach((dir) => {
   if (!fs.existsSync(dir)) {
-    console.log(`Creating directory: ${dir}`);
+    console.warn(`Creating directory: ${dir}`);
     fs.mkdirSync(dir, { recursive: true });
   } else {
-    console.log(`✅ Directory exists: ${dir}`);
+    console.warn(`Directory exists: ${dir}`);
   }
 });
 
-console.log("\n🎉 Environment check completed!");
-console.log('Run "yarn dev" to start the application');
+console.warn("Environment check completed!");
+console.warn('Run "yarn dev" to start the application');

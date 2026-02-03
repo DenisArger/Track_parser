@@ -10,7 +10,7 @@ async function getExecAsync() {
     const { exec } = await import("child_process");
     const { promisify } = await import("util");
     return promisify(exec);
-  } catch (error) {
+  } catch (_error) {
     // exec may not be available in serverless
     return null;
   }
@@ -37,7 +37,6 @@ export async function findFfmpegPath(): Promise<string | null> {
   // Skip FFmpeg search in serverless to avoid errors
   const { isServerlessEnvironment } = await import("./environment");
   if (isServerlessEnvironment()) {
-    console.log("Skipping FFmpeg search in serverless environment");
     return null;
   }
 
@@ -47,7 +46,7 @@ export async function findFfmpegPath(): Promise<string | null> {
     let cwd: string;
     try {
       cwd = process.cwd();
-    } catch (error) {
+    } catch (_error) {
       cwd = "/tmp";
     }
     const localBinDir = path.join(cwd, "bin");
@@ -64,10 +63,9 @@ export async function findFfmpegPath(): Promise<string | null> {
       (await fs.pathExists(ffmpegExe)) &&
       (await fs.pathExists(ffprobeExe))
     ) {
-      console.log("Found FFmpeg in local bin directory:", localBinDir);
       return localBinDir;
     }
-  } catch (error) {
+  } catch (_error) {
     // Ignore - local bin might not exist
   }
 
@@ -88,7 +86,6 @@ export async function findFfmpegPath(): Promise<string | null> {
         (await fs.pathExists(ffmpegExe)) &&
         (await fs.pathExists(ffprobeExe))
       ) {
-        console.log("Found FFmpeg via FFMPEG_PATH environment variable:", envPath);
         return envPath;
       }
     } catch (error) {
@@ -115,7 +112,6 @@ export async function findFfmpegPath(): Promise<string | null> {
         (await fs.pathExists(ffmpegExe)) &&
         (await fs.pathExists(ffprobeExe))
       ) {
-        console.log("Found FFmpeg via config.json:", configPath);
         return configPath;
       }
     }
@@ -144,15 +140,13 @@ export async function findFfmpegPath(): Promise<string | null> {
           if (await fs.pathExists(ffmpegPath)) {
             // Extract directory path (remove executable name)
             const dirPath = path.dirname(ffmpegPath);
-            console.log("Found FFmpeg in PATH:", dirPath);
             return dirPath;
           }
-        } catch (fsError) {
+        } catch (_fsError) {
           // Ignore file system errors
-          console.log("Error checking FFmpeg path:", fsError);
         }
       }
-    } catch (error) {
+    } catch (_error) {
       // FFmpeg not in PATH, try common locations
       // Silently continue - this is expected in many cases
       // exec might not be available in some production environments
@@ -205,15 +199,14 @@ export async function findFfmpegPath(): Promise<string | null> {
             (await fs.pathExists(ffmpegExe)) &&
             (await fs.pathExists(ffprobeExe))
           ) {
-            console.log("Found FFmpeg in common location:", ffmpegDir);
             return ffmpegDir;
           }
-        } catch (pathError) {
+        } catch (_pathError) {
           // Continue to next path
           continue;
         }
       }
-    } catch (error) {
+    } catch (_error) {
       // Ignore errors when checking common paths
     }
 
@@ -234,14 +227,13 @@ export async function findFfmpegPath(): Promise<string | null> {
         try {
           const dirPath = path.dirname(ffmpegPath);
           if (await fs.pathExists(dirPath)) {
-            console.log("Found FFmpeg via alternative method:", dirPath);
             return dirPath;
           }
-        } catch (fsError) {
+        } catch (_fsError) {
           // Ignore
         }
       }
-    } catch (error) {
+    } catch (_error) {
       // Ignore - this is expected if ffmpeg is not found
       // exec might not be available in some production environments
     }

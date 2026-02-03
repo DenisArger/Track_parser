@@ -340,7 +340,7 @@ export async function downloadTrack(
       title: apiTitle || filename.replace(".mp3", ""),
       artist: "Unknown",
       album: "Unknown",
-      genre: "РЎСЂРµРґРЅРёР№",
+      genre: "Средний",
       rating: config.processing.defaultRating,
       year: config.processing.defaultYear,
       sourceUrl: url, // Save original URL for re-downloading in serverless
@@ -394,7 +394,7 @@ export async function uploadLocalTrack(
       title: title || "Unknown",
       artist: "Unknown",
       album: "Unknown",
-      genre: "Р РЋРЎР‚Р ВµР Т‘Р Р…Р С‘Р в„–",
+      genre: "Средний",
       rating: config.processing.defaultRating,
       year: config.processing.defaultYear,
     },
@@ -600,9 +600,9 @@ export async function processTrack(
     console.log("BPM detected:", bpm);
     track.metadata.bpm = bpm;
     // РђРІС‚РѕРјР°С‚РёС‡РµСЃРєРё РѕРїСЂРµРґРµР»РёС‚СЊ С‚РёРї РїРѕ BPM
-    if (bpm >= 130) track.metadata.genre = "Р‘С‹СЃС‚СЂС‹Р№";
-    else if (bpm >= 90) track.metadata.genre = "РЎСЂРµРґРЅРёР№";
-    else track.metadata.genre = "РњРµРґР»РµРЅРЅС‹Р№";
+    if (bpm >= 130) track.metadata.genre = "Быстрый";
+    else if (bpm >= 90) track.metadata.genre = "Средний";
+    else track.metadata.genre = "Медленный";
   } else {
     console.log("No BPM detected");
   }
@@ -827,4 +827,6 @@ export async function uploadToFtp(
     throw error;
   }
 }
+
+
 

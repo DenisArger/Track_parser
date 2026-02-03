@@ -47,7 +47,7 @@ export function isServerlessEnvironment(): boolean {
     }
 
     return false;
-  } catch (error) {
+  } catch (_error) {
     // If anything fails, assume not serverless to be safe
     return false;
   }
@@ -74,11 +74,11 @@ export function getSafeWorkingDirectory(): string {
     // Try to get current working directory
     try {
       return process.cwd();
-    } catch (error) {
+    } catch (_error) {
       // If process.cwd() fails, use /tmp
       return "/tmp";
     }
-  } catch (error) {
+  } catch (_error) {
     // Fallback to /tmp if everything fails
     return "/tmp";
   }
@@ -99,7 +99,7 @@ export async function isFileSystemWritable(dir?: string): Promise<boolean> {
       await fs.writeFile(testFile, "test");
       await fs.remove(testFile);
       return true;
-    } catch (error) {
+    } catch (_error) {
       return false;
     }
   }

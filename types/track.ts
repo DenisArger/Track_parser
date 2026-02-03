@@ -1,4 +1,4 @@
-export interface TrackMetadata {
+﻿export interface TrackMetadata {
   title: string;
   artist: string;
   album: string;
@@ -99,3 +99,4 @@ export interface UploadRequest {
   trackId: string;
   ftpConfig: FtpConfig;
 }
+

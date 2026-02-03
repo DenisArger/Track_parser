@@ -69,14 +69,6 @@ export default function FtpUploader({
     setError("");
 
     try {
-      console.log("Uploading track:", trackId);
-      console.log("FTP config:", {
-        host: ftpConfig.host,
-        port: ftpConfig.port,
-        user: ftpConfig.user,
-        remotePath: ftpConfig.remotePath || "(root)",
-      });
-
       const response = await fetch("/api/upload-ftp", {
         method: "POST",
         headers: {
@@ -95,7 +87,6 @@ export default function FtpUploader({
         throw new Error(responseData.error || "Upload failed");
       }
 
-      console.log("Upload successful:", responseData);
       setHiddenTrackIds((prev) => ({ ...prev, [trackId]: true }));
       onTracksUpdate();
     } catch (err) {
@@ -121,10 +112,7 @@ export default function FtpUploader({
     setError("");
 
     try {
-      console.log(`Starting upload of ${processedTracks.length} tracks`);
-
       for (const track of processedTracks) {
-        console.log(`Uploading track: ${track.id} - ${track.metadata.title}`);
         setUploadProgress((prev) => ({ ...prev, [track.id]: 0 }));
 
         try {
@@ -152,7 +140,6 @@ export default function FtpUploader({
             );
           }
 
-          console.log(`Successfully uploaded: ${track.metadata.title}`);
           setUploadProgress((prev) => ({ ...prev, [track.id]: 100 }));
           setHiddenTrackIds((prev) => ({ ...prev, [track.id]: true }));
         } catch (trackError) {
@@ -169,7 +156,6 @@ export default function FtpUploader({
         }
       }
 
-      console.log("All uploads completed");
       onTracksUpdate();
     } catch (err) {
       const errorMessage = getUserFacingErrorMessage(err, "Upload failed");

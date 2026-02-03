@@ -53,8 +53,6 @@ describe("isServerlessEnvironment", () => {
 });
 
 describe("getSafeWorkingDirectory", () => {
-  const origCwd = process.cwd;
-
   afterEach(() => {
     vi.restoreAllMocks();
     process.env.NETLIFY = "";
