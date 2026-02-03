@@ -1,5 +1,6 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { syncFromApi } from "./streamingCenterClient";
+import { parseArtistTitleFromRawName } from "@/lib/utils/filenameUtils";
 
 /**
  * Возвращает Set нормализованных имён треков на радио из БД.
@@ -23,11 +24,16 @@ export async function getRadioTrackNamesSet(): Promise<Set<string>> {
     const entries = await syncFromApi(apiUrl, apiKey, playlistId);
     if (entries.length > 0) {
       await supabase.from("radio_tracks").upsert(
-        entries.map((e) => ({
-          normalized_name: e.normalizedName,
-          raw_name: e.rawName,
-          source: "api_sync",
-        })),
+        entries.map((e) => {
+          const parsed = parseArtistTitleFromRawName(e.rawName);
+          return {
+            normalized_name: e.normalizedName,
+            raw_name: e.rawName,
+            artist: parsed.artist,
+            title: parsed.title,
+            source: "api_sync",
+          };
+        }),
         { onConflict: "normalized_name", ignoreDuplicates: true }
       );
     }
@@ -59,11 +65,16 @@ export async function syncRadioTracksFromApi(): Promise<{ count: number }> {
   if (entries.length > 0) {
     const supabase = createSupabaseServerClient();
     const { error } = await supabase.from("radio_tracks").upsert(
-      entries.map((e) => ({
-        normalized_name: e.normalizedName,
-        raw_name: e.rawName,
-        source: "api_sync",
-      })),
+      entries.map((e) => {
+        const parsed = parseArtistTitleFromRawName(e.rawName);
+        return {
+          normalized_name: e.normalizedName,
+          raw_name: e.rawName,
+          artist: parsed.artist,
+          title: parsed.title,
+          source: "api_sync",
+        };
+      }),
       { onConflict: "normalized_name", ignoreDuplicates: true }
     );
     if (error) {
@@ -84,10 +95,13 @@ export async function addRadioTrack(p: {
   source?: string;
 }): Promise<void> {
   const supabase = createSupabaseServerClient();
+  const parsed = parseArtistTitleFromRawName(p.rawName);
   await supabase.from("radio_tracks").upsert(
     {
       normalized_name: p.normalizedName,
       raw_name: p.rawName,
+      artist: parsed.artist,
+      title: parsed.title,
       source: p.source || "ftp_upload",
     },
     { onConflict: "normalized_name", ignoreDuplicates: true }

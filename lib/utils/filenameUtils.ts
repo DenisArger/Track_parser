@@ -58,3 +58,32 @@ export function generateSafeFilename(metadata: {
 export function normalizeForMatch(s: string): string {
   return (s || "").replace(/\.mp3$/i, "").toLowerCase().trim();
 }
+
+/**
+ * Парсит "Artist - Title" из raw_name. Если разделителя нет, считает всё названием.
+ */
+export function parseArtistTitleFromRawName(rawName: string): {
+  artist: string | null;
+  title: string | null;
+} {
+  const cleaned = (rawName || "")
+    .replace(/\.mp3$/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!cleaned) return { artist: null, title: null };
+
+  const sep = " - ";
+  const idx = cleaned.indexOf(sep);
+  if (idx === -1) {
+    return { artist: null, title: cleaned };
+  }
+
+  const artist = cleaned.slice(0, idx).trim();
+  const title = cleaned.slice(idx + sep.length).trim();
+
+  return {
+    artist: artist || null,
+    title: title || null,
+  };
+}
