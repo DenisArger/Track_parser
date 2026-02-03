@@ -803,7 +803,13 @@ export async function uploadToFtp(
       const rawName = generateSafeFilename(track.metadata);
       const normalizedName = normalizeForMatch(rawName);
       if (normalizedName) {
-        await addRadioTrack({ normalizedName, rawName, source: "ftp_upload" });
+        await addRadioTrack({
+          normalizedName,
+          rawName,
+          trackType: track.metadata.genre,
+          year: track.metadata.year,
+          source: "ftp_upload",
+        });
       }
     } catch (radioErr) {
       console.warn("[uploadToFtp] addRadioTrack failed:", radioErr);

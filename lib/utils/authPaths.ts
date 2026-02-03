@@ -1,4 +1,9 @@
-const PUBLIC_PATHS = ["/login", "/signup", "/forgot-password"];
+const PUBLIC_PATHS = [
+  "/login",
+  "/signup",
+  "/forgot-password",
+  "/api/radio/sync",
+];
 const AUTH_PREFIX = "/auth";
 
 export function isPublicPath(pathname: string): boolean {

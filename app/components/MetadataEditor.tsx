@@ -99,7 +99,7 @@ export default function MetadataEditor({
     }
   };
 
-  const trackTypes: TrackType[] = ["Быстрый", "Средний", "Медленный"];
+  const trackTypes: TrackType[] = ["Быстрый", "Средний", "Медленный", "Модерн"];
 
   return (
     <div className="space-y-6">

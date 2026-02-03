@@ -13,7 +13,7 @@
   sourceType?: "youtube" | "youtube-music"; // Source type for re-downloading
 }
 
-export type TrackType = "Быстрый" | "Средний" | "Медленный";
+export type TrackType = "Быстрый" | "Средний" | "Медленный" | "Модерн";
 
 export interface Track {
   id: string;

@@ -1,6 +1,7 @@
 import {
   generateSafeFilename,
   normalizeForMatch,
+  parseArtistTitleFromRawName,
 } from "@/lib/utils/filenameUtils";
 
 const PAGE_SIZE = 1000;
@@ -13,6 +14,16 @@ type PlaylistTrackRow = {
   track?: Record<string, unknown>;
   [key: string]: unknown;
 };
+
+function normalizeApiBase(apiUrl: string): string {
+  const trimmed = (apiUrl || "").trim().replace(/\/+$/, "");
+  if (!trimmed) return "";
+  const v2 = "/api/v2";
+  if (trimmed.endsWith(v2)) {
+    return trimmed.slice(0, -v2.length);
+  }
+  return trimmed;
+}
 
 function getBasename(p: string): string {
   const s = (p || "").trim();
@@ -77,7 +88,7 @@ export async function getAllPlaylistTrackNames(
   apiKey: string,
   playlistId: number
 ): Promise<Set<string>> {
-  const base = (apiUrl || "").replace(/\/$/, "");
+  const base = normalizeApiBase(apiUrl);
   const set = new Set<string>();
   let offset = 0;
 
@@ -138,7 +149,176 @@ export async function getAllPlaylistTrackNames(
   return set;
 }
 
-export type SyncFromApiEntry = { normalizedName: string; rawName: string };
+export type SyncFromApiEntry = {
+  normalizedName: string;
+  rawName: string;
+  artist?: string | null;
+  title?: string | null;
+  trackType?: string | null;
+  year?: number | null;
+};
+
+function getStringValue(
+  obj: Record<string, unknown> | undefined,
+  keys: string[]
+): string {
+  if (!obj) return "";
+  for (const key of keys) {
+    const v = obj[key];
+    if (typeof v === "string" && v.trim()) return v.trim();
+  }
+  return "";
+}
+
+function parseYear(value: unknown): number | null {
+  const n =
+    typeof value === "number"
+      ? value
+      : typeof value === "string"
+        ? parseInt(value, 10)
+        : NaN;
+  if (!Number.isFinite(n)) return null;
+  if (n < 1900 || n > 2100) return null;
+  return n;
+}
+
+function normalizeTrackType(value: unknown): string | null {
+  const s = typeof value === "string" ? value.trim() : "";
+  if (!s) return null;
+  const lower = s.toLowerCase();
+  if (["быстрый", "fast", "quick"].includes(lower)) return "Быстрый";
+  if (["средний", "medium", "mid"].includes(lower)) return "Средний";
+  if (["медленный", "slow"].includes(lower)) return "Медленный";
+  if (["модерн", "modern"].includes(lower)) return "Модерн";
+  if (["Быстрый", "Средний", "Медленный", "Модерн"].includes(s)) return s;
+  return null;
+}
+
+function parseTrackTypeFromText(text: string): string | null {
+  const s = (text || "").toLowerCase();
+  if (!s) return null;
+  if (s.includes("быстрый")) return "Быстрый";
+  if (s.includes("средний")) return "Средний";
+  if (s.includes("медленный")) return "Медленный";
+  if (s.includes("модерн") || s.includes("modern")) return "Модерн";
+  return null;
+}
+
+function parseMetaString(meta: string): {
+  artist?: string | null;
+  title?: string | null;
+  trackType?: string | null;
+  year?: number | null;
+} {
+  const trimmed = (meta || "").trim();
+  if (!trimmed) return {};
+
+  // Try JSON first
+  if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+    try {
+      const obj = JSON.parse(trimmed) as Record<string, unknown>;
+      const artist = getStringValue(obj, ["artist", "Artist", "ARTIST"]);
+      const title = getStringValue(obj, ["title", "Title", "TITLE"]);
+      const trackType = normalizeTrackType(
+        obj.track_type ?? obj.type ?? obj.genre ?? obj.trackType
+      );
+      const year = parseYear(obj.year ?? obj.Year ?? obj.date);
+      return {
+        artist: artist || undefined,
+        title: title || undefined,
+        trackType: trackType || undefined,
+        year: year || undefined,
+      };
+    } catch {
+      // fall through
+    }
+  }
+
+  return {};
+}
+
+function extractMetadataFromRow(
+  row: PlaylistTrackRow,
+  rawName: string
+): {
+  artist: string | null;
+  title: string | null;
+  trackType: string | null;
+  year: number | null;
+} {
+  const trackObj =
+    row.track && typeof row.track === "object" && !Array.isArray(row.track)
+      ? (row.track as Record<string, unknown>)
+      : undefined;
+
+  const artist =
+    getStringValue(trackObj, ["artist", "Artist"]) ||
+    getStringValue(row as Record<string, unknown>, ["artist", "Artist"]);
+
+  const title =
+    getStringValue(trackObj, ["title", "Title", "name", "Name"]) ||
+    getStringValue(row as Record<string, unknown>, ["title", "Title"]);
+
+  const trackType = normalizeTrackType(
+    (trackObj && (trackObj.track_type ?? trackObj.type ?? trackObj.genre)) ||
+      (row as Record<string, unknown>).track_type ||
+      (row as Record<string, unknown>).type ||
+      (row as Record<string, unknown>).genre
+  );
+
+  const commentText =
+    getStringValue(trackObj, [
+      "comment",
+      "comments",
+      "note",
+      "notes",
+      "remark",
+      "description",
+      "desc",
+    ]) ||
+    getStringValue(row as Record<string, unknown>, [
+      "comment",
+      "comments",
+      "note",
+      "notes",
+      "remark",
+      "description",
+      "desc",
+    ]);
+
+  const year =
+    parseYear(trackObj?.year) ??
+    parseYear((row as Record<string, unknown>).year);
+
+  let metaParsed: ReturnType<typeof parseMetaString> = {};
+  const metaString =
+    (trackObj && typeof trackObj.meta === "string" ? trackObj.meta : "") ||
+    (typeof row.meta === "string" ? row.meta : "");
+  if (metaString) {
+    metaParsed = parseMetaString(metaString);
+  }
+
+  const parsedFromRaw = parseArtistTitleFromRawName(rawName);
+
+  return {
+    artist:
+      artist ||
+      metaParsed.artist ||
+      parsedFromRaw.artist ||
+      null,
+    title:
+      title ||
+      metaParsed.title ||
+      parsedFromRaw.title ||
+      null,
+    trackType:
+      trackType ||
+      metaParsed.trackType ||
+      parseTrackTypeFromText(commentText) ||
+      null,
+    year: year ?? metaParsed.year ?? null,
+  };
+}
 
 /**
  * Загружает все треки из плейлиста Streaming.Center и возвращает массив
@@ -149,7 +329,7 @@ export async function syncFromApi(
   apiKey: string,
   playlistId: number
 ): Promise<SyncFromApiEntry[]> {
-  const base = (apiUrl || "").replace(/\/$/, "");
+  const base = normalizeApiBase(apiUrl);
   const entries: SyncFromApiEntry[] = [];
   let offset = 0;
 
@@ -201,7 +381,15 @@ export async function syncFromApi(
       const rawName = nameFromRow(row);
       const normalizedName = normalizeForMatch(rawName);
       if (normalizedName) {
-        entries.push({ normalizedName, rawName });
+        const meta = extractMetadataFromRow(row, rawName);
+        entries.push({
+          normalizedName,
+          rawName,
+          artist: meta.artist,
+          title: meta.title,
+          trackType: meta.trackType,
+          year: meta.year,
+        });
       }
     }
 

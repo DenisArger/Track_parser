@@ -26,15 +26,19 @@ export async function getRadioTrackNamesSet(): Promise<Set<string>> {
       await supabase.from("radio_tracks").upsert(
         entries.map((e) => {
           const parsed = parseArtistTitleFromRawName(e.rawName);
+          const artist = e.artist ?? parsed.artist;
+          const title = e.title ?? parsed.title;
           return {
             normalized_name: e.normalizedName,
             raw_name: e.rawName,
-            artist: parsed.artist,
-            title: parsed.title,
+            artist,
+            title,
+            track_type: e.trackType ?? null,
+            year: e.year ?? null,
             source: "api_sync",
           };
         }),
-        { onConflict: "normalized_name", ignoreDuplicates: true }
+        { onConflict: "normalized_name" }
       );
     }
     set = new Set(entries.map((e) => e.normalizedName));
@@ -53,6 +57,7 @@ export async function syncRadioTracksFromApi(): Promise<{ count: number }> {
   const apiKey = process.env.STREAMING_CENTER_API_KEY || "";
   const playlistId =
     parseInt(process.env.STREAMING_CENTER_PLAYLIST_ID || "1", 10) || 1;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 
   if (!apiUrl || !apiKey) {
     throw new Error(
@@ -63,21 +68,41 @@ export async function syncRadioTracksFromApi(): Promise<{ count: number }> {
   const entries = await syncFromApi(apiUrl, apiKey, playlistId);
 
   if (entries.length > 0) {
+    const byNormalized = new Map<string, (typeof entries)[number]>();
+    for (const e of entries) {
+      byNormalized.set(e.normalizedName, e);
+    }
+    const uniqueEntries = Array.from(byNormalized.values());
+
     const supabase = createSupabaseServerClient();
     const { error } = await supabase.from("radio_tracks").upsert(
-      entries.map((e) => {
+      uniqueEntries.map((e) => {
         const parsed = parseArtistTitleFromRawName(e.rawName);
+        const artist = e.artist ?? parsed.artist;
+        const title = e.title ?? parsed.title;
         return {
           normalized_name: e.normalizedName,
           raw_name: e.rawName,
-          artist: parsed.artist,
-          title: parsed.title,
+          artist,
+          title,
+          track_type: e.trackType ?? null,
+          year: e.year ?? null,
           source: "api_sync",
         };
       }),
-      { onConflict: "normalized_name", ignoreDuplicates: true }
+      { onConflict: "normalized_name" }
+    );
+    console.log(
+      "[radio sync] upsert to radio_tracks",
+      {
+        count: uniqueEntries.length,
+        supabaseUrl,
+        playlistId,
+        apiUrl,
+      }
     );
     if (error) {
+      console.error("[radio sync] supabase error:", error);
       throw new Error(`Ошибка записи в radio_tracks: ${error.message}`);
     }
   }
@@ -92,6 +117,8 @@ export async function syncRadioTracksFromApi(): Promise<{ count: number }> {
 export async function addRadioTrack(p: {
   normalizedName: string;
   rawName: string;
+  trackType?: string | null;
+  year?: number | null;
   source?: string;
 }): Promise<void> {
   const supabase = createSupabaseServerClient();
@@ -102,6 +129,8 @@ export async function addRadioTrack(p: {
       raw_name: p.rawName,
       artist: parsed.artist,
       title: parsed.title,
+      track_type: p.trackType ?? null,
+      year: p.year ?? null,
       source: p.source || "ftp_upload",
     },
     { onConflict: "normalized_name", ignoreDuplicates: true }
