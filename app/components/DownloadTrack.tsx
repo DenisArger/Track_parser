@@ -1,6 +1,6 @@
-"use client";
+﻿"use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Track } from "@/types/track";
 import {
   getDownloadingTracks,
@@ -24,7 +24,20 @@ export default function DownloadTrack({
     "youtube" | "youtube-music" | "yandex" | "auto"
   >("auto");
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isUploadingLocal, setIsUploadingLocal] = useState(false);
+  const [isDragActive, setIsDragActive] = useState(false);
+  const [deletingIds, setDeletingIds] = useState<Record<string, boolean>>({});
+  const [hiddenTrackIds, setHiddenTrackIds] = useState<Record<string, boolean>>(
+    {}
+  );
   const [error, setError] = useState("");
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const visibleDownloadingTracks = getDownloadingTracks(tracks).filter(
+    (track) => !hiddenTrackIds[track.id]
+  );
+  const visibleDownloadedTracks = getDownloadedTracks(tracks).filter(
+    (track) => !hiddenTrackIds[track.id]
+  );
 
   const handleDownload = async () => {
     if (!url.trim()) {
@@ -65,6 +78,98 @@ export default function DownloadTrack({
     );
   };
 
+  const handleLocalFileUpload = async (file: File) => {
+    setIsUploadingLocal(true);
+    setError("");
+
+    try {
+      const response = await fetch("/api/upload-local", {
+        method: "POST",
+        headers: {
+          "x-file-name-encoded": encodeURIComponent(file.name),
+          "x-file-type": file.type || "audio/mpeg",
+        },
+        body: file,
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result?.error || "Local upload failed");
+      }
+
+      onTracksUpdate();
+    } catch (err) {
+      setError(getUserFacingErrorMessage(err, "Local upload failed"));
+    } finally {
+      setIsUploadingLocal(false);
+    }
+  };
+
+  const handleFileInputChange = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await handleLocalFileUpload(file);
+    e.target.value = "";
+  };
+
+  const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragActive(false);
+
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+    await handleLocalFileUpload(file);
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragActive(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragActive(false);
+  };
+
+  const handleBrowseClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleDeleteTrack = async (trackId: string) => {
+    if (!trackId || trackId === "undefined" || trackId === "null") {
+      setError("Track ID is required");
+      return;
+    }
+    const confirmed = window.confirm(
+      "Удалить трек? Файл будет удалён из базы и Storage."
+    );
+    if (!confirmed) return;
+
+    setDeletingIds((prev) => ({ ...prev, [trackId]: true }));
+    setError("");
+    try {
+      setHiddenTrackIds((prev) => ({ ...prev, [trackId]: true }));
+      const response = await fetch(`/api/tracks/${trackId}`, {
+        method: "DELETE",
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        setHiddenTrackIds((prev) => {
+          const next = { ...prev };
+          delete next[trackId];
+          return next;
+        });
+        throw new Error(result?.error || "Delete failed");
+      }
+      onTracksUpdate();
+    } catch (err) {
+      setError(getUserFacingErrorMessage(err, "Delete failed"));
+    } finally {
+      setDeletingIds((prev) => ({ ...prev, [trackId]: false }));
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -76,6 +181,50 @@ export default function DownloadTrack({
       </div>
 
       <div className="space-y-4">
+        {/* Local File Upload */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Local File
+          </label>
+          <div
+            className={`rounded-lg border-2 border-dashed p-6 text-center transition ${
+              isDragActive
+                ? "border-blue-400 bg-blue-50"
+                : "border-gray-300 bg-gray-50"
+            }`}
+            onDrop={handleDrop}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onClick={handleBrowseClick}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                handleBrowseClick();
+              }
+            }}
+          >
+            <p className="text-sm text-gray-700">
+              Drag & drop an MP3 file here, or click to choose a file
+            </p>
+            <p className="text-xs text-gray-500 mt-2">
+              Supported format: MP3
+            </p>
+          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".mp3,audio/mpeg"
+            className="hidden"
+            onChange={handleFileInputChange}
+            disabled={isDownloading || isUploadingLocal}
+          />
+          {isUploadingLocal && (
+            <p className="text-sm text-gray-600 mt-2">Uploading file...</p>
+          )}
+        </div>
+
         {/* Source Selection */}
         <div>
           <label
@@ -89,6 +238,7 @@ export default function DownloadTrack({
             value={source}
             onChange={handleSourceChange}
             className="input"
+            disabled={isDownloading || isUploadingLocal}
           >
             <option value="auto">Auto-detect</option>
             <option value="youtube">YouTube</option>
@@ -120,7 +270,7 @@ export default function DownloadTrack({
                 : "Yandex Music"
             } URL`}
             className="input"
-            disabled={isDownloading}
+            disabled={isDownloading || isUploadingLocal}
           />
         </div>
 
@@ -134,7 +284,7 @@ export default function DownloadTrack({
         {/* Download Button */}
         <button
           onClick={handleDownload}
-          disabled={isDownloading || !url.trim()}
+          disabled={isDownloading || isUploadingLocal || !url.trim()}
           className="btn btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isDownloading ? (
@@ -149,11 +299,11 @@ export default function DownloadTrack({
       </div>
 
       {/* Downloading Tracks */}
-      {getDownloadingTracks(tracks).length > 0 && (
+      {visibleDownloadingTracks.length > 0 && (
         <div className="mt-6">
           <h3 className="text-lg font-medium mb-3">Downloading Tracks</h3>
           <div className="space-y-3">
-            {getDownloadingTracks(tracks).map((track) => (
+            {visibleDownloadingTracks.map((track) => (
               <div key={track.id} className="border rounded-lg p-4 bg-blue-50">
                 <div className="flex justify-between items-center mb-2">
                   <span className="font-medium text-gray-900">
@@ -169,6 +319,15 @@ export default function DownloadTrack({
                     style={{ width: `${track.downloadProgress || 0}%` }}
                   ></div>
                 </div>
+                <div className="mt-3 flex justify-end">
+                  <button
+                    onClick={() => handleDeleteTrack(track.id)}
+                    disabled={!!deletingIds[track.id]}
+                    className="btn btn-secondary text-sm disabled:opacity-50"
+                  >
+                    {deletingIds[track.id] ? "Deleting..." : "Delete"}
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -176,11 +335,11 @@ export default function DownloadTrack({
       )}
 
       {/* Recently Downloaded Tracks */}
-      {getDownloadedTracks(tracks).length > 0 && (
+      {visibleDownloadedTracks.length > 0 && (
         <div className="mt-6">
           <h3 className="text-lg font-medium mb-3">Recently Downloaded</h3>
           <div className="space-y-2">
-            {getDownloadedTracks(tracks)
+            {visibleDownloadedTracks
               .slice(0, 5)
               .map((track) => (
                 <div
@@ -213,11 +372,20 @@ export default function DownloadTrack({
                       </div>
                     )}
                   </div>
-                  <span className="text-sm text-green-600 font-medium">
-                    {track.metadata.isTrimmed
-                      ? "Обработан"
-                      : "Ready for processing"}
-                  </span>
+                  <div className="flex items-center space-x-3">
+                    <span className="text-sm text-green-600 font-medium">
+                      {track.metadata.isTrimmed
+                        ? "РћР±СЂР°Р±РѕС‚Р°РЅ"
+                        : "Ready for processing"}
+                    </span>
+                    <button
+                      onClick={() => handleDeleteTrack(track.id)}
+                      disabled={!!deletingIds[track.id]}
+                      className="btn btn-secondary text-sm disabled:opacity-50"
+                    >
+                      {deletingIds[track.id] ? "Deleting..." : "Delete"}
+                    </button>
+                  </div>
                 </div>
               ))}
           </div>
@@ -226,3 +394,4 @@ export default function DownloadTrack({
     </div>
   );
 }
+

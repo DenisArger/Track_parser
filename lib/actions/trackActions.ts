@@ -1,8 +1,9 @@
-"use server";
+﻿"use server";
 
 import {
   getAllTracks as getAllTracksFromLib,
   downloadTrack as downloadTrackFromLib,
+  uploadLocalTrack as uploadLocalTrackFromLib,
   processTrack as processTrackFromLib,
   rejectTrack as rejectTrackFromLib,
   trimTrack as trimTrackFromLib,
@@ -14,6 +15,7 @@ import { TrackStatus } from "@/types/track";
 import {
   getTrack as getTrackFromStorage,
   setTrack,
+  deleteTrack as deleteTrackFromStorage,
   deleteAllTracks,
 } from "@/lib/storage/trackStorage";
 import {
@@ -185,6 +187,39 @@ export async function downloadTrackAction(
 /**
  * Обработать трек
  */
+/**
+ * Upload local file as a downloaded track
+ */
+export async function uploadLocalTrackAction(
+  fileBuffer: Buffer,
+  originalFilename: string,
+  contentType?: string
+): Promise<Track> {
+  try {
+    await requireAuth();
+    if (!fileBuffer || fileBuffer.length === 0) {
+      throw new Error("File is required");
+    }
+
+    return await uploadLocalTrackFromLib(
+      fileBuffer,
+      originalFilename,
+      contentType
+    );
+  } catch (error) {
+    console.error(
+      "[uploadLocalTrackAction] Error:",
+      error instanceof Error ? error.message : String(error),
+      (error as Error)?.stack
+    );
+    throw new Error(
+      `Local upload failed: ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    );
+  }
+}
+
 export async function processTrackAction(
   trackId: string,
   metadata?: Partial<TrackMetadata>,
@@ -452,7 +487,28 @@ export async function cleanupTracksAction(): Promise<{
 }
 
 /**
- * Загрузить трек на FTP
+ * Delete a track (DB + Storage)
+ */
+export async function deleteTrackAction(trackId: string): Promise<void> {
+  try {
+    await requireAuth();
+    if (!trackId) {
+      throw new Error("Track ID is required");
+    }
+
+    await deleteTrackFromStorage(trackId);
+  } catch (error) {
+    console.error("[deleteTrackAction] Error:", error instanceof Error ? error.message : String(error), (error as Error)?.stack);
+    throw new Error(
+      `Delete failed: ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    );
+  }
+}
+
+/**
+ * Upload track to FTP
  */
 export async function uploadTrackAction(
   trackId: string,
@@ -571,3 +627,4 @@ export async function testFtpConnectionAction(
     throw new Error(`FTP connection failed: ${errMsg}${hint}`);
   }
 }
+

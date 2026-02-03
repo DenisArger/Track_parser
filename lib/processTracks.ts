@@ -379,6 +379,58 @@ export async function downloadTrack(
 }
 
 /**
+ * Upload local file to Storage as a downloaded track
+ */
+export async function uploadLocalTrack(
+  fileBuffer: Buffer,
+  originalFilename: string,
+  contentType?: string
+): Promise<Track> {
+  const { loadConfig } = await import("./config");
+  const config = await loadConfig();
+  const trackId = generateTrackId();
+
+  const path = await import("path");
+  const {
+    uploadFileToStorage,
+    STORAGE_BUCKETS,
+    sanitizeFilenameForStorage,
+  } = await import("./storage/supabaseStorage");
+
+  const safeFilename = sanitizeFilenameForStorage(
+    originalFilename || `${trackId}.mp3`
+  );
+  const storagePath = `${trackId}/${safeFilename}`;
+  await uploadFileToStorage(
+    STORAGE_BUCKETS.downloads,
+    storagePath,
+    fileBuffer,
+    { contentType: contentType || "audio/mpeg", upsert: true }
+  );
+
+  const filename = path.basename(safeFilename);
+  const title = filename.replace(/\.[^.]+$/, "");
+
+  const track: Track = {
+    id: trackId,
+    filename,
+    originalPath: storagePath,
+    metadata: {
+      title: title || "Unknown",
+      artist: "Unknown",
+      album: "Unknown",
+      genre: "РЎСЂРµРґРЅРёР№",
+      rating: config.processing.defaultRating,
+      year: config.processing.defaultYear,
+    },
+    status: "downloaded",
+  };
+
+  await setTrack(trackId, track);
+  return track;
+}
+
+/**
  * Получить все треки
  * Safe for production - never throws errors
  */
