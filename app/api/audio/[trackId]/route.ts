@@ -13,13 +13,17 @@ export async function GET(
     const { trackId } = await params;
     const { searchParams } = new URL(request.url);
     const isTrimmed = searchParams.get("trimmed") === "true";
+    const forceProcessed = searchParams.get("processed") === "true";
 
     const track = await getTrack(trackId);
     if (!track) return handleNotFoundError("Track not found");
 
     let filePath = track.originalPath;
     let bucket: string = "downloads";
-    if ((isTrimmed && track.status === "trimmed") || track.status === "trimmed") {
+    if (forceProcessed && track.processedPath) {
+      filePath = track.processedPath;
+      bucket = "processed";
+    } else if ((isTrimmed && track.status === "trimmed") || track.status === "trimmed") {
       if (track.processedPath) {
         filePath = track.processedPath;
         bucket = "processed";

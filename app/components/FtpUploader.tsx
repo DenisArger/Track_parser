@@ -43,10 +43,10 @@ export default function FtpUploader({
   }, []);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>(
-    {}
+    {},
   );
   const [hiddenTrackIds, setHiddenTrackIds] = useState<Record<string, boolean>>(
-    {}
+    {},
   );
   const [error, setError] = useState("");
 
@@ -59,10 +59,9 @@ export default function FtpUploader({
   // Get tracks that can be uploaded (processed or trimmed with processedPath)
   const processedTracks = tracks.filter(
     (track) =>
-      (track.status === "processed" || 
-       track.status === "trimmed") &&
+      (track.status === "processed" || track.status === "trimmed") &&
       track.processedPath &&
-      !hiddenTrackIds[track.id]
+      !hiddenTrackIds[track.id],
   );
 
   const handleUploadTrack = async (trackId: string) => {
@@ -123,7 +122,7 @@ export default function FtpUploader({
 
     try {
       console.log(`Starting upload of ${processedTracks.length} tracks`);
-      
+
       for (const track of processedTracks) {
         console.log(`Uploading track: ${track.id} - ${track.metadata.title}`);
         setUploadProgress((prev) => ({ ...prev, [track.id]: 0 }));
@@ -144,8 +143,13 @@ export default function FtpUploader({
 
           if (!response.ok) {
             const errorMsg = responseData.error || "Upload failed";
-            console.error(`Upload failed for ${track.metadata.title}:`, errorMsg);
-            throw new Error(`Failed to upload ${track.metadata.title}: ${errorMsg}`);
+            console.error(
+              `Upload failed for ${track.metadata.title}:`,
+              errorMsg,
+            );
+            throw new Error(
+              `Failed to upload ${track.metadata.title}: ${errorMsg}`,
+            );
           }
 
           console.log(`Successfully uploaded: ${track.metadata.title}`);
@@ -157,8 +161,10 @@ export default function FtpUploader({
           // Continue with next track instead of stopping all
           setError(
             `Failed to upload ${track.metadata.title}: ${
-              trackError instanceof Error ? trackError.message : String(trackError)
-            }`
+              trackError instanceof Error
+                ? trackError.message
+                : String(trackError)
+            }`,
           );
         }
       }
@@ -196,7 +202,7 @@ export default function FtpUploader({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div>
         <h2 className="text-xl font-semibold mb-4">FTP Upload Configuration</h2>
         <p className="text-gray-600 mb-6">
@@ -204,9 +210,9 @@ export default function FtpUploader({
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr] gap-1">
         <div>
-          <div className="flex space-x-3">
+          <div className="flex space-x-2">
             <button
               onClick={handleTestConnection}
               className="btn btn-secondary"
@@ -230,10 +236,22 @@ export default function FtpUploader({
             <div className="text-center py-8 text-gray-500">
               <p>No processed tracks available for upload</p>
               <p className="text-sm mt-2">
-                Process or trim some tracks first. Tracks must have status &quot;processed&quot;, &quot;trimmed&quot;, or &quot;uploaded&quot; with a processed path.
+                Process or trim some tracks first. Tracks must have status
+                &quot;processed&quot;, &quot;trimmed&quot;, or
+                &quot;uploaded&quot; with a processed path.
               </p>
               <p className="text-xs mt-1 text-gray-400">
-                Available tracks: {tracks.length} total, {tracks.filter(t => (t.status === "processed" || t.status === "trimmed" || t.status === "uploaded") && t.processedPath).length} ready for upload
+                Available tracks: {tracks.length} total,{" "}
+                {
+                  tracks.filter(
+                    (t) =>
+                      (t.status === "processed" ||
+                        t.status === "trimmed" ||
+                        t.status === "uploaded") &&
+                      t.processedPath,
+                  ).length
+                }{" "}
+                ready for upload
               </p>
             </div>
           ) : (
@@ -254,8 +272,8 @@ export default function FtpUploader({
                     key={track.id}
                     className="border rounded-lg p-3 bg-gray-50"
                   >
-                    <div className="flex justify-between items-center">
-                      <div className="flex-1">
+                    <div className="flex items-center gap-4">
+                      <div className="w-[260px] shrink-0">
                         <h4 className="font-medium text-gray-900 truncate">
                           {track.metadata.title}
                         </h4>
@@ -263,7 +281,12 @@ export default function FtpUploader({
                           {track.metadata.artist}
                         </p>
                       </div>
-                      <div className="flex items-center space-x-2">
+                      <audio
+                        controls
+                        className="flex-1 min-w-[240px]"
+                        src={`/api/audio/${track.id}?processed=true`}
+                      />
+                      <div className="flex items-center space-x-2 shrink-0">
                         {uploadProgress[track.id] !== undefined && (
                           <span className="text-sm text-gray-600">
                             {uploadProgress[track.id]}%
