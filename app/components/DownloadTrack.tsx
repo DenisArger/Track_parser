@@ -90,9 +90,31 @@ export default function DownloadTrack({
         body: file,
       });
 
-      const result = await response.json();
+      const contentType = response.headers.get("content-type") || "";
+      const responseText = await response.text();
+      let result: { error?: string } | null = null;
+
+      if (contentType.includes("application/json")) {
+        try {
+          result = JSON.parse(responseText) as { error?: string };
+        } catch {
+          result = null;
+        }
+      }
+
       if (!response.ok) {
-        throw new Error(result?.error || "Local upload failed");
+        const rawMessage = result?.error || responseText || "Local upload failed";
+        const lowered = rawMessage.toLowerCase();
+        const isTooLarge =
+          response.status === 413 ||
+          lowered.includes("request entity too large") ||
+          lowered.includes("payload too large");
+
+        throw new Error(
+          isTooLarge
+            ? "Файл слишком большой для загрузки на сервер. Попробуйте меньший файл."
+            : rawMessage
+        );
       }
 
       onTracksUpdate();
