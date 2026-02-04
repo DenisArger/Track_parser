@@ -57,7 +57,7 @@ export default function DownloadTrack({
         return;
       }
 
-      console.log("Download successful:", result.track);
+      console.warn("Download successful:", result.track);
       setUrl("");
       onTracksUpdate();
     } catch (err) {

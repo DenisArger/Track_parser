@@ -84,7 +84,7 @@ export default function HomePage() {
   };
 
   // Подписка на изменения треков в реальном времени
-  const { isConnected } = useTracksRealtime(
+  useTracksRealtime(
     (updatedTrack) => {
       // Обновляем трек в списке
       setTracks((prevTracks) =>

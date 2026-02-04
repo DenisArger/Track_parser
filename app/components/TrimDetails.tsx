@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { TrimSettings } from "@/types/track";
 
 interface TrimDetailsProps {

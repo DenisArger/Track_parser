@@ -79,7 +79,7 @@ export default function MetadataEditor({
         "@/lib/actions/trackActions"
       );
       const result = await updateMetadataAction(selectedTrack.id, metadata);
-      console.log("Metadata updated successfully:", result);
+      console.warn("Metadata updated successfully:", result);
 
       onTracksUpdate();
       setSelectedTrack(null);

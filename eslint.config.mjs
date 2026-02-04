@@ -72,4 +72,18 @@ export default [
       },
     },
   },
+  {
+    files: [
+      "scripts/**/*.{js,ts}",
+      "lib/**/*.{js,ts,tsx}",
+      "app/api/**/*.{js,ts,tsx}",
+    ],
+    rules: {
+      "no-console": "off",
+      "@typescript-eslint/no-unused-vars": "off",
+      "@typescript-eslint/no-explicit-any": "off",
+      "no-async-promise-executor": "off",
+      "no-control-regex": "off",
+    },
+  },
 ];

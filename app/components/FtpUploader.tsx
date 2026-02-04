@@ -54,7 +54,7 @@ export default function FtpUploader({
     if (Object.keys(hiddenTrackIds).length > 0) {
       setHiddenTrackIds({});
     }
-  }, [tracks]);
+  }, [tracks, hiddenTrackIds]);
 
   // Get tracks that can be uploaded (processed or trimmed with processedPath)
   const processedTracks = tracks.filter(
@@ -182,7 +182,7 @@ export default function FtpUploader({
       }
 
       alert("FTP connection successful!");
-    } catch (error) {
+    } catch {
       setError("FTP connection failed. Please check your settings.");
     }
   };

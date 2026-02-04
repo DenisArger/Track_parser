@@ -1,25 +1,24 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 
 export default function ThemeToggle() {
-  const [isDark, setIsDark] = useState(false);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-    // Проверяем сохраненную тему или системные настройки
+  const [isDark, setIsDark] = useState(() => {
+    if (typeof window === "undefined") return false;
     const savedTheme = localStorage.getItem("theme");
     const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const shouldBeDark = savedTheme === "dark" || (!savedTheme && prefersDark);
-    
-    setIsDark(shouldBeDark);
-    if (shouldBeDark) {
+    return savedTheme === "dark" || (!savedTheme && prefersDark);
+  });
+  const [mounted] = useState(() => typeof window !== "undefined");
+
+  useEffect(() => {
+    if (!mounted) return;
+    if (isDark) {
       document.documentElement.classList.add("dark");
     } else {
       document.documentElement.classList.remove("dark");
     }
-  }, []);
+  }, [isDark, mounted]);
 
   const toggleTheme = () => {
     const newIsDark = !isDark;
@@ -66,3 +65,4 @@ export default function ThemeToggle() {
     </button>
   );
 }
+

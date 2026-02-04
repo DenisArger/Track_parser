@@ -27,18 +27,19 @@ const nextConfig = {
   },
 
   // Exclude unnecessary files from standalone output
+  outputFileTracingExcludes: {
+    "*": [
+      "bin/**/*",
+      "downloads/**/*",
+      "processed/**/*",
+      "rejected/**/*",
+      "server_upload/**/*",
+      "temp/**/*",
+    ],
+  },
+
+  // Ensure Server Actions work correctly in serverless environments
   experimental: {
-    outputFileTracingExcludes: {
-      "*": [
-        "bin/**/*",
-        "downloads/**/*",
-        "processed/**/*",
-        "rejected/**/*",
-        "server_upload/**/*",
-        "temp/**/*",
-      ],
-    },
-    // Ensure Server Actions work correctly in serverless environments
     serverActions: {
       bodySizeLimit: "2mb",
     },

@@ -1,6 +1,6 @@
-"use client";
+﻿"use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Track, TrimSettings } from "@/types/track";
 import { getUserFacingErrorMessage } from "@/lib/utils/errorMessage";
 import { formatTimeMs, parseTimeMs } from "@/lib/utils/timeFormatter";
@@ -18,7 +18,6 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
   const [fadeOut, setFadeOut] = useState(0);
   const [maxDuration, setMaxDuration] = useState(360);
   const [useEndTime, setUseEndTime] = useState(false);
-  const [duration, setDuration] = useState(() => (track.metadata.duration as number) ?? 0);
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const [isPreviewPlaying, setIsPreviewPlaying] = useState(false);
@@ -33,30 +32,6 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
   const endFocusedRef = useRef(false);
 
   // Синхронизация полей MM:SS.ms при изменении из волновой формы
-  useEffect(() => {
-    if (!startFocusedRef.current) setStartInput(formatTimeMs(startTime));
-  }, [startTime]);
-  useEffect(() => {
-    if (!endFocusedRef.current) {
-      const e = useEndTime && endTime != null ? endTime : startTime + maxDuration;
-      setEndInput(formatTimeMs(e));
-    }
-  }, [endTime, useEndTime, startTime, maxDuration]);
-
-  const handleDurationLoaded = (d: number) => {
-    setDuration(d);
-    setEndTime((prev) => (prev != null ? prev : Math.min(d, 360)));
-  };
-
-  // Автоматически обновляем предварительный просмотр при изменении настроек
-  useEffect(() => {
-    if (previewId) {
-      const timeoutId = setTimeout(() => {
-        updatePreview();
-      }, 1000);
-      return () => clearTimeout(timeoutId);
-    }
-  }, [startTime, endTime, fadeIn, fadeOut, maxDuration, useEndTime]);
 
   const handleTrim = async () => {
     const trimSettings: TrimSettings = {
@@ -69,7 +44,7 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
     try {
       const { trimTrackAction } = await import("@/lib/actions/trackActions");
       const result = await trimTrackAction(track.id, trimSettings);
-      console.log("Track trimmed successfully:", result);
+      console.warn("Track trimmed successfully:", result);
 
       // Закрываем окно обрезки
       onCancel();
@@ -95,7 +70,7 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
       const result = await createPreviewAction(track.id, trimSettings);
       setPreviewId(result.previewId);
       shouldAutoPlayRef.current = true;
-      console.log("Preview created:", result.previewId);
+      console.warn("Preview created:", result.previewId);
     } catch (error) {
       console.error("Error creating preview:", error);
       alert(`Error creating preview: ${getUserFacingErrorMessage(error, "Unknown error")}`);
@@ -158,7 +133,7 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
   };
 
   // Автоматически обновляем предварительный просмотр при изменении настроек
-  const updatePreview = async () => {
+  const updatePreview = useCallback(async () => {
     if (previewId) {
       const wasPlaying = isPreviewPlaying;
       setIsPreviewLoading(true);
@@ -178,14 +153,49 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
         setPreviewCurrentTime(0);
         setIsPreviewPlaying(false);
         if (wasPlaying) shouldAutoPlayRef.current = true;
-        console.log("Preview updated:", result.previewId);
+        console.warn("Preview updated:", result.previewId);
       } catch (error) {
         console.error("Error updating preview:", error);
       } finally {
         setIsPreviewLoading(false);
       }
     }
+  }, [
+    previewId,
+    isPreviewPlaying,
+    startTime,
+    fadeIn,
+    fadeOut,
+    useEndTime,
+    endTime,
+    maxDuration,
+    track.id,
+  ]);
+
+
+  useEffect(() => {
+    if (!startFocusedRef.current) setStartInput(formatTimeMs(startTime));
+  }, [startTime]);
+  useEffect(() => {
+    if (!endFocusedRef.current) {
+      const e = useEndTime && endTime != null ? endTime : startTime + maxDuration;
+      setEndInput(formatTimeMs(e));
+    }
+  }, [endTime, useEndTime, startTime, maxDuration]);
+
+  const handleDurationLoaded = (d: number) => {
+    setEndTime((prev) => (prev != null ? prev : Math.min(d, 360)));
   };
+
+  // Автоматически обновляем предварительный просмотр при изменении настроек
+  useEffect(() => {
+    if (previewId) {
+      const timeoutId = setTimeout(() => {
+        updatePreview();
+      }, 1000);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [previewId, updatePreview]);
 
   const totalDuration =
     useEndTime && endTime != null ? endTime - startTime : maxDuration;
@@ -394,3 +404,6 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
     </div>
   );
 }
+
+
+

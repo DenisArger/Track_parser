@@ -1,6 +1,6 @@
 /**
  * Скрипт для миграции данных из tracks.json в Supabase Database
- * 
+ *
  * Использование:
  *   yarn migrate:tracks
  *   или
@@ -14,12 +14,13 @@ import path from "path";
 
 // Создаем Supabase клиент напрямую (без использования server.ts для избежания проблем с путями)
 function createSupabaseClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+  const supabaseUrl =
+    process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!supabaseUrl || !supabaseServiceKey) {
     throw new Error(
-      "Missing Supabase environment variables. Please set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY"
+      "Missing Supabase environment variables. Please set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY",
     );
   }
 
@@ -32,26 +33,25 @@ function createSupabaseClient() {
 }
 
 async function migrateTracks() {
-  console.log("Starting migration from tracks.json to Supabase...");
-
   // Загружаем переменные окружения
   try {
     const dotenv = await import("dotenv");
     dotenv.config();
   } catch (e) {
+    console.warn(e);
     // dotenv опционален, переменные могут быть установлены в системе
   }
 
   // Загружаем tracks.json
   const tracksFilePath = path.join(process.cwd(), "tracks.json");
-  
+
   if (!(await fs.pathExists(tracksFilePath))) {
     console.error("tracks.json not found at:", tracksFilePath);
     process.exit(1);
   }
 
   const tracksData = await fs.readJson(tracksFilePath);
-  
+
   if (!Array.isArray(tracksData)) {
     console.error("tracks.json does not contain an array");
     process.exit(1);
@@ -95,7 +95,7 @@ async function migrateTracks() {
 
   for (let i = 0; i < tracksToInsert.length; i += batchSize) {
     const batch = tracksToInsert.slice(i, i + batchSize);
-    
+
     try {
       const { data, error } = await supabase
         .from("tracks")
@@ -106,7 +106,9 @@ async function migrateTracks() {
         errorCount += batch.length;
       } else {
         successCount += batch.length;
-        console.log(`Migrated batch ${i / batchSize + 1}/${Math.ceil(tracksToInsert.length / batchSize)}: ${batch.length} tracks`);
+        console.log(
+          `Migrated batch ${i / batchSize + 1}/${Math.ceil(tracksToInsert.length / batchSize)}: ${batch.length} tracks`,
+        );
       }
     } catch (error) {
       console.error(`Exception inserting batch ${i / batchSize + 1}:`, error);
@@ -117,10 +119,12 @@ async function migrateTracks() {
   console.log("\nMigration completed!");
   console.log(`Successfully migrated: ${successCount} tracks`);
   console.log(`Errors: ${errorCount} tracks`);
-  
+
   if (errorCount === 0) {
     console.log("\n✅ All tracks migrated successfully!");
-    console.log("You can now delete tracks.json if you want (make a backup first!)");
+    console.log(
+      "You can now delete tracks.json if you want (make a backup first!)",
+    );
   } else {
     console.log("\n⚠️  Some tracks failed to migrate. Check the errors above.");
   }

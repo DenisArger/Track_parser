@@ -3,7 +3,6 @@
 import { useState, useRef } from "react";
 import { Track } from "@/types/track";
 import TrackList from "./shared/TrackList";
-import { getDownloadedTracks } from "@/lib/utils/trackFilters";
 import { getUserFacingErrorMessage } from "@/lib/utils/errorMessage";
 import { formatTime } from "@/lib/utils/timeFormatter";
 import TrackTrimmer from "./TrackTrimmer";
@@ -21,14 +20,10 @@ export default function TrackPlayer({
   onRadioMap,
 }: TrackPlayerProps) {
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
   const [isAccepting, setIsAccepting] = useState(false);
   const [isRejecting, setIsRejecting] = useState(false);
   const [showTrimmer, setShowTrimmer] = useState(false);
   const [showTrimDetails, setShowTrimDetails] = useState(false);
-  const [isSeeking, setIsSeeking] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
 
   const downloadedTracks = tracks.filter(
@@ -37,8 +32,6 @@ export default function TrackPlayer({
 
   const handleTrackSelect = (track: Track) => {
     setCurrentTrack(track);
-    setIsPlaying(false);
-    setCurrentTime(0);
 
     // Reset audio element
     if (audioRef.current) {
@@ -47,108 +40,15 @@ export default function TrackPlayer({
     }
   };
 
-  const handlePlayPause = async () => {
-    if (!audioRef.current) return;
-
-    try {
-      if (isPlaying) {
-        audioRef.current.pause();
-      } else {
-        await audioRef.current.play();
-      }
-      setIsPlaying(!isPlaying);
-    } catch (error) {
-      console.error("Audio playback error:", error);
-      alert("Error playing audio. Please check the console for details.");
-    }
-  };
-
-  const handleTimeUpdate = () => {
-    // Don't update time during seeking to prevent reset
-    if (!isSeeking && audioRef.current) {
-      setCurrentTime(audioRef.current.currentTime);
-    }
-  };
-
-  const handleLoadedMetadata = () => {
-    if (audioRef.current) {
-      setDuration(audioRef.current.duration);
-    }
-  };
-
-  const handleAudioError = (error: any) => {
+  const handleAudioError = (error: unknown) => {
     console.error("Audio error:", error);
     alert("Error loading audio file. Please check the console for details.");
-  };
-
-  const handleSeekStart = () => {
-    setIsSeeking(true);
-  };
-
-  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const time = parseFloat(e.target.value);
-    if (audioRef.current && !isNaN(time) && time >= 0) {
-      const seekTime = duration > 0 ? Math.min(time, duration) : time;
-      setIsSeeking(true);
-      // Use requestAnimationFrame to ensure DOM is ready
-      requestAnimationFrame(() => {
-        if (audioRef.current) {
-          audioRef.current.currentTime = seekTime;
-          setCurrentTime(seekTime);
-        }
-      });
-    }
-  };
-
-  const handleSeekEnd = () => {
-    // Small delay to ensure audio element has updated
-    setTimeout(() => {
-      setIsSeeking(false);
-      if (audioRef.current) {
-        setCurrentTime(audioRef.current.currentTime);
-      }
-    }, 50);
-  };
-
-  const handleProgressBarClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    // Ignore clicks directly on the input element (it handles its own clicks)
-    if ((e.target as HTMLElement).tagName === 'INPUT') {
-      return;
-    }
-    
-    if (!audioRef.current || !duration || duration <= 0) return;
-    
-    const progressBar = e.currentTarget.querySelector('input[type="range"]') as HTMLInputElement;
-    if (!progressBar) return;
-    
-    const rect = progressBar.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
-    const percentage = Math.max(0, Math.min(1, clickX / rect.width));
-    const newTime = percentage * duration;
-    
-    if (audioRef.current && !isNaN(newTime) && newTime >= 0 && newTime <= duration) {
-      setIsSeeking(true);
-      // Use requestAnimationFrame to ensure DOM is ready
-      requestAnimationFrame(() => {
-        if (audioRef.current) {
-          audioRef.current.currentTime = newTime;
-          setCurrentTime(newTime);
-          // Reset seeking flag after audio has seeked
-          setTimeout(() => {
-            setIsSeeking(false);
-            if (audioRef.current) {
-              setCurrentTime(audioRef.current.currentTime);
-            }
-          }, 100);
-        }
-      });
-    }
   };
 
   const handleAccept = async () => {
     if (!currentTrack) return;
 
-    console.log("Accepting track:", currentTrack.id);
+    console.warn("Accepting track:", currentTrack.id);
     setIsAccepting(true);
 
     try {
@@ -157,11 +57,10 @@ export default function TrackPlayer({
         currentTrack.id,
         currentTrack.metadata
       );
-      console.log("Process track success:", result);
+      console.warn("Process track success:", result);
 
       onTracksUpdate();
       setCurrentTrack(null);
-      setIsPlaying(false);
     } catch (error) {
       console.error("Error processing track:", error);
       alert(`Error processing track: ${getUserFacingErrorMessage(error, "Unknown error")}`);
@@ -173,17 +72,16 @@ export default function TrackPlayer({
   const handleReject = async () => {
     if (!currentTrack) return;
 
-    console.log("Rejecting track:", currentTrack.id);
+    console.warn("Rejecting track:", currentTrack.id);
     setIsRejecting(true);
 
     try {
       const { rejectTrackAction } = await import("@/lib/actions/trackActions");
       await rejectTrackAction(currentTrack.id);
-      console.log("Reject track success");
+      console.warn("Reject track success");
 
       onTracksUpdate();
       setCurrentTrack(null);
-      setIsPlaying(false);
     } catch (error) {
       console.error("Error rejecting track:", error);
       alert(`Error rejecting track: ${getUserFacingErrorMessage(error, "Unknown error")}`);
@@ -282,15 +180,6 @@ export default function TrackPlayer({
                       ? `/api/audio/${currentTrack.id}?trimmed=true`
                       : `/api/audio/${currentTrack.id}`
                   }
-                  onTimeUpdate={handleTimeUpdate}
-                  onLoadedMetadata={handleLoadedMetadata}
-                  onSeeked={() => {
-                    setIsSeeking(false);
-                    if (audioRef.current) {
-                      setCurrentTime(audioRef.current.currentTime);
-                    }
-                  }}
-                  onEnded={() => setIsPlaying(false)}
                   onError={handleAudioError}
                   preload="metadata"
                 />

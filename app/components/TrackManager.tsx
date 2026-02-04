@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 
@@ -31,7 +31,7 @@ export default function TrackManager({
       const statsData = await getTrackStatsAction();
       setStats(statsData);
       setMessage("Статистика загружена");
-    } catch (error) {
+    } catch {
       setMessage("Ошибка загрузки статистики");
     } finally {
       setIsLoading(false);
@@ -47,7 +47,7 @@ export default function TrackManager({
       const data = await cleanupTracksAction();
       setStats(data.statsAfter);
       setMessage("Статусы треков очищены успешно");
-    } catch (error) {
+    } catch {
       setMessage("Ошибка очистки статусов");
     } finally {
       setIsLoading(false);
@@ -187,3 +187,4 @@ export default function TrackManager({
     </div>
   );
 }
+

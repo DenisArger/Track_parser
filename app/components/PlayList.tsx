@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 type PlayListProps = {
   onTracksUpdate: () => void;
@@ -135,6 +135,7 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
   const [templateSaving, setTemplateSaving] = useState(false);
   const [templateMessage, setTemplateMessage] = useState<string | null>(null);
   const [templateName, setTemplateName] = useState("default");
+  const [exportFileName, setExportFileName] = useState("playlist");
 
   const loadTracks = async () => {
     setIsLoading(true);
@@ -171,7 +172,7 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
     loadGroups();
   }, []);
 
-  const loadTemplate = async (name: string) => {
+  const loadTemplate = useCallback(async (name: string) => {
     try {
       const r = await fetch(
         `/api/playlist/rotation-template?name=${encodeURIComponent(name)}`
@@ -199,14 +200,11 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
         e instanceof Error ? e.message : "Не удалось загрузить шаблон"
       );
     }
-  };
+  }, []);
 
   useEffect(() => {
-    const run = async () => {
-      await loadTemplate(templateName);
-    };
-    run();
-  }, []);
+    loadTemplate(templateName);
+  }, [loadTemplate, templateName]);
 
   const availableStats = useMemo(() => {
     const total = tracks.length;
@@ -421,11 +419,15 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
       .map((g) => g.track)
       .filter((t): t is PlaylistTrack => !!t);
     const text = buildM3u(list);
+    const safeName =
+      (exportFileName || "playlist")
+        .trim()
+        .replace(/[\\/:*?"<>|]+/g, "_") || "playlist";
     const blob = new Blob([text], { type: "audio/x-mpegurl;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "playlist.m3u";
+    a.download = `${safeName}.m3u`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -765,13 +767,16 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
           <h3 className="text-lg font-medium">Шаблон ротации</h3>
           <div className="flex flex-wrap items-center gap-2">
-            <input
-              type="text"
-              value={templateName}
-              onChange={(e) => setTemplateName(e.target.value)}
-              placeholder="Название шаблона"
-              className="min-w-[180px] rounded border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1 text-sm"
-            />
+            <label className="text-xs text-gray-500">
+              Название шаблона
+              <input
+                type="text"
+                value={templateName}
+                onChange={(e) => setTemplateName(e.target.value)}
+                placeholder="Название шаблона"
+                className="mt-1 min-w-[180px] rounded border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1 text-sm"
+              />
+            </label>
             <button type="button" onClick={addRow} className="btn btn-secondary text-sm">
               Добавить строку
             </button>
@@ -963,6 +968,16 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
           <h3 className="text-lg font-medium">Генерация</h3>
           <div className="flex flex-wrap items-center gap-2">
+            <label className="text-xs text-gray-500">
+              Название плейлиста
+              <input
+                type="text"
+                value={exportFileName}
+                onChange={(e) => setExportFileName(e.target.value)}
+                placeholder="Имя файла M3U"
+                className="mt-1 min-w-[180px] rounded border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1 text-sm"
+              />
+            </label>
             <button type="button" onClick={generate} className="btn btn-primary text-sm">
               Сгенерировать
             </button>
