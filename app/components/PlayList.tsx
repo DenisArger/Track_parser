@@ -136,6 +136,15 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
   const [templateMessage, setTemplateMessage] = useState<string | null>(null);
   const [templateName, setTemplateName] = useState("default");
   const [exportFileName, setExportFileName] = useState("playlist");
+  const [uploadName, setUploadName] = useState("playlist");
+  const [uploadNameTouched, setUploadNameTouched] = useState(false);
+  const [uploadServerId, setUploadServerId] = useState(1);
+  const [uploadRandom, setUploadRandom] = useState(false);
+  const [uploadBasePath, setUploadBasePath] = useState("");
+  const [uploadWin1251, setUploadWin1251] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [uploadMessage, setUploadMessage] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   const loadTracks = async () => {
     setIsLoading(true);
@@ -205,6 +214,31 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
   useEffect(() => {
     loadTemplate(templateName);
   }, [loadTemplate, templateName]);
+
+  useEffect(() => {
+    if (!uploadNameTouched) {
+      setUploadName(exportFileName || "playlist");
+    }
+  }, [exportFileName, uploadNameTouched]);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("playlistUploadBasePath");
+      if (stored !== null) {
+        setUploadBasePath(stored);
+      }
+    } catch {
+      // ignore storage errors
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("playlistUploadBasePath", uploadBasePath);
+    } catch {
+      // ignore storage errors
+    }
+  }, [uploadBasePath]);
 
   const availableStats = useMemo(() => {
     const total = tracks.length;
@@ -430,6 +464,45 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
     a.download = `${safeName}.m3u`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const uploadToRadio = async () => {
+    setUploading(true);
+    setUploadMessage(null);
+    setUploadError(null);
+    try {
+      const items = generated
+        .map((g) => g.track)
+        .filter((t): t is PlaylistTrack => !!t);
+      if (items.length === 0) {
+        throw new Error("Нет треков для загрузки");
+      }
+          const r = await fetch("/api/radio/upload-playlist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: uploadName || exportFileName || "playlist",
+          serverId: uploadServerId,
+          isRandom: uploadRandom,
+          basePath: uploadBasePath,
+          useWindows1251: uploadWin1251,
+          tracks: items.map((t) => ({
+            raw_name: t.raw_name,
+            artist: t.artist,
+            title: t.title,
+          })),
+        }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || String(r.status));
+      setUploadMessage("Плейлист отправлен в радио");
+    } catch (e) {
+      setUploadError(
+        e instanceof Error ? e.message : "Ошибка загрузки плейлиста"
+      );
+    } finally {
+      setUploading(false);
+    }
   };
 
   const updateRow = (id: string, patch: Partial<TemplateRow>) => {
@@ -991,6 +1064,77 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
             </button>
           </div>
         </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-[minmax(180px,1.1fr)_120px_140px_minmax(220px,1.2fr)_140px_auto] gap-3 items-end mb-4">
+          <label className="text-xs text-gray-500">
+            Название для загрузки
+            <input
+              type="text"
+              value={uploadName}
+              onChange={(e) => {
+                setUploadNameTouched(true);
+                setUploadName(e.target.value);
+              }}
+              placeholder="Имя плейлиста"
+              className="mt-1 w-full rounded border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1 text-sm"
+            />
+          </label>
+          <label className="text-xs text-gray-500">
+            Server ID
+            <input
+              type="number"
+              min={1}
+              value={uploadServerId}
+              onChange={(e) => setUploadServerId(Number(e.target.value) || 1)}
+              className="mt-1 w-full rounded border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1 text-sm"
+            />
+          </label>
+          <label className="inline-flex items-center gap-2 text-xs text-gray-500 mt-5">
+            <input
+              type="checkbox"
+              checked={uploadRandom}
+              onChange={(e) => setUploadRandom(e.target.checked)}
+            />
+            Random
+          </label>
+          <label className="text-xs text-gray-500">
+            Base path (опц.)
+            <input
+              type="text"
+              value={uploadBasePath}
+              onChange={(e) => setUploadBasePath(e.target.value)}
+              placeholder="/media/Server_1/0 0 ALL_TRACK"
+              className="mt-1 w-full rounded border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1 text-sm"
+            />
+          </label>
+          <label className="inline-flex items-center gap-2 text-xs text-gray-500 mt-5">
+            <input
+              type="checkbox"
+              checked={uploadWin1251}
+              onChange={(e) => setUploadWin1251(e.target.checked)}
+            />
+            Windows-1251
+          </label>
+          <button
+            type="button"
+            onClick={uploadToRadio}
+            disabled={uploading || generated.length === 0}
+            className="btn btn-primary text-sm disabled:opacity-50"
+          >
+            {uploading ? "Загрузка..." : "Загрузить в радио"}
+          </button>
+        </div>
+
+        {uploadMessage && (
+          <p className="text-sm text-green-600 dark:text-green-400 mb-3">
+            {uploadMessage}
+          </p>
+        )}
+        {uploadError && (
+          <p className="text-sm text-red-600 dark:text-red-400 mb-3">
+            {uploadError}
+          </p>
+        )}
 
         <div className="text-sm text-gray-600 dark:text-gray-400 mb-3">
           Всего треков: {availableStats.total}, old: {availableStats.oldCount},

@@ -9342,7 +9342,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"iconv-lite@npm:0.6.3, iconv-lite@npm:^0.6.2":
+"iconv-lite@npm:0.6.3, iconv-lite@npm:^0.6.2, iconv-lite@npm:^0.6.3":
   version: 0.6.3
   resolution: "iconv-lite@npm:0.6.3"
   dependencies:
@@ -14688,6 +14688,7 @@ __metadata:
     fs-extra: "npm:^11.1.1"
     globals: "npm:^17.0.0"
     husky: "npm:^9.1.7"
+    iconv-lite: "npm:^0.6.3"
     jsdom: "npm:^25.0.1"
     lint-staged: "npm:^16.2.7"
     music-tempo: "npm:^1.0.3"
