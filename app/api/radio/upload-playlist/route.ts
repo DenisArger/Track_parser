@@ -126,10 +126,11 @@ export async function POST(request: Request) {
     );
     const defaultBasePath = process.env.STREAMING_CENTER_M3U_BASE_PATH || "";
     const m3uText = buildM3u(tracks, body.basePath || defaultBasePath);
-    const m3uContent = body.useWindows1251
-      ? iconv.encode(m3uText, "windows-1251")
-      : m3uText;
-    const m3uBlob = new Blob([m3uContent], { type: "audio/x-mpegurl" });
+    const m3uBlob = body.useWindows1251
+      ? new Blob([new Uint8Array(iconv.encode(m3uText, "windows-1251"))], {
+          type: "audio/x-mpegurl",
+        })
+      : new Blob([m3uText], { type: "audio/x-mpegurl" });
     form.append("m3u", m3uBlob, `${safeName}.m3u`);
 
     const res = await fetch(`${base}/api/v2/playlists/`, {
