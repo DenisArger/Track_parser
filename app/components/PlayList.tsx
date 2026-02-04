@@ -31,6 +31,12 @@ type GeneratedItem = {
   reason?: string;
 };
 
+type RelatedGroup = {
+  id: string;
+  name: string;
+  members: string[];
+};
+
 const TRACK_TYPE_OPTIONS = [
   "Быстрый",
   "Средний",
@@ -46,6 +52,10 @@ const AGE_OPTIONS: { value: AgeGroup; label: string }[] = [
 ];
 
 function normalizeTrackType(value: string | null): string {
+  return (value || "").trim().toLowerCase();
+}
+
+function normalizeArtistName(value: string | null): string {
   return (value || "").trim().toLowerCase();
 }
 
@@ -106,6 +116,10 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
   const [avgSeconds, setAvgSeconds] = useState(30);
   const [minArtistGapMinutes, setMinArtistGapMinutes] = useState(0);
   const [minTrackGapMinutes, setMinTrackGapMinutes] = useState(0);
+  const [relatedGroups, setRelatedGroups] = useState<RelatedGroup[]>([]);
+  const [relatedSaving, setRelatedSaving] = useState(false);
+  const [relatedMessage, setRelatedMessage] = useState<string | null>(null);
+  const [showRelatedGroups, setShowRelatedGroups] = useState(true);
 
   const loadTracks = async () => {
     setIsLoading(true);
@@ -126,12 +140,41 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
     loadTracks();
   }, []);
 
+  useEffect(() => {
+    const loadGroups = async () => {
+      try {
+        const r = await fetch("/api/playlist/related-groups");
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error || String(r.status));
+        setRelatedGroups(Array.isArray(d.groups) ? d.groups : []);
+      } catch (e) {
+        setRelatedMessage(
+          e instanceof Error ? e.message : "Не удалось загрузить группы"
+        );
+      }
+    };
+    loadGroups();
+  }, []);
+
   const availableStats = useMemo(() => {
     const total = tracks.length;
     const oldCount = tracks.filter((t) => isOldTrack(t.year)).length;
     const newCount = tracks.filter((t) => isNewTrack(t.year)).length;
     return { total, oldCount, newCount };
   }, [tracks]);
+
+  const relatedIndex = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const g of relatedGroups) {
+      for (const m of g.members) {
+        const key = normalizeArtistName(m);
+        if (key && !map.has(key)) {
+          map.set(key, g.id);
+        }
+      }
+    }
+    return map;
+  }, [relatedGroups]);
 
   const generate = () => {
     const avgTotalSeconds = Math.max(
@@ -157,9 +200,11 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
 
     const canUseTrack = (t: PlaylistTrack, nowSeconds: number): boolean => {
       if (minArtistGapMinutes > 0) {
-        const artistKey = (t.artist || "").trim().toLowerCase();
+        const artistKey = normalizeArtistName(t.artist);
         if (artistKey) {
-          const lastAt = lastArtistAt.get(artistKey);
+          const groupId = relatedIndex.get(artistKey);
+          const scopeKey = groupId ? `group:${groupId}` : artistKey;
+          const lastAt = lastArtistAt.get(scopeKey);
           if (
             typeof lastAt === "number" &&
             nowSeconds - lastAt < minArtistGapMinutes * 60
@@ -193,9 +238,11 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
 
     const recordUse = (t: PlaylistTrack | null, nowSeconds: number) => {
       if (!t) return;
-      const artistKey = (t.artist || "").trim().toLowerCase();
+      const artistKey = normalizeArtistName(t.artist);
       if (artistKey) {
-        lastArtistAt.set(artistKey, nowSeconds);
+        const groupId = relatedIndex.get(artistKey);
+        const scopeKey = groupId ? `group:${groupId}` : artistKey;
+        lastArtistAt.set(scopeKey, nowSeconds);
       }
       const key = trackKey(t);
       lastTrackAt.set(key, nowSeconds);
@@ -330,6 +377,51 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
     ]);
   };
 
+  const addRelatedGroup = () => {
+    const id = `g${Date.now()}`;
+    setRelatedGroups((prev) => [
+      ...prev,
+      { id, name: "Группа", members: [] },
+    ]);
+  };
+
+  const updateRelatedGroup = (id: string, patch: Partial<RelatedGroup>) => {
+    setRelatedGroups((prev) =>
+      prev.map((g) => (g.id === id ? { ...g, ...patch } : g))
+    );
+  };
+
+  const removeRelatedGroup = (id: string) => {
+    setRelatedGroups((prev) => prev.filter((g) => g.id !== id));
+  };
+
+  const parseMembers = (value: string): string[] =>
+    value
+      .split(/\r?\n|,/)
+      .map((v) => v.trim())
+      .filter(Boolean);
+
+  const saveRelatedGroups = async () => {
+    setRelatedSaving(true);
+    setRelatedMessage(null);
+    try {
+      const r = await fetch("/api/playlist/related-groups", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ groups: relatedGroups }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || String(r.status));
+      setRelatedMessage("Группы сохранены");
+    } catch (e) {
+      setRelatedMessage(
+        e instanceof Error ? e.message : "Ошибка сохранения групп"
+      );
+    } finally {
+      setRelatedSaving(false);
+    }
+  };
+
   const avgTotalSeconds = Math.max(
     30,
     Math.floor(avgMinutes * 60 + avgSeconds)
@@ -375,6 +467,94 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
           {error}
         </div>
       )}
+
+      <div className="card">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <h3 className="text-lg font-medium">Связанные исполнители</h3>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowRelatedGroups((v) => !v)}
+              className="btn btn-secondary text-sm"
+            >
+              {showRelatedGroups ? "Скрыть" : "Показать"}
+            </button>
+            <button
+              type="button"
+              onClick={addRelatedGroup}
+              className="btn btn-secondary text-sm"
+            >
+              Добавить группу
+            </button>
+            <button
+              type="button"
+              onClick={saveRelatedGroups}
+              disabled={relatedSaving}
+              className="btn btn-primary text-sm disabled:opacity-50"
+            >
+              {relatedSaving ? "Сохранение..." : "Сохранить"}
+            </button>
+          </div>
+        </div>
+
+        {relatedMessage && (
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+            {relatedMessage}
+          </p>
+        )}
+
+        {showRelatedGroups && (
+          <>
+            {relatedGroups.length === 0 ? (
+              <p className="text-sm text-gray-500">
+                Группы связей не заданы. Добавьте группу, чтобы учесть повтор
+                связанных исполнителей.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {relatedGroups.map((g) => (
+                  <div
+                    key={g.id}
+                    className="border rounded-lg p-3 bg-gray-50 dark:bg-gray-800 dark:border-gray-700"
+                  >
+                    <div className="flex flex-wrap items-center gap-3 mb-3">
+                      <input
+                        type="text"
+                        value={g.name}
+                        onChange={(e) =>
+                          updateRelatedGroup(g.id, { name: e.target.value })
+                        }
+                        className="flex-1 min-w-[160px] rounded border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1 text-sm"
+                        placeholder="Название группы"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeRelatedGroup(g.id)}
+                        className="btn btn-secondary text-xs"
+                      >
+                        Удалить
+                      </button>
+                    </div>
+                    <label className="block text-xs text-gray-500 mb-1">
+                      Исполнители (по одному в строке или через запятую)
+                    </label>
+                    <textarea
+                      value={g.members.join("\n")}
+                      onChange={(e) =>
+                        updateRelatedGroup(g.id, {
+                          members: parseMembers(e.target.value),
+                        })
+                      }
+                      rows={4}
+                      className="w-full rounded border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1 text-sm"
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </div>
 
       <div className="card">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
