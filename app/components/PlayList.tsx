@@ -22,6 +22,9 @@ type TemplateRow = {
   trackType: string;
   ageGroup: AgeGroup;
   count: number;
+  useGlobalLimits?: boolean;
+  artistGapMinutes?: number;
+  trackGapMinutes?: number;
 };
 
 type GeneratedItem = {
@@ -35,6 +38,15 @@ type RelatedGroup = {
   id: string;
   name: string;
   members: string[];
+};
+
+type RotationSettings = {
+  targetHours: number;
+  targetMinutes: number;
+  avgMinutes: number;
+  avgSeconds: number;
+  minArtistGapMinutes: number;
+  minTrackGapMinutes: number;
 };
 
 const TRACK_TYPE_OPTIONS = [
@@ -103,11 +115,11 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [template, setTemplate] = useState<TemplateRow[]>([
-    { id: "r1", trackType: "Быстрый", ageGroup: "old", count: 1 },
-    { id: "r2", trackType: "Быстрый", ageGroup: "new", count: 1 },
-    { id: "r3", trackType: "Средний", ageGroup: "old", count: 1 },
-    { id: "r4", trackType: "Средний", ageGroup: "new", count: 1 },
-    { id: "r5", trackType: "Медленный", ageGroup: "new", count: 1 },
+    { id: "r1", trackType: "Быстрый", ageGroup: "old", count: 1, useGlobalLimits: true },
+    { id: "r2", trackType: "Быстрый", ageGroup: "new", count: 1, useGlobalLimits: true },
+    { id: "r3", trackType: "Средний", ageGroup: "old", count: 1, useGlobalLimits: true },
+    { id: "r4", trackType: "Средний", ageGroup: "new", count: 1, useGlobalLimits: true },
+    { id: "r5", trackType: "Медленный", ageGroup: "new", count: 1, useGlobalLimits: true },
   ]);
   const [generated, setGenerated] = useState<GeneratedItem[]>([]);
   const [targetHours, setTargetHours] = useState(0);
@@ -120,6 +132,9 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
   const [relatedSaving, setRelatedSaving] = useState(false);
   const [relatedMessage, setRelatedMessage] = useState<string | null>(null);
   const [showRelatedGroups, setShowRelatedGroups] = useState(true);
+  const [templateSaving, setTemplateSaving] = useState(false);
+  const [templateMessage, setTemplateMessage] = useState<string | null>(null);
+  const [templateName, setTemplateName] = useState("default");
 
   const loadTracks = async () => {
     setIsLoading(true);
@@ -154,6 +169,43 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
       }
     };
     loadGroups();
+  }, []);
+
+  const loadTemplate = async (name: string) => {
+    try {
+      const r = await fetch(
+        `/api/playlist/rotation-template?name=${encodeURIComponent(name)}`
+      );
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || String(r.status));
+      if (Array.isArray(d.template) && d.template.length > 0) {
+        setTemplate(d.template as TemplateRow[]);
+      }
+      if (d.settings && typeof d.settings === "object") {
+        const s = d.settings as Partial<RotationSettings>;
+        if (typeof s.targetHours === "number") setTargetHours(s.targetHours);
+        if (typeof s.targetMinutes === "number")
+          setTargetMinutes(s.targetMinutes);
+        if (typeof s.avgMinutes === "number") setAvgMinutes(s.avgMinutes);
+        if (typeof s.avgSeconds === "number") setAvgSeconds(s.avgSeconds);
+        if (typeof s.minArtistGapMinutes === "number")
+          setMinArtistGapMinutes(s.minArtistGapMinutes);
+        if (typeof s.minTrackGapMinutes === "number")
+          setMinTrackGapMinutes(s.minTrackGapMinutes);
+      }
+      setTemplateMessage(`Шаблон "${name}" загружен`);
+    } catch (e) {
+      setTemplateMessage(
+        e instanceof Error ? e.message : "Не удалось загрузить шаблон"
+      );
+    }
+  };
+
+  useEffect(() => {
+    const run = async () => {
+      await loadTemplate(templateName);
+    };
+    run();
   }, []);
 
   const availableStats = useMemo(() => {
@@ -198,8 +250,13 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
       return raw || t.id;
     };
 
-    const canUseTrack = (t: PlaylistTrack, nowSeconds: number): boolean => {
-      if (minArtistGapMinutes > 0) {
+    const canUseTrack = (
+      t: PlaylistTrack,
+      nowSeconds: number,
+      artistGapMinutes: number,
+      trackGapMinutes: number
+    ): boolean => {
+      if (artistGapMinutes > 0) {
         const artistKey = normalizeArtistName(t.artist);
         if (artistKey) {
           const groupId = relatedIndex.get(artistKey);
@@ -207,18 +264,18 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
           const lastAt = lastArtistAt.get(scopeKey);
           if (
             typeof lastAt === "number" &&
-            nowSeconds - lastAt < minArtistGapMinutes * 60
+            nowSeconds - lastAt < artistGapMinutes * 60
           ) {
             return false;
           }
         }
       }
-      if (minTrackGapMinutes > 0) {
+      if (trackGapMinutes > 0) {
         const key = trackKey(t);
         const lastAt = lastTrackAt.get(key);
         if (
           typeof lastAt === "number" &&
-          nowSeconds - lastAt < minTrackGapMinutes * 60
+          nowSeconds - lastAt < trackGapMinutes * 60
         ) {
           return false;
         }
@@ -228,10 +285,14 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
 
     const pickWithLimits = (
       pool: PlaylistTrack[],
-      nowSeconds: number
+      nowSeconds: number,
+      artistGapMinutes: number,
+      trackGapMinutes: number
     ): PlaylistTrack | null => {
       if (pool.length === 0) return null;
-      const filtered = pool.filter((t) => canUseTrack(t, nowSeconds));
+      const filtered = pool.filter((t) =>
+        canUseTrack(t, nowSeconds, artistGapMinutes, trackGapMinutes)
+      );
       if (filtered.length === 0) return null;
       return pickRandom(filtered);
     };
@@ -279,6 +340,13 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
           const count =
             Number.isFinite(row.count) && row.count > 0 ? row.count : 1;
           const pool = getPool(row);
+          const useGlobal = row.useGlobalLimits !== false;
+          const artistGapMinutes = useGlobal
+            ? minArtistGapMinutes
+            : Math.max(0, row.artistGapMinutes ?? 0);
+          const trackGapMinutes = useGlobal
+            ? minTrackGapMinutes
+            : Math.max(0, row.trackGapMinutes ?? 0);
           if (pool.length === 0) {
             items.push({
               rowId: row.id,
@@ -291,7 +359,12 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
           }
           for (let i = 0; i < count; i += 1) {
             if (totalSeconds >= targetTotalSeconds || safety >= maxItems) break;
-            const picked = pickWithLimits(pool, totalSeconds);
+            const picked = pickWithLimits(
+              pool,
+              totalSeconds,
+              artistGapMinutes,
+              trackGapMinutes
+            );
             items.push({
               rowId: row.id,
               rowLabel: rowLabel(row),
@@ -313,9 +386,21 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
 
     for (const row of template) {
       const pool = getPool(row);
+      const useGlobal = row.useGlobalLimits !== false;
+      const artistGapMinutes = useGlobal
+        ? minArtistGapMinutes
+        : Math.max(0, row.artistGapMinutes ?? 0);
+      const trackGapMinutes = useGlobal
+        ? minTrackGapMinutes
+        : Math.max(0, row.trackGapMinutes ?? 0);
       const count = Number.isFinite(row.count) && row.count > 0 ? row.count : 1;
       for (let i = 0; i < count; i += 1) {
-        const picked = pickWithLimits(pool, totalSeconds);
+        const picked = pickWithLimits(
+          pool,
+          totalSeconds,
+          artistGapMinutes,
+          trackGapMinutes
+        );
         items.push({
           rowId: row.id,
           rowLabel: rowLabel(row),
@@ -373,8 +458,43 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
     const nextId = `r${Date.now()}`;
     setTemplate((prev) => [
       ...prev,
-      { id: nextId, trackType: "Средний", ageGroup: "any", count: 1 },
+      {
+        id: nextId,
+        trackType: "Средний",
+        ageGroup: "any",
+        count: 1,
+        useGlobalLimits: true,
+      },
     ]);
+  };
+
+  const saveTemplate = async () => {
+    setTemplateSaving(true);
+    setTemplateMessage(null);
+    const settings: RotationSettings = {
+      targetHours,
+      targetMinutes,
+      avgMinutes,
+      avgSeconds,
+      minArtistGapMinutes,
+      minTrackGapMinutes,
+    };
+    try {
+      const r = await fetch("/api/playlist/rotation-template", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: templateName, template, settings }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || String(r.status));
+      setTemplateMessage(`Шаблон "${templateName}" сохранён`);
+    } catch (e) {
+      setTemplateMessage(
+        e instanceof Error ? e.message : "Ошибка сохранения шаблона"
+      );
+    } finally {
+      setTemplateSaving(false);
+    }
   };
 
   const addRelatedGroup = () => {
@@ -644,16 +764,46 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
       <div className="card">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
           <h3 className="text-lg font-medium">Шаблон ротации</h3>
-          <button type="button" onClick={addRow} className="btn btn-primary text-sm">
-            Добавить строку
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              type="text"
+              value={templateName}
+              onChange={(e) => setTemplateName(e.target.value)}
+              placeholder="Название шаблона"
+              className="min-w-[180px] rounded border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1 text-sm"
+            />
+            <button type="button" onClick={addRow} className="btn btn-secondary text-sm">
+              Добавить строку
+            </button>
+            <button
+              type="button"
+              onClick={saveTemplate}
+              disabled={templateSaving}
+              className="btn btn-primary text-sm disabled:opacity-50"
+            >
+              {templateSaving ? "Сохранение..." : "Сохранить шаблон"}
+            </button>
+            <button
+              type="button"
+              onClick={() => loadTemplate(templateName)}
+              className="btn btn-secondary text-sm"
+            >
+              Загрузить
+            </button>
+          </div>
         </div>
+
+        {templateMessage && (
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+            {templateMessage}
+          </p>
+        )}
 
         <div className="space-y-3">
           {template.map((row) => (
             <div
               key={row.id}
-              className="flex flex-wrap items-center gap-3 border rounded-lg p-3 bg-gray-50 dark:bg-gray-800 dark:border-gray-700"
+              className="grid grid-cols-1 md:grid-cols-[minmax(140px,1.1fr)_minmax(200px,1.4fr)_80px_140px_140px_150px_auto] gap-3 items-end border rounded-lg p-3 bg-gray-50 dark:bg-gray-800 dark:border-gray-700"
             >
               <div className="flex-1 min-w-[160px]">
                 <label className="block text-xs text-gray-500 mb-1">Тип</label>
@@ -703,6 +853,57 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
                   className="w-full rounded border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1 text-sm"
                 />
               </div>
+
+              <label className="text-xs text-gray-500">
+                Артист (мин)
+                <input
+                  type="number"
+                  min={0}
+                  value={
+                    row.useGlobalLimits !== false
+                      ? minArtistGapMinutes
+                      : row.artistGapMinutes ?? 0
+                  }
+                  onChange={(e) =>
+                    updateRow(row.id, {
+                      artistGapMinutes: Number(e.target.value) || 0,
+                    })
+                  }
+                  disabled={row.useGlobalLimits !== false}
+                  className="mt-1 w-full rounded border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1 text-xs disabled:opacity-60"
+                />
+              </label>
+
+              <label className="text-xs text-gray-500">
+                Трек (мин)
+                <input
+                  type="number"
+                  min={0}
+                  value={
+                    row.useGlobalLimits !== false
+                      ? minTrackGapMinutes
+                      : row.trackGapMinutes ?? 0
+                  }
+                  onChange={(e) =>
+                    updateRow(row.id, {
+                      trackGapMinutes: Number(e.target.value) || 0,
+                    })
+                  }
+                  disabled={row.useGlobalLimits !== false}
+                  className="mt-1 w-full rounded border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1 text-xs disabled:opacity-60"
+                />
+              </label>
+
+              <label className="inline-flex items-center gap-2 text-xs text-gray-500 mt-5">
+                <input
+                  type="checkbox"
+                  checked={row.useGlobalLimits !== false}
+                  onChange={(e) =>
+                    updateRow(row.id, { useGlobalLimits: e.target.checked })
+                  }
+                />
+                Общие лимиты
+              </label>
 
               <div className="flex items-center gap-2">
                 <button
