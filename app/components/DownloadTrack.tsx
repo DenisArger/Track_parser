@@ -81,32 +81,100 @@ export default function DownloadTrack({
     setError("");
 
     try {
-      const response = await fetch("/api/upload-local", {
+      const signResponse = await fetch("/api/upload-local/signed", {
         method: "POST",
         headers: {
-          "x-file-name-encoded": encodeURIComponent(file.name),
-          "x-file-type": file.type || "audio/mpeg",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          filename: file.name,
+          contentType: file.type || "audio/mpeg",
+        }),
+      });
+
+      const signContentType = signResponse.headers.get("content-type") || "";
+      const signText = await signResponse.text();
+      let signResult:
+        | {
+            error?: string;
+            signedUrl?: string;
+            trackId?: string;
+          }
+        | null = null;
+
+      if (signContentType.includes("application/json")) {
+        try {
+          signResult = JSON.parse(signText) as {
+            error?: string;
+            signedUrl?: string;
+            trackId?: string;
+          };
+        } catch {
+          signResult = null;
+        }
+      }
+
+      if (!signResponse.ok) {
+        const rawMessage = signResult?.error || signText || "Local upload failed";
+        const lowered = rawMessage.toLowerCase();
+        const isTooLarge =
+          signResponse.status === 413 ||
+          lowered.includes("request entity too large") ||
+          lowered.includes("payload too large");
+
+        throw new Error(
+          isTooLarge
+            ? "Файл слишком большой для загрузки на сервер. Попробуйте меньший файл."
+            : rawMessage
+        );
+      }
+
+      const signedUrl = signResult?.signedUrl;
+      const trackId = signResult?.trackId;
+      if (!signedUrl || !trackId) {
+        throw new Error("Signed upload URL not received");
+      }
+
+      const uploadResponse = await fetch(signedUrl, {
+        method: "PUT",
+        headers: {
+          "Content-Type": file.type || "audio/mpeg",
+          "x-upsert": "true",
         },
         body: file,
       });
 
-      const contentType = response.headers.get("content-type") || "";
-      const responseText = await response.text();
-      let result: { error?: string } | null = null;
+      if (!uploadResponse.ok) {
+        const uploadText = await uploadResponse.text();
+        throw new Error(uploadText || "Upload to Storage failed");
+      }
 
-      if (contentType.includes("application/json")) {
+      const completeResponse = await fetch("/api/upload-local/complete", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ trackId }),
+      });
+
+      const completeContentType =
+        completeResponse.headers.get("content-type") || "";
+      const completeText = await completeResponse.text();
+      let completeResult: { error?: string } | null = null;
+      if (completeContentType.includes("application/json")) {
         try {
-          result = JSON.parse(responseText) as { error?: string };
+          completeResult = JSON.parse(completeText) as { error?: string };
         } catch {
-          result = null;
+          completeResult = null;
         }
       }
 
-      if (!response.ok) {
-        const rawMessage = result?.error || responseText || "Local upload failed";
+      if (!completeResponse.ok) {
+        const rawMessage =
+          completeResult?.error || completeText || "Local upload failed";
         const lowered = rawMessage.toLowerCase();
         const isTooLarge =
-          response.status === 413 ||
+          completeResponse.status === 413 ||
           lowered.includes("request entity too large") ||
           lowered.includes("payload too large");
 
