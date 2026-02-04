@@ -7,10 +7,12 @@ import MetadataEditor from "./components/MetadataEditor";
 import FtpUploader from "./components/FtpUploader";
 import TrackStatusBadge from "./components/shared/TrackStatusBadge";
 import TrackManager from "./components/TrackManager";
+import PlayList from "./components/PlayList";
 import { Track } from "@/types/track";
 import { getAllTracks, changeTrackStatusAction } from "@/lib/actions/trackActions";
 import { useTracksRealtime } from "@/lib/hooks/useTracksRealtime";
 import { getUserFacingErrorMessage } from "@/lib/utils/errorMessage";
+import { getSupabase } from "@/lib/supabase/client";
 
 // Force dynamic rendering to prevent static generation issues
 export const dynamic = 'force-dynamic';
@@ -25,6 +27,7 @@ export default function HomePage() {
   const [activeTab, setActiveTab] = useState("download");
   const [clearingErrorId, setClearingErrorId] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
 
   const checkTracksOnRadio = async () => {
     if (tracks.length === 0) {
@@ -106,6 +109,18 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
+    const supabase = getSupabase();
+    supabase.auth
+      .getUser()
+      .then(({ data }) => {
+        setUserEmail(data.user?.email?.toLowerCase() ?? null);
+      })
+      .catch(() => {
+        setUserEmail(null);
+      });
+  }, []);
+
+  useEffect(() => {
     if (tracks.length === 0) {
       setOnRadioMap({});
       return;
@@ -139,13 +154,26 @@ export default function HomePage() {
     }
   };
 
-  const tabs = [
+  const isAdminEmail = userEmail === "den.arger@gmail.com";
+
+  const allTabs = [
     { id: "download", label: "Download Tracks", component: DownloadTrack },
     { id: "listen", label: "Listen & Review", component: TrackPlayer },
     { id: "metadata", label: "Edit Metadata", component: MetadataEditor },
     { id: "upload", label: "FTP Upload", component: FtpUploader },
     { id: "manage", label: "Track Manager", component: TrackManager },
+    { id: "playlist", label: "PlayList", component: PlayList },
   ];
+
+  const tabs = isAdminEmail
+    ? allTabs
+    : allTabs.filter((tab) => !["manage", "playlist"].includes(tab.id));
+
+  useEffect(() => {
+    if (!isAdminEmail && (activeTab === "manage" || activeTab === "playlist")) {
+      setActiveTab("download");
+    }
+  }, [isAdminEmail, activeTab]);
 
   const ActiveComponent =
     tabs.find((tab) => tab.id === activeTab)?.component || DownloadTrack;
