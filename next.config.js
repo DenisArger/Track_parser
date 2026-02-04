@@ -41,7 +41,7 @@ const nextConfig = {
   // Ensure Server Actions work correctly in serverless environments
   experimental: {
     serverActions: {
-      bodySizeLimit: "2mb",
+      bodySizeLimit: "15mb",
     },
   },
 };
