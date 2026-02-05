@@ -14,6 +14,7 @@ type PlaylistTrack = {
   title: string | null;
   track_type: string | null;
   year: number | null;
+  rating?: number | null;
 };
 
 type AgeGroup = "old" | "new" | "any";
@@ -78,6 +79,25 @@ function pickRandom<T>(items: T[]): T | null {
   if (items.length === 0) return null;
   const idx = Math.floor(Math.random() * items.length);
   return items[idx] ?? null;
+}
+
+function pickWeightedByRating(
+  items: PlaylistTrack[],
+): PlaylistTrack | null {
+  if (items.length === 0) return null;
+  let total = 0;
+  const weights = items.map((t) => {
+    const r = typeof t.rating === "number" ? t.rating : 0;
+    const w = Math.min(10, Math.max(1, Math.trunc(r) || 1));
+    total += w;
+    return w;
+  });
+  let roll = Math.random() * total;
+  for (let i = 0; i < items.length; i += 1) {
+    roll -= weights[i];
+    if (roll <= 0) return items[i] ?? null;
+  }
+  return items[items.length - 1] ?? null;
 }
 
 function buildM3u(tracks: PlaylistTrack[]): string {
@@ -343,7 +363,7 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
         canUseTrack(t, nowSeconds, artistGapMinutes, trackGapMinutes)
       );
       if (filtered.length === 0) return null;
-      return pickRandom(filtered);
+      return pickWeightedByRating(filtered);
     };
 
     const recordUse = (t: PlaylistTrack | null, nowSeconds: number) => {
