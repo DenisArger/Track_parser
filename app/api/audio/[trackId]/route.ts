@@ -87,14 +87,18 @@ export async function GET(
     };
 
     try {
-      if (rangeHeader) {
-        const fileBuffer = await downloadFileFromStorage(storageBucket, storagePath);
-        return serveFromBuffer(fileBuffer, track.filename);
-      }
       const signedUrl = await createSignedUrl(storageBucket, storagePath, 3600);
       return NextResponse.redirect(signedUrl);
     } catch (storageError) {
       console.error("Error accessing Storage:", storageError);
+      if (rangeHeader) {
+        try {
+          const fileBuffer = await downloadFileFromStorage(storageBucket, storagePath);
+          return serveFromBuffer(fileBuffer, track.filename);
+        } catch (bufferError) {
+          console.error("Error downloading file buffer:", bufferError);
+        }
+      }
     }
 
     // Re-download to Storage (serverless only) and serve

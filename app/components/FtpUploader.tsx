@@ -17,6 +17,7 @@ export default function FtpUploader({
   tracks,
 }: FtpUploaderProps) {
   const { t } = useI18n();
+  const hiddenStorageKey = "ftpHiddenTrackIds";
   const [ftpConfig, setFtpConfig] = useState<FtpConfig>({
     host: "",
     port: 21,
@@ -53,8 +54,40 @@ export default function FtpUploader({
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (Object.keys(hiddenTrackIds).length > 0) {
-      setHiddenTrackIds({});
+    try {
+      const raw = localStorage.getItem(hiddenStorageKey);
+      if (raw) {
+        const parsed = JSON.parse(raw) as Record<string, boolean>;
+        if (parsed && typeof parsed === "object") {
+          setHiddenTrackIds(parsed);
+        }
+      }
+    } catch {
+      // ignore storage errors
+    }
+  }, [hiddenStorageKey]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(hiddenStorageKey, JSON.stringify(hiddenTrackIds));
+    } catch {
+      // ignore storage errors
+    }
+  }, [hiddenStorageKey, hiddenTrackIds]);
+
+  useEffect(() => {
+    if (Object.keys(hiddenTrackIds).length === 0) return;
+    const knownIds = new Set(tracks.map((t) => t.id));
+    let changed = false;
+    const next = { ...hiddenTrackIds };
+    for (const id of Object.keys(next)) {
+      if (!knownIds.has(id)) {
+        delete next[id];
+        changed = true;
+      }
+    }
+    if (changed) {
+      setHiddenTrackIds(next);
     }
   }, [tracks, hiddenTrackIds]);
 
