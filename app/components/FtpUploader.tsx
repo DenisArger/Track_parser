@@ -137,6 +137,30 @@ export default function FtpUploader({
     setHiddenTrackIds((prev) => ({ ...prev, [trackId]: true }));
   };
 
+  const handleDeleteTrack = async (trackId: string) => {
+    const confirmed = window.confirm(t("download.deleteConfirm"));
+    if (!confirmed) return;
+
+    setError("");
+    try {
+      const response = await fetch(`/api/tracks/${trackId}`, {
+        method: "DELETE",
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(result?.error || t("download.errors.deleteFailed"));
+      }
+      setHiddenTrackIds((prev) => ({ ...prev, [trackId]: true }));
+      onTracksUpdate();
+    } catch (err) {
+      const errorMessage = getUserFacingErrorMessage(
+        err,
+        t("download.errors.deleteFailed")
+      );
+      setError(errorMessage);
+    }
+  };
+
   const handleUploadAll = async () => {
     if (processedTracks.length === 0) {
       setError(t("ftp.errors.noTracks"));
@@ -323,6 +347,13 @@ export default function FtpUploader({
                           className="btn btn-secondary text-sm disabled:opacity-50"
                         >
                           {t("ftp.remove")}
+                        </button>
+                        <button
+                          onClick={() => handleDeleteTrack(track.id)}
+                          disabled={isUploading}
+                          className="btn btn-secondary text-sm disabled:opacity-50"
+                        >
+                          {t("download.delete")}
                         </button>
                       </div>
                     </div>

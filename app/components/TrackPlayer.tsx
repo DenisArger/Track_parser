@@ -79,13 +79,16 @@ export default function TrackPlayer({
   const handleReject = async () => {
     if (!currentTrack) return;
 
-    console.warn("Rejecting track:", currentTrack.id);
+    const confirmed = window.confirm(t("download.deleteConfirm"));
+    if (!confirmed) return;
+
+    console.warn("Deleting track via reject button:", currentTrack.id);
     setIsRejecting(true);
 
     try {
-      const { rejectTrackAction } = await import("@/lib/actions/trackActions");
-      await rejectTrackAction(currentTrack.id);
-      console.warn("Reject track success");
+      const { deleteTrackAction } = await import("@/lib/actions/trackActions");
+      await deleteTrackAction(currentTrack.id);
+      console.warn("Delete track success");
 
       onTracksUpdate();
       setCurrentTrack(null);
@@ -94,7 +97,7 @@ export default function TrackPlayer({
       alert(
         `${t("player.rejectError")}: ${getUserFacingErrorMessage(
           error,
-          t("player.unknownError")
+          t("download.errors.deleteFailed")
         )}`
       );
     } finally {
