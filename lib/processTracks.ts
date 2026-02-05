@@ -808,6 +808,7 @@ export async function uploadToFtp(
           rawName,
           trackType: track.metadata.genre,
           year: track.metadata.year,
+          rating: track.metadata.rating,
           source: "ftp_upload",
         });
       }

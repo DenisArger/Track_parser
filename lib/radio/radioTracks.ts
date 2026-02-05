@@ -35,6 +35,7 @@ export async function getRadioTrackNamesSet(): Promise<Set<string>> {
             title,
             track_type: e.trackType ?? null,
             year: e.year ?? null,
+            rating: e.rating ?? null,
             source: "api_sync",
           };
         }),
@@ -87,6 +88,7 @@ export async function syncRadioTracksFromApi(): Promise<{ count: number }> {
           title,
           track_type: e.trackType ?? null,
           year: e.year ?? null,
+          rating: e.rating ?? null,
           source: "api_sync",
         };
       }),
@@ -119,6 +121,7 @@ export async function addRadioTrack(p: {
   rawName: string;
   trackType?: string | null;
   year?: number | null;
+  rating?: number | null;
   source?: string;
 }): Promise<void> {
   const supabase = createSupabaseServerClient();
@@ -131,6 +134,7 @@ export async function addRadioTrack(p: {
       title: parsed.title,
       track_type: p.trackType ?? null,
       year: p.year ?? null,
+      rating: p.rating ?? null,
       source: p.source || "ftp_upload",
     },
     { onConflict: "normalized_name", ignoreDuplicates: true }

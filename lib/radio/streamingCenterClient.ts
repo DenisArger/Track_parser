@@ -35,23 +35,23 @@ function getBasename(p: string): string {
 function nameFromNested(obj: Record<string, unknown>): string {
   const filename = obj.filename ? String(obj.filename).trim() : "";
   if (filename) return filename;
-  
+
   const name = obj.name ? String(obj.name).trim() : "";
   if (name) return name;
-  
+
   const meta = obj.meta ? String(obj.meta).trim() : "";
   if (meta) return meta;
-  
+
   if (obj.public_path) {
     const basename = getBasename(String(obj.public_path));
     if (basename) return basename;
   }
-  
+
   if (obj.path) {
     const basename = getBasename(String(obj.path));
     if (basename) return basename;
   }
-  
+
   return "";
 }
 
@@ -61,21 +61,21 @@ function nameFromRow(row: PlaylistTrackRow): string {
     const v = nameFromNested(t as Record<string, unknown>);
     if (v) return v;
   }
-  
+
   const filename = row.filename ? String(row.filename).trim() : "";
   if (filename) return filename;
-  
+
   const name = row.name ? String(row.name).trim() : "";
   if (name) return name;
-  
+
   const meta = row.meta ? String(row.meta).trim() : "";
   if (meta) return meta;
-  
+
   if (row.public_path) {
     const basename = getBasename(String(row.public_path));
     if (basename) return basename;
   }
-  
+
   return "";
 }
 
@@ -86,13 +86,12 @@ function nameFromRow(row: PlaylistTrackRow): string {
 export async function getAllPlaylistTrackNames(
   apiUrl: string,
   apiKey: string,
-  playlistId: number
+  playlistId: number,
 ): Promise<Set<string>> {
   const base = normalizeApiBase(apiUrl);
   const set = new Set<string>();
   let offset = 0;
 
-   
   while (true) {
     const url = `${base}/api/v2/playlists/${playlistId}/tracks/?limit=${PAGE_SIZE}&offset=${offset}`;
     const res = await fetch(url, {
@@ -101,7 +100,7 @@ export async function getAllPlaylistTrackNames(
 
     if (!res.ok) {
       throw new Error(
-        `Streaming.Center API error: ${res.status} ${res.statusText}`
+        `Streaming.Center API error: ${res.status} ${res.statusText}`,
       );
     }
 
@@ -131,9 +130,7 @@ export async function getAllPlaylistTrackNames(
         data && typeof data === "object"
           ? ` (keys: ${Object.keys(data as object).join(", ")})`
           : ` (type: ${typeof data})`;
-      throw new Error(
-        "Streaming.Center API: expected array of tracks" + hint
-      );
+      throw new Error("Streaming.Center API: expected array of tracks" + hint);
     }
 
     for (const row of rows) {
@@ -156,11 +153,12 @@ export type SyncFromApiEntry = {
   title?: string | null;
   trackType?: string | null;
   year?: number | null;
+  rating?: number | null;
 };
 
 function getStringValue(
   obj: Record<string, unknown> | undefined,
-  keys: string[]
+  keys: string[],
 ): string {
   if (!obj) return "";
   for (const key of keys) {
@@ -180,6 +178,23 @@ function parseYear(value: unknown): number | null {
   if (!Number.isFinite(n)) return null;
   if (n < 1900 || n > 2100) return null;
   return n;
+}
+
+function parseRating(value: unknown): number | null {
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) return null;
+    const n = Math.trunc(value);
+    return n >= 1 && n <= 10 ? n : null;
+  }
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    const match = trimmed.match(/\d+/);
+    if (!match) return null;
+    const n = parseInt(match[0], 10);
+    return Number.isFinite(n) && n >= 1 && n <= 10 ? n : null;
+  }
+  return null;
 }
 
 function normalizeTrackType(value: unknown): string | null {
@@ -209,6 +224,7 @@ function parseMetaString(meta: string): {
   title?: string | null;
   trackType?: string | null;
   year?: number | null;
+  rating?: number | null;
 } {
   const trimmed = (meta || "").trim();
   if (!trimmed) return {};
@@ -220,14 +236,25 @@ function parseMetaString(meta: string): {
       const artist = getStringValue(obj, ["artist", "Artist", "ARTIST"]);
       const title = getStringValue(obj, ["title", "Title", "TITLE"]);
       const trackType = normalizeTrackType(
-        obj.track_type ?? obj.type ?? obj.genre ?? obj.trackType
+        obj.track_type ?? obj.type ?? obj.genre ?? obj.trackType,
       );
       const year = parseYear(obj.year ?? obj.Year ?? obj.date);
+      const rating = parseRating(
+        obj.track_number ??
+          obj.trackNumber ??
+          obj.track_no ??
+          obj.trackNo ??
+          obj.track ??
+          obj.number ??
+          obj.no ??
+          obj.rating,
+      );
       return {
         artist: artist || undefined,
         title: title || undefined,
         trackType: trackType || undefined,
         year: year || undefined,
+        rating: rating ?? undefined,
       };
     } catch {
       // fall through
@@ -239,12 +266,13 @@ function parseMetaString(meta: string): {
 
 function extractMetadataFromRow(
   row: PlaylistTrackRow,
-  rawName: string
+  rawName: string,
 ): {
   artist: string | null;
   title: string | null;
   trackType: string | null;
   year: number | null;
+  rating: number | null;
 } {
   const trackObj =
     row.track && typeof row.track === "object" && !Array.isArray(row.track)
@@ -263,7 +291,7 @@ function extractMetadataFromRow(
     (trackObj && (trackObj.track_type ?? trackObj.type ?? trackObj.genre)) ||
       (row as Record<string, unknown>).track_type ||
       (row as Record<string, unknown>).type ||
-      (row as Record<string, unknown>).genre
+      (row as Record<string, unknown>).genre,
   );
 
   const commentText =
@@ -298,25 +326,37 @@ function extractMetadataFromRow(
     metaParsed = parseMetaString(metaString);
   }
 
+  const rating = parseRating(
+    (trackObj &&
+      (trackObj.track_number ??
+        trackObj.trackNumber ??
+        trackObj.track_no ??
+        trackObj.trackNo ??
+        trackObj.track ??
+        trackObj.number ??
+        trackObj.no)) ||
+      (row as Record<string, unknown>).track_number ||
+      (row as Record<string, unknown>).trackNumber ||
+      (row as Record<string, unknown>).track_no ||
+      (row as Record<string, unknown>).trackNo ||
+      (row as Record<string, unknown>).track ||
+      (row as Record<string, unknown>).number ||
+      (row as Record<string, unknown>).no ||
+      (row as Record<string, unknown>).rating,
+  );
+
   const parsedFromRaw = parseArtistTitleFromRawName(rawName);
 
   return {
-    artist:
-      artist ||
-      metaParsed.artist ||
-      parsedFromRaw.artist ||
-      null,
-    title:
-      title ||
-      metaParsed.title ||
-      parsedFromRaw.title ||
-      null,
+    artist: artist || metaParsed.artist || parsedFromRaw.artist || null,
+    title: title || metaParsed.title || parsedFromRaw.title || null,
     trackType:
       trackType ||
       metaParsed.trackType ||
       parseTrackTypeFromText(commentText) ||
       null,
     year: year ?? metaParsed.year ?? null,
+    rating: rating ?? metaParsed.rating ?? null,
   };
 }
 
@@ -327,13 +367,12 @@ function extractMetadataFromRow(
 export async function syncFromApi(
   apiUrl: string,
   apiKey: string,
-  playlistId: number
+  playlistId: number,
 ): Promise<SyncFromApiEntry[]> {
   const base = normalizeApiBase(apiUrl);
   const entries: SyncFromApiEntry[] = [];
   let offset = 0;
 
-   
   while (true) {
     const url = `${base}/api/v2/playlists/${playlistId}/tracks/?limit=${PAGE_SIZE}&offset=${offset}`;
     const res = await fetch(url, {
@@ -342,7 +381,7 @@ export async function syncFromApi(
 
     if (!res.ok) {
       throw new Error(
-        `Streaming.Center API error: ${res.status} ${res.statusText}`
+        `Streaming.Center API error: ${res.status} ${res.statusText}`,
       );
     }
 
@@ -372,9 +411,7 @@ export async function syncFromApi(
         data && typeof data === "object"
           ? ` (keys: ${Object.keys(data as object).join(", ")})`
           : ` (type: ${typeof data})`;
-      throw new Error(
-        "Streaming.Center API: expected array of tracks" + hint
-      );
+      throw new Error("Streaming.Center API: expected array of tracks" + hint);
     }
 
     for (const row of rows) {
@@ -389,6 +426,7 @@ export async function syncFromApi(
           title: meta.title,
           trackType: meta.trackType,
           year: meta.year,
+          rating: meta.rating,
         });
       }
     }
@@ -396,7 +434,7 @@ export async function syncFromApi(
     if (rows.length > 0 && entries.length === 0 && offset === 0) {
       console.warn(
         "[Radio sync] Элементы без filename/name/meta/public_path. Ключи первого:",
-        Object.keys(rows[0] || {}).join(", ")
+        Object.keys(rows[0] || {}).join(", "),
       );
     }
 
@@ -419,7 +457,7 @@ export type TrackForCheck = {
  */
 export function checkTracksOnRadio(
   tracks: TrackForCheck[],
-  radioSet: Set<string>
+  radioSet: Set<string>,
 ): Record<string, boolean> {
   const result: Record<string, boolean> = {};
 
