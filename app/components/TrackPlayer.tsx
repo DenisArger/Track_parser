@@ -7,6 +7,7 @@ import { getUserFacingErrorMessage } from "@/lib/utils/errorMessage";
 import { formatTime } from "@/lib/utils/timeFormatter";
 import TrackTrimmer from "./TrackTrimmer";
 import TrimDetails from "./TrimDetails";
+import { useI18n } from "./I18nProvider";
 
 interface TrackPlayerProps {
   onTracksUpdate: () => void;
@@ -19,6 +20,7 @@ export default function TrackPlayer({
   tracks,
   onRadioMap,
 }: TrackPlayerProps) {
+  const { t } = useI18n();
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
   const [isAccepting, setIsAccepting] = useState(false);
   const [isRejecting, setIsRejecting] = useState(false);
@@ -42,7 +44,7 @@ export default function TrackPlayer({
 
   const handleAudioError = (error: unknown) => {
     console.error("Audio error:", error);
-    alert("Error loading audio file. Please check the console for details.");
+    alert(t("player.audioError"));
   };
 
   const handleAccept = async () => {
@@ -63,7 +65,12 @@ export default function TrackPlayer({
       setCurrentTrack(null);
     } catch (error) {
       console.error("Error processing track:", error);
-      alert(`Error processing track: ${getUserFacingErrorMessage(error, "Unknown error")}`);
+      alert(
+        `${t("player.processError")}: ${getUserFacingErrorMessage(
+          error,
+          t("player.unknownError")
+        )}`
+      );
     } finally {
       setIsAccepting(false);
     }
@@ -84,7 +91,12 @@ export default function TrackPlayer({
       setCurrentTrack(null);
     } catch (error) {
       console.error("Error rejecting track:", error);
-      alert(`Error rejecting track: ${getUserFacingErrorMessage(error, "Unknown error")}`);
+      alert(
+        `${t("player.rejectError")}: ${getUserFacingErrorMessage(
+          error,
+          t("player.unknownError")
+        )}`
+      );
     } finally {
       setIsRejecting(false);
     }
@@ -95,31 +107,30 @@ export default function TrackPlayer({
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-semibold mb-4">Listen & Review Tracks</h2>
+        <h2 className="text-xl font-semibold mb-4">{t("player.title")}</h2>
         <p className="text-gray-600 mb-6">
-          Listen to downloaded tracks and decide whether to accept or reject
-          them.
+          {t("player.description")}
         </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Track List */}
         <div>
-          <h3 className="text-lg font-medium mb-3">Downloaded Tracks</h3>
+          <h3 className="text-lg font-medium mb-3">{t("player.downloadedTitle")}</h3>
           <TrackList
             tracks={downloadedTracks}
             onTrackSelect={handleTrackSelect}
             selectedTrackId={currentTrack?.id}
             showDuration={true}
             onRadioMap={onRadioMap}
-            emptyMessage="No tracks available for review"
-            emptySubMessage="Download some tracks first"
+            emptyMessage={t("player.emptyMessage")}
+            emptySubMessage={t("player.emptySubMessage")}
           />
         </div>
 
         {/* Audio Player */}
         <div>
-          <h3 className="text-lg font-medium mb-3">Audio Player</h3>
+          <h3 className="text-lg font-medium mb-3">{t("player.audioPlayer")}</h3>
           {currentTrack ? (
             <div className="space-y-4">
               <div className="bg-gray-50 rounded-lg p-4">
@@ -143,12 +154,12 @@ export default function TrackPlayer({
                           clipRule="evenodd"
                         />
                       </svg>
-                      Обрезан
+                      {t("player.trimmedBadge")}
                     </span>
                     {currentTrack.metadata.trimSettings && (
                       <div className="flex items-center space-x-2">
                         <span className="text-xs text-gray-600">
-                          Фрагмент:{" "}
+                          {t("player.trimFragment")}{" "}
                           {formatTime(
                             currentTrack.metadata.trimSettings.startTime
                           )}{" "}
@@ -164,7 +175,7 @@ export default function TrackPlayer({
                           onClick={() => setShowTrimDetails(true)}
                           className="text-xs text-blue-600 hover:text-blue-800 underline"
                         >
-                          Детали
+                          {t("player.trimDetails")}
                         </button>
                       </div>
                     )}
@@ -193,7 +204,7 @@ export default function TrackPlayer({
                         disabled={isAccepting || isRejecting}
                         className="btn btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        Настроить обрезку
+                        {t("player.configureTrim")}
                       </button>
                       <button
                         onClick={handleAccept}
@@ -222,10 +233,10 @@ export default function TrackPlayer({
                                 d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                               ></path>
                             </svg>
-                            Processing...
+                            {t("player.processing")}
                           </div>
                         ) : (
-                          "Accept Track"
+                          t("player.acceptTrack")
                         )}
                       </button>
                       <button
@@ -255,10 +266,10 @@ export default function TrackPlayer({
                                 d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                               ></path>
                             </svg>
-                            Rejecting...
+                            {t("player.rejecting")}
                           </div>
                         ) : (
-                          "Reject Track"
+                          t("player.rejectTrack")
                         )}
                       </button>
                     </>
@@ -269,7 +280,7 @@ export default function TrackPlayer({
                         disabled={isAccepting || isRejecting}
                         className="btn btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        Изменить обрезку
+                        {t("player.editTrim")}
                       </button>
                       <button
                         onClick={handleAccept}
@@ -298,10 +309,10 @@ export default function TrackPlayer({
                                 d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                               ></path>
                             </svg>
-                            Processing...
+                            {t("player.processing")}
                           </div>
                         ) : (
-                          "Анализировать трек"
+                          t("player.analyzeTrack")
                         )}
                       </button>
                       <button
@@ -331,10 +342,10 @@ export default function TrackPlayer({
                                 d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                               ></path>
                             </svg>
-                            Rejecting...
+                            {t("player.rejecting")}
                           </div>
                         ) : (
-                          "Reject Track"
+                          t("player.rejectTrack")
                         )}
                       </button>
                     </>
@@ -344,7 +355,7 @@ export default function TrackPlayer({
             </div>
           ) : (
             <div className="text-center py-8 text-gray-500">
-              <p>Выберите трек для прослушивания</p>
+              <p>{t("player.selectPrompt")}</p>
             </div>
           )}
         </div>

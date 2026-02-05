@@ -7,6 +7,7 @@ import TrackStatusBadge from "./shared/TrackStatusBadge";
 import { getProcessedTracks } from "@/lib/utils/trackFilters";
 import { formatTime } from "@/lib/utils/timeFormatter";
 import { getUserFacingErrorMessage } from "@/lib/utils/errorMessage";
+import { useI18n } from "./I18nProvider";
 
 interface MetadataEditorProps {
   onTracksUpdate: () => void;
@@ -19,6 +20,7 @@ export default function MetadataEditor({
   tracks,
   onRadioMap,
 }: MetadataEditorProps) {
+  const { t } = useI18n();
   const [selectedTrack, setSelectedTrack] = useState<Track | null>(null);
   const [metadata, setMetadata] = useState<TrackMetadata>({
     title: "",
@@ -31,8 +33,14 @@ export default function MetadataEditor({
   const [isSaving, setIsSaving] = useState(false);
   const [isChangingStatus, setIsChangingStatus] = useState(false);
   const [artistSuggestions, setArtistSuggestions] = useState<string[]>([]);
-
   const processedTracks = getProcessedTracks(tracks);
+  const trackTypes: TrackType[] = ["Быстрый", "Средний", "Медленный", "Модерн"];
+  const trackTypeLabels: Record<TrackType, string> = {
+    "Быстрый": t("trackTypes.fast"),
+    "Средний": t("trackTypes.mid"),
+    "Медленный": t("trackTypes.slow"),
+    "Модерн": t("trackTypes.modern"),
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -93,46 +101,47 @@ export default function MetadataEditor({
       });
     } catch (error) {
       console.error("Error updating metadata:", error);
-      alert(`Error updating metadata: ${getUserFacingErrorMessage(error, "Unknown error")}`);
+      alert(
+        `${t("metadata.errors.update")}: ${getUserFacingErrorMessage(
+          error,
+          t("metadata.errors.unknown")
+        )}`
+      );
     } finally {
       setIsSaving(false);
     }
   };
 
-  const trackTypes: TrackType[] = ["Быстрый", "Средний", "Медленный", "Модерн"];
-
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-semibold mb-4">Edit Track Metadata</h2>
-        <p className="text-gray-600 mb-6">
-          Edit metadata for processed tracks before uploading to the server.
-        </p>
+        <h2 className="text-xl font-semibold mb-4">{t("metadata.title")}</h2>
+        <p className="text-gray-600 mb-6">{t("metadata.description")}</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Track List */}
         <div>
-          <h3 className="text-lg font-medium mb-3">Processed Tracks</h3>
+          <h3 className="text-lg font-medium mb-3">{t("metadata.processedTitle")}</h3>
           <TrackList
             tracks={processedTracks}
             onTrackSelect={handleTrackSelect}
             selectedTrackId={selectedTrack?.id}
             showStatus={false}
             onRadioMap={onRadioMap}
-            emptyMessage="No processed tracks available"
-            emptySubMessage="Process some tracks first"
+            emptyMessage={t("metadata.emptyMessage")}
+            emptySubMessage={t("metadata.emptySubMessage")}
           />
         </div>
 
         {/* Metadata Editor */}
         <div>
-          <h3 className="text-lg font-medium mb-3">Metadata Editor</h3>
+          <h3 className="text-lg font-medium mb-3">{t("metadata.editorTitle")}</h3>
           {selectedTrack ? (
             <div className="space-y-4">
               <div className="bg-gray-50 rounded-lg p-4">
                 <h4 className="font-medium text-gray-900 mb-4">
-                  Editing: {selectedTrack.metadata.title}
+                  {t("metadata.editing")}: {selectedTrack.metadata.title}
                 </h4>
 
                 <div className="space-y-4">
@@ -142,7 +151,7 @@ export default function MetadataEditor({
                       htmlFor="title"
                       className="block text-sm font-medium text-gray-700 mb-1"
                     >
-                      Title
+                      {t("metadata.fields.title")}
                     </label>
                     <input
                       type="text"
@@ -161,7 +170,7 @@ export default function MetadataEditor({
                       htmlFor="artist"
                       className="block text-sm font-medium text-gray-700 mb-1"
                     >
-                      Artist
+                      {t("metadata.fields.artist")}
                     </label>
                     <input
                       type="text"
@@ -188,7 +197,7 @@ export default function MetadataEditor({
                       htmlFor="album"
                       className="block text-sm font-medium text-gray-700 mb-1"
                     >
-                      Album
+                      {t("metadata.fields.album")}
                     </label>
                     <input
                       type="text"
@@ -207,7 +216,7 @@ export default function MetadataEditor({
                       htmlFor="genre"
                       className="block text-sm font-medium text-gray-700 mb-1"
                     >
-                      Track Type
+                      {t("metadata.fields.genre")}
                     </label>
                     <select
                       id="genre"
@@ -222,7 +231,7 @@ export default function MetadataEditor({
                     >
                       {trackTypes.map((type) => (
                         <option key={type} value={type}>
-                          {type}
+                          {trackTypeLabels[type]}
                         </option>
                       ))}
                     </select>
@@ -235,10 +244,10 @@ export default function MetadataEditor({
                         htmlFor="rating"
                         className="block text-sm font-medium text-gray-700"
                       >
-                        Rating (1-10)
+                        {t("metadata.fields.rating")}
                       </label>
                       <span className="text-xs text-gray-500">
-                        10 — чаще в эфире, 1 — реже
+                        {t("metadata.ratingHint")}
                       </span>
                     </div>
                     <input
@@ -260,7 +269,7 @@ export default function MetadataEditor({
                       htmlFor="year"
                       className="block text-sm font-medium text-gray-700 mb-1"
                     >
-                      Year
+                      {t("metadata.fields.year")}
                     </label>
                     <input
                       type="number"
@@ -279,7 +288,7 @@ export default function MetadataEditor({
                   {metadata.duration && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Duration
+                        {t("metadata.fields.duration")}
                       </label>
                       <input
                         type="text"
@@ -296,7 +305,7 @@ export default function MetadataEditor({
                       htmlFor="status"
                       className="block text-sm font-medium text-gray-700 mb-1"
                     >
-                      Status
+                      {t("metadata.fields.status")}
                     </label>
                     <div className="flex items-center space-x-3">
                       <select
@@ -321,7 +330,9 @@ export default function MetadataEditor({
 
                             if (!response.ok) {
                               const errorData = await response.json();
-                              throw new Error(errorData.error || "Failed to change status");
+                              throw new Error(
+                                errorData.error || t("metadata.errors.changeStatus")
+                              );
                             }
 
                             onTracksUpdate();
@@ -329,7 +340,12 @@ export default function MetadataEditor({
                             setSelectedTrack({ ...selectedTrack, status: newStatus });
                           } catch (error) {
                             console.error("Error changing status:", error);
-                            alert(`Error changing status: ${getUserFacingErrorMessage(error, "Unknown error")}`);
+                            alert(
+                              `${t("metadata.errors.changeStatus")}: ${getUserFacingErrorMessage(
+                                error,
+                                t("metadata.errors.unknown")
+                              )}`
+                            );
                           } finally {
                             setIsChangingStatus(false);
                           }
@@ -337,17 +353,17 @@ export default function MetadataEditor({
                         disabled={isChangingStatus}
                         className="input flex-1 disabled:opacity-50"
                       >
-                        <option value="downloaded">Downloaded</option>
-                        <option value="processed">Processed</option>
-                        <option value="trimmed">Trimmed</option>
-                        <option value="uploaded">Uploaded</option>
-                        <option value="rejected">Rejected</option>
-                        <option value="error">Error</option>
+                        <option value="downloaded">{t("status.downloaded")}</option>
+                        <option value="processed">{t("status.processed")}</option>
+                        <option value="trimmed">{t("status.trimmed")}</option>
+                        <option value="uploaded">{t("status.uploaded")}</option>
+                        <option value="rejected">{t("status.rejected")}</option>
+                        <option value="error">{t("status.error")}</option>
                       </select>
                       <TrackStatusBadge status={selectedTrack.status} />
                     </div>
                     <p className="mt-1 text-xs text-gray-500">
-                      Change status to allow re-processing, re-uploading, or editing
+                      {t("metadata.statusHint")}
                     </p>
                   </div>
 
@@ -357,14 +373,14 @@ export default function MetadataEditor({
                     disabled={isSaving}
                     className="btn btn-primary w-full disabled:opacity-50"
                   >
-                    {isSaving ? "Saving..." : "Save Metadata"}
+                    {isSaving ? t("metadata.saving") : t("metadata.save")}
                   </button>
                 </div>
               </div>
             </div>
           ) : (
             <div className="text-center py-8 text-gray-500">
-              <p>Select a track to edit metadata</p>
+              <p>{t("metadata.selectPrompt")}</p>
             </div>
           )}
         </div>

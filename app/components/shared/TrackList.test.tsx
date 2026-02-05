@@ -3,6 +3,16 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import TrackList from "./TrackList";
 import type { Track } from "@/types/track";
+import { I18nProvider } from "../I18nProvider";
+import { getMessages } from "@/lib/i18n/getMessages";
+
+const renderWithI18n = (ui: React.ReactNode) => {
+  return render(
+    <I18nProvider locale="en" messages={getMessages("en")}>
+      {ui}
+    </I18nProvider>
+  );
+};
 
 function mkTrack(
   id: string,
@@ -28,12 +38,12 @@ function mkTrack(
 
 describe("TrackList", () => {
   it("shows emptyMessage when tracks is empty", () => {
-    render(<TrackList tracks={[]} emptyMessage="No tracks" />);
+    renderWithI18n(<TrackList tracks={[]} emptyMessage="No tracks" />);
     expect(screen.getByText("No tracks")).toBeInTheDocument();
   });
 
   it("shows emptySubMessage when provided and empty", () => {
-    render(
+    renderWithI18n(
       <TrackList
         tracks={[]}
         emptyMessage="Empty"
@@ -45,34 +55,34 @@ describe("TrackList", () => {
 
   it("renders track title and artist", () => {
     const tracks = [mkTrack("1")];
-    render(<TrackList tracks={tracks} />);
+    renderWithI18n(<TrackList tracks={tracks} />);
     expect(screen.getByText("Title 1")).toBeInTheDocument();
     expect(screen.getByText("Artist 1")).toBeInTheDocument();
   });
 
   it("shows TrackStatusBadge when showStatus is true", () => {
     const tracks = [mkTrack("1", { status: "uploaded" })];
-    render(<TrackList tracks={tracks} showStatus />);
-    expect(screen.getByText("uploaded")).toBeInTheDocument();
+    renderWithI18n(<TrackList tracks={tracks} showStatus />);
+    expect(screen.getByText("Uploaded")).toBeInTheDocument();
   });
 
   it("shows duration when showDuration is true", () => {
     const tracks = [mkTrack("1")];
-    render(<TrackList tracks={tracks} showDuration />);
+    renderWithI18n(<TrackList tracks={tracks} showDuration />);
     expect(screen.getByText("2:00")).toBeInTheDocument();
   });
 
   it("calls onTrackSelect when a track is clicked", () => {
     const tracks = [mkTrack("1")];
     const onTrackSelect = vi.fn();
-    render(<TrackList tracks={tracks} onTrackSelect={onTrackSelect} />);
+    renderWithI18n(<TrackList tracks={tracks} onTrackSelect={onTrackSelect} />);
     fireEvent.click(screen.getByText("Title 1"));
     expect(onTrackSelect).toHaveBeenCalledWith(tracks[0]);
   });
 
   it("applies selected styles when selectedTrackId matches", () => {
     const tracks = [mkTrack("1"), mkTrack("2")];
-    const { container } = render(
+    const { container } = renderWithI18n(
       <TrackList tracks={tracks} selectedTrackId="1" />
     );
     const rows = container.querySelectorAll(".border-primary-500");

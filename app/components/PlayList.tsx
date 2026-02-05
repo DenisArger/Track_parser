@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useI18n } from "./I18nProvider";
 
 type PlayListProps = {
   onTracksUpdate: () => void;
@@ -57,12 +58,6 @@ const TRACK_TYPE_OPTIONS = [
   "Любой",
 ];
 
-const AGE_OPTIONS: { value: AgeGroup; label: string }[] = [
-  { value: "old", label: "old (≤2022 или без года)" },
-  { value: "new", label: "new (≥2023)" },
-  { value: "any", label: "any" },
-];
-
 function normalizeTrackType(value: string | null): string {
   return (value || "").trim().toLowerCase();
 }
@@ -77,16 +72,6 @@ function isOldTrack(year: number | null): boolean {
 
 function isNewTrack(year: number | null): boolean {
   return year !== null && year >= 2023;
-}
-
-function rowLabel(row: TemplateRow): string {
-  const ageSuffix =
-    row.ageGroup === "any"
-      ? ""
-      : row.ageGroup === "old"
-        ? " (old)"
-        : " (new)";
-  return `${row.trackType}${ageSuffix}`;
 }
 
 function pickRandom<T>(items: T[]): T | null {
@@ -111,6 +96,7 @@ function buildM3u(tracks: PlaylistTrack[]): string {
 }
 
 export default function PlayList({ onTracksUpdate }: PlayListProps) {
+  const { t } = useI18n();
   const [tracks, setTracks] = useState<PlaylistTrack[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -145,8 +131,39 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
   const [uploading, setUploading] = useState(false);
   const [uploadMessage, setUploadMessage] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const trackTypeLabelMap = useMemo(
+    () => ({
+      "Быстрый": t("playlist.trackType.fast"),
+      "Средний": t("playlist.trackType.mid"),
+      "Медленный": t("playlist.trackType.slow"),
+      "Модерн": t("playlist.trackType.modern"),
+      "Любой": t("playlist.trackType.any"),
+    }),
+    [t]
+  );
+  const ageOptions = useMemo(
+    () => [
+      { value: "old" as AgeGroup, label: t("playlist.age.old") },
+      { value: "new" as AgeGroup, label: t("playlist.age.new") },
+      { value: "any" as AgeGroup, label: t("playlist.age.any") },
+    ],
+    [t]
+  );
+  const formatRowLabel = useCallback(
+    (row: TemplateRow) => {
+      const ageSuffix =
+        row.ageGroup === "any"
+          ? ""
+          : row.ageGroup === "old"
+            ? ` (${t("playlist.ageSuffix.old")})`
+            : ` (${t("playlist.ageSuffix.new")})`;
+      const typeLabel = trackTypeLabelMap[row.trackType as keyof typeof trackTypeLabelMap] || row.trackType;
+      return `${typeLabel}${ageSuffix}`;
+    },
+    [t, trackTypeLabelMap]
+  );
 
-  const loadTracks = async () => {
+  const loadTracks = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
@@ -159,11 +176,11 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadTracks();
-  }, []);
+  }, [loadTracks]);
 
   useEffect(() => {
     const loadGroups = async () => {
@@ -174,12 +191,12 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
         setRelatedGroups(Array.isArray(d.groups) ? d.groups : []);
       } catch (e) {
         setRelatedMessage(
-          e instanceof Error ? e.message : "Не удалось загрузить группы"
+          e instanceof Error ? e.message : t("playlist.groupsLoadError")
         );
       }
     };
     loadGroups();
-  }, []);
+  }, [t]);
 
   const loadTemplate = useCallback(async (name: string) => {
     try {
@@ -203,13 +220,13 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
         if (typeof s.minTrackGapMinutes === "number")
           setMinTrackGapMinutes(s.minTrackGapMinutes);
       }
-      setTemplateMessage(`Шаблон "${name}" загружен`);
+      setTemplateMessage(t("playlist.templateLoaded", { name }));
     } catch (e) {
       setTemplateMessage(
-        e instanceof Error ? e.message : "Не удалось загрузить шаблон"
+        e instanceof Error ? e.message : t("playlist.templateLoadError")
       );
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     loadTemplate(templateName);
@@ -382,9 +399,9 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
           if (pool.length === 0) {
             items.push({
               rowId: row.id,
-              rowLabel: rowLabel(row),
+              rowLabel: formatRowLabel(row),
               track: null,
-              reason: "Нет подходящих треков",
+              reason: t("playlist.noTracks"),
             });
             setGenerated(items);
             return;
@@ -399,9 +416,9 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
             );
             items.push({
               rowId: row.id,
-              rowLabel: rowLabel(row),
+              rowLabel: formatRowLabel(row),
               track: picked,
-              reason: picked ? undefined : "Нет подходящих треков (ограничения повторов)",
+              reason: picked ? undefined : t("playlist.noTracksWithLimits"),
             });
             if (picked) {
               recordUse(picked, totalSeconds);
@@ -435,9 +452,9 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
         );
         items.push({
           rowId: row.id,
-          rowLabel: rowLabel(row),
+          rowLabel: formatRowLabel(row),
           track: picked,
-          reason: picked ? undefined : "Нет подходящих треков (ограничения повторов)",
+          reason: picked ? undefined : t("playlist.noTracksWithLimits"),
         });
         if (picked) {
           recordUse(picked, totalSeconds);
@@ -475,7 +492,7 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
         .map((g) => g.track)
         .filter((t): t is PlaylistTrack => !!t);
       if (items.length === 0) {
-        throw new Error("Нет треков для загрузки");
+        throw new Error(t("playlist.noTracksToUpload"));
       }
           const r = await fetch("/api/radio/upload-playlist", {
         method: "POST",
@@ -495,10 +512,10 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || String(r.status));
-      setUploadMessage("Плейлист отправлен в радио");
+      setUploadMessage(t("playlist.uploadSuccess"));
     } catch (e) {
       setUploadError(
-        e instanceof Error ? e.message : "Ошибка загрузки плейлиста"
+        e instanceof Error ? e.message : t("playlist.uploadError")
       );
     } finally {
       setUploading(false);
@@ -562,10 +579,10 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || String(r.status));
-      setTemplateMessage(`Шаблон "${templateName}" сохранён`);
+      setTemplateMessage(t("playlist.templateSaved", { name: templateName }));
     } catch (e) {
       setTemplateMessage(
-        e instanceof Error ? e.message : "Ошибка сохранения шаблона"
+        e instanceof Error ? e.message : t("playlist.templateSaveError")
       );
     } finally {
       setTemplateSaving(false);
@@ -576,7 +593,7 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
     const id = `g${Date.now()}`;
     setRelatedGroups((prev) => [
       ...prev,
-      { id, name: "Группа", members: [] },
+      { id, name: t("playlist.groupDefaultName"), members: [] },
     ]);
   };
 
@@ -607,10 +624,10 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || String(r.status));
-      setRelatedMessage("Группы сохранены");
+      setRelatedMessage(t("playlist.groupsSaved"));
     } catch (e) {
       setRelatedMessage(
-        e instanceof Error ? e.message : "Ошибка сохранения групп"
+        e instanceof Error ? e.message : t("playlist.groupsSaveError")
       );
     } finally {
       setRelatedSaving(false);
@@ -632,7 +649,7 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
-            PlayList
+            {t("playlist.title")}
           </h2>
           <p className="text-sm text-gray-600 dark:text-gray-400">
             old = год ≤ 2022 или отсутствует
@@ -645,8 +662,8 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
             disabled={isLoading}
             className="btn btn-secondary text-sm disabled:opacity-50"
           >
-            {isLoading ? "Загрузка..." : "Обновить треки"}
-          </button>
+          {isLoading ? t("playlist.loading") : t("playlist.refreshTracks")}
+        </button>
           <button
             type="button"
             onClick={onTracksUpdate}
@@ -679,7 +696,7 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
               onClick={addRelatedGroup}
               className="btn btn-secondary text-sm"
             >
-              Добавить группу
+              {t("playlist.addGroup")}
             </button>
             <button
               type="button"
@@ -687,7 +704,7 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
               disabled={relatedSaving}
               className="btn btn-primary text-sm disabled:opacity-50"
             >
-              {relatedSaving ? "Сохранение..." : "Сохранить"}
+              {relatedSaving ? t("playlist.saving") : t("playlist.save")}
             </button>
           </div>
         </div>
@@ -702,8 +719,7 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
           <>
             {relatedGroups.length === 0 ? (
               <p className="text-sm text-gray-500">
-                Группы связей не заданы. Добавьте группу, чтобы учесть повтор
-                связанных исполнителей.
+                {t("playlist.groupsEmpty")}
               </p>
             ) : (
               <div className="space-y-3">
@@ -720,18 +736,18 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
                           updateRelatedGroup(g.id, { name: e.target.value })
                         }
                         className="flex-1 min-w-[160px] rounded border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1 text-sm"
-                        placeholder="Название группы"
+                        placeholder={t("playlist.groupNamePlaceholder")}
                       />
                       <button
                         type="button"
                         onClick={() => removeRelatedGroup(g.id)}
                         className="btn btn-secondary text-xs"
                       >
-                        Удалить
+                        {t("playlist.delete")}
                       </button>
                     </div>
                     <label className="block text-xs text-gray-500 mb-1">
-                      Исполнители (по одному в строке или через запятую)
+                      {t("playlist.groupMembersLabel")}
                     </label>
                     <textarea
                       value={g.members.join("\n")}
@@ -753,12 +769,12 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
 
       <div className="card">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-          <h3 className="text-lg font-medium">Длительность (примерно)</h3>
+          <h3 className="text-lg font-medium">{t("playlist.durationTitle")}</h3>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className="block text-xs text-gray-500 mb-1">
-              Целевая длительность
+              {t("playlist.targetDuration")}
             </label>
             <div className="flex items-center gap-2">
               <input
@@ -768,7 +784,7 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
                 onChange={(e) => setTargetHours(Number(e.target.value) || 0)}
                 className="w-20 rounded border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1 text-sm"
               />
-              <span className="text-sm text-gray-500">ч</span>
+              <span className="text-sm text-gray-500">{t("playlist.hoursShort")}</span>
               <input
                 type="number"
                 min={0}
@@ -777,16 +793,16 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
                 onChange={(e) => setTargetMinutes(Number(e.target.value) || 0)}
                 className="w-20 rounded border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1 text-sm"
               />
-              <span className="text-sm text-gray-500">мин</span>
+              <span className="text-sm text-gray-500">{t("playlist.minutesShort")}</span>
             </div>
             <p className="text-xs text-gray-500 mt-1">
-              При генерации шаблон повторяется до достижения цели.
+              {t("playlist.targetHint")}
             </p>
           </div>
 
           <div>
             <label className="block text-xs text-gray-500 mb-1">
-              Средняя длительность трека
+              {t("playlist.avgDuration")}
             </label>
             <div className="flex items-center gap-2">
               <input
@@ -796,7 +812,7 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
                 onChange={(e) => setAvgMinutes(Number(e.target.value) || 0)}
                 className="w-20 rounded border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1 text-sm"
               />
-              <span className="text-sm text-gray-500">мин</span>
+              <span className="text-sm text-gray-500">{t("playlist.minutesShort")}</span>
               <input
                 type="number"
                 min={0}
@@ -805,13 +821,13 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
                 onChange={(e) => setAvgSeconds(Number(e.target.value) || 0)}
                 className="w-20 rounded border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1 text-sm"
               />
-              <span className="text-sm text-gray-500">сек</span>
+              <span className="text-sm text-gray-500">{t("playlist.secondsShort")}</span>
             </div>
           </div>
 
           <div>
             <label className="block text-xs text-gray-500 mb-1">
-              Оценка после генерации
+              {t("playlist.estimateTitle")}
             </label>
             <div className="text-sm text-gray-700 dark:text-gray-300">
               {generated.length > 0 ? (
@@ -820,7 +836,7 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
                   {Math.floor((estimatedSeconds % 3600) / 60)} мин
                 </>
               ) : (
-                "Нет данных"
+                t("playlist.noData")
               )}
             </div>
             {targetTotalSeconds > 0 && generated.length > 0 && (
@@ -829,7 +845,7 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
                   100,
                   Math.round((estimatedSeconds / targetTotalSeconds) * 100)
                 )}
-                % от цели
+                {t("playlist.ofTarget")}
               </div>
             )}
           </div>
@@ -838,20 +854,20 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
 
       <div className="card">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-          <h3 className="text-lg font-medium">Шаблон ротации</h3>
+          <h3 className="text-lg font-medium">{t("playlist.templateTitle")}</h3>
           <div className="flex flex-wrap items-center gap-2">
             <label className="text-xs text-gray-500">
-              Название шаблона
+              {t("playlist.templateName")}
               <input
                 type="text"
                 value={templateName}
                 onChange={(e) => setTemplateName(e.target.value)}
-                placeholder="Название шаблона"
+                placeholder={t("playlist.templateNamePlaceholder")}
                 className="mt-1 min-w-[180px] rounded border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1 text-sm"
               />
             </label>
             <button type="button" onClick={addRow} className="btn btn-secondary text-sm">
-              Добавить строку
+              {t("playlist.addRow")}
             </button>
             <button
               type="button"
@@ -859,14 +875,14 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
               disabled={templateSaving}
               className="btn btn-primary text-sm disabled:opacity-50"
             >
-              {templateSaving ? "Сохранение..." : "Сохранить шаблон"}
+              {templateSaving ? t("playlist.saving") : t("playlist.saveTemplate")}
             </button>
             <button
               type="button"
               onClick={() => loadTemplate(templateName)}
               className="btn btn-secondary text-sm"
             >
-              Загрузить
+              {t("playlist.loadTemplate")}
             </button>
           </div>
         </div>
@@ -884,7 +900,7 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
               className="grid grid-cols-1 md:grid-cols-[minmax(140px,1.1fr)_minmax(200px,1.4fr)_80px_140px_140px_150px_auto] gap-3 items-end border rounded-lg p-3 bg-gray-50 dark:bg-gray-800 dark:border-gray-700"
             >
               <div className="flex-1 min-w-[160px]">
-                <label className="block text-xs text-gray-500 mb-1">Тип</label>
+                <label className="block text-xs text-gray-500 mb-1">{t("playlist.typeLabel")}</label>
                 <select
                   value={row.trackType}
                   onChange={(e) =>
@@ -894,14 +910,14 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
                 >
                   {TRACK_TYPE_OPTIONS.map((opt) => (
                     <option key={opt} value={opt}>
-                      {opt}
+                      {trackTypeLabelMap[opt as keyof typeof trackTypeLabelMap] || opt}
                     </option>
                   ))}
                 </select>
               </div>
 
               <div className="flex-1 min-w-[200px]">
-                <label className="block text-xs text-gray-500 mb-1">Возраст</label>
+                <label className="block text-xs text-gray-500 mb-1">{t("playlist.ageLabel")}</label>
                 <select
                   value={row.ageGroup}
                   onChange={(e) =>
@@ -911,7 +927,7 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
                   }
                   className="w-full rounded border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1 text-sm"
                 >
-                  {AGE_OPTIONS.map((opt) => (
+                  {ageOptions.map((opt) => (
                     <option key={opt.value} value={opt.value}>
                       {opt.label}
                     </option>
@@ -920,7 +936,7 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
               </div>
 
               <div className="w-24">
-                <label className="block text-xs text-gray-500 mb-1">Кол-во</label>
+                <label className="block text-xs text-gray-500 mb-1">{t("playlist.countLabel")}</label>
                 <input
                   type="number"
                   min={1}
@@ -933,7 +949,7 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
               </div>
 
               <label className="text-xs text-gray-500">
-                Артист (мин)
+                {t("playlist.artistGap")}
                 <input
                   type="number"
                   min={0}
@@ -953,7 +969,7 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
               </label>
 
               <label className="text-xs text-gray-500">
-                Трек (мин)
+                {t("playlist.trackGap")}
                 <input
                   type="number"
                   min={0}
@@ -980,7 +996,7 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
                     updateRow(row.id, { useGlobalLimits: e.target.checked })
                   }
                 />
-                Общие лимиты
+                {t("playlist.globalLimits")}
               </label>
 
               <div className="flex items-center gap-2">
@@ -1003,7 +1019,7 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
                   onClick={() => removeRow(row.id)}
                   className="btn btn-secondary text-xs"
                 >
-                  Удалить
+                  {t("playlist.delete")}
                 </button>
               </div>
             </div>
@@ -1012,7 +1028,7 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
           <div>
             <label className="block text-xs text-gray-500 mb-1">
-              Не повторять артиста (мин)
+              {t("playlist.noRepeatArtist")}
             </label>
             <input
               type="number"
@@ -1024,7 +1040,7 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
           </div>
           <div>
             <label className="block text-xs text-gray-500 mb-1">
-              Не повторять трек (мин)
+              {t("playlist.noRepeatTrack")}
             </label>
             <input
               type="number"
@@ -1039,20 +1055,20 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
 
       <div className="card">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-          <h3 className="text-lg font-medium">Генерация</h3>
+          <h3 className="text-lg font-medium">{t("playlist.generateTitle")}</h3>
           <div className="flex flex-wrap items-center gap-2">
             <label className="text-xs text-gray-500">
-              Название плейлиста
+              {t("playlist.playlistName")}
               <input
                 type="text"
                 value={exportFileName}
                 onChange={(e) => setExportFileName(e.target.value)}
-                placeholder="Имя файла M3U"
+                placeholder={t("playlist.m3uNamePlaceholder")}
                 className="mt-1 min-w-[180px] rounded border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1 text-sm"
               />
             </label>
             <button type="button" onClick={generate} className="btn btn-primary text-sm">
-              Сгенерировать
+              {t("playlist.generate")}
             </button>
             <button
               type="button"
@@ -1060,14 +1076,14 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
               disabled={generated.length === 0}
               className="btn btn-secondary text-sm disabled:opacity-50"
             >
-              Экспорт M3U
+              {t("playlist.exportM3u")}
             </button>
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-[minmax(180px,1.1fr)_120px_140px_minmax(220px,1.2fr)_140px_auto] gap-3 items-end mb-4">
           <label className="text-xs text-gray-500">
-            Название для загрузки
+            {t("playlist.uploadName")}
             <input
               type="text"
               value={uploadName}
@@ -1075,12 +1091,12 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
                 setUploadNameTouched(true);
                 setUploadName(e.target.value);
               }}
-              placeholder="Имя плейлиста"
+              placeholder={t("playlist.uploadNamePlaceholder")}
               className="mt-1 w-full rounded border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1 text-sm"
             />
           </label>
           <label className="text-xs text-gray-500">
-            Server ID
+            {t("playlist.serverId")}
             <input
               type="number"
               min={1}
@@ -1095,15 +1111,15 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
               checked={uploadRandom}
               onChange={(e) => setUploadRandom(e.target.checked)}
             />
-            Random
+            {t("playlist.random")}
           </label>
           <label className="text-xs text-gray-500">
-            Base path (опц.)
+            {t("playlist.basePath")}
             <input
               type="text"
               value={uploadBasePath}
               onChange={(e) => setUploadBasePath(e.target.value)}
-              placeholder="/media/Server_1/0 0 ALL_TRACK"
+              placeholder={t("playlist.basePathPlaceholder")}
               className="mt-1 w-full rounded border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1 text-sm"
             />
           </label>
@@ -1113,7 +1129,7 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
               checked={uploadWin1251}
               onChange={(e) => setUploadWin1251(e.target.checked)}
             />
-            Windows-1251
+            {t("playlist.win1251")}
           </label>
           <button
             type="button"
@@ -1121,7 +1137,7 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
             disabled={uploading || generated.length === 0}
             className="btn btn-primary text-sm disabled:opacity-50"
           >
-            {uploading ? "Загрузка..." : "Загрузить в радио"}
+            {uploading ? t("playlist.loading") : t("playlist.uploadToRadio")}
           </button>
         </div>
 
@@ -1137,20 +1153,23 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
         )}
 
         <div className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-          Всего треков: {availableStats.total}, old: {availableStats.oldCount},
-          new: {availableStats.newCount}
+          {t("playlist.available", {
+            total: availableStats.total,
+            old: availableStats.oldCount,
+            new: availableStats.newCount,
+          })}
         </div>
 
         {generated.length === 0 ? (
-          <p className="text-gray-500">Нажмите &quot;Сгенерировать&quot;.</p>
+          <p className="text-gray-500">{t("playlist.generateHint")}</p>
         ) : (
           <div className="space-y-2">
             {generated.map((item, idx) => {
-              const t = item.track;
+              const track = item.track;
               const display =
-                t && (t.artist || t.title)
-                  ? [t.artist, t.title].filter(Boolean).join(" - ")
-                  : t?.raw_name || "";
+                track && (track.artist || track.title)
+                  ? [track.artist, track.title].filter(Boolean).join(" - ")
+                  : track?.raw_name || "";
               return (
                 <div
                   key={`${item.rowId}-${idx}`}
@@ -1165,12 +1184,14 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
                       </>
                     ) : (
                       <span className="ml-2 text-red-600 dark:text-red-400">
-                        {item.reason || "Нет трека"}
+                        {item.reason || t("playlist.noTrack")}
                       </span>
                     )}
                   </div>
-                  {t?.year && (
-                    <span className="text-xs text-gray-500">год: {t.year}</span>
+                  {track?.year && (
+                    <span className="text-xs text-gray-500">
+                      {t("playlist.year")}: {track.year}
+                    </span>
                   )}
                 </div>
               );

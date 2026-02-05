@@ -1,6 +1,7 @@
 "use client";
 
 import { TrimSettings } from "@/types/track";
+import { useI18n } from "./I18nProvider";
 
 interface TrimDetailsProps {
   trimSettings: TrimSettings;
@@ -11,6 +12,7 @@ export default function TrimDetails({
   trimSettings,
   onClose,
 }: TrimDetailsProps) {
+  const { t } = useI18n();
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
@@ -24,13 +26,15 @@ export default function TrimDetails({
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md mx-4">
-        <h3 className="text-lg font-semibold mb-4 dark:text-gray-100">Детали обрезки</h3>
+        <h3 className="text-lg font-semibold mb-4 dark:text-gray-100">
+          {t("trimDetails.title")}
+        </h3>
 
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Время начала
+                {t("trimDetails.startTime")}
               </label>
               <p className="text-lg font-mono dark:text-gray-200">
                 {formatTime(trimSettings.startTime)}
@@ -39,7 +43,7 @@ export default function TrimDetails({
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Время окончания
+                {t("trimDetails.endTime")}
               </label>
               <p className="text-lg font-mono dark:text-gray-200">
                 {trimSettings.endTime
@@ -53,7 +57,7 @@ export default function TrimDetails({
 
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Общая длительность
+              {t("trimDetails.totalDuration")}
             </label>
             <p className="text-lg font-mono dark:text-gray-200">{formatTime(totalDuration)}</p>
           </div>
@@ -61,21 +65,23 @@ export default function TrimDetails({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Затухание в начале
+                {t("trimDetails.fadeIn")}
               </label>
               <p className="text-lg font-mono dark:text-gray-200">{trimSettings.fadeIn}s</p>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Затухание в конце
+                {t("trimDetails.fadeOut")}
               </label>
               <p className="text-lg font-mono dark:text-gray-200">{trimSettings.fadeOut}s</p>
             </div>
           </div>
 
           <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
-            <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-2">Визуализация</h4>
+            <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-2">
+              {t("trimDetails.visualization")}
+            </h4>
             <div className="relative h-4 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden">
               {/* Фоновая полоса */}
               <div className="absolute inset-0 bg-gray-300 dark:bg-gray-500"></div>
@@ -149,7 +155,7 @@ export default function TrimDetails({
 
         <div className="flex justify-end mt-6">
           <button onClick={onClose} className="btn btn-secondary">
-            Закрыть
+            {t("trimDetails.close")}
           </button>
         </div>
       </div>

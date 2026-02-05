@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import { useEffect, useSyncExternalStore } from "react";
+import { useI18n } from "./I18nProvider";
 
 function getThemeSnapshot(): boolean {
   if (typeof window === "undefined") return false;
@@ -22,6 +23,7 @@ function subscribeThemeChanges(callback: () => void): () => void {
 }
 
 export default function ThemeToggle() {
+  const { t } = useI18n();
   const isDark = useSyncExternalStore(
     subscribeThemeChanges,
     getThemeSnapshot,
@@ -51,8 +53,8 @@ export default function ThemeToggle() {
     <button
       onClick={toggleTheme}
       className="p-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-      aria-label={isDark ? "Переключить на светлую тему" : "Переключить на темную тему"}
-      title={isDark ? "Светлая тема" : "Темная тема"}
+      aria-label={isDark ? t("theme.toLight") : t("theme.toDark")}
+      title={isDark ? t("theme.light") : t("theme.dark")}
     >
       {isDark ? (
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

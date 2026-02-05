@@ -3,6 +3,7 @@
 import { Track } from "@/types/track";
 import TrackStatusBadge from "./TrackStatusBadge";
 import { formatDuration } from "@/lib/utils/timeFormatter";
+import { useI18n } from "../I18nProvider";
 
 interface TrackListProps {
   tracks: Track[];
@@ -23,14 +24,17 @@ export default function TrackList({
   showStatus = false,
   showDuration = false,
   onRadioMap,
-  emptyMessage = "No tracks available",
+  emptyMessage,
   emptySubMessage,
   maxHeight = "max-h-96",
 }: TrackListProps) {
+  const { t } = useI18n();
+  const resolvedEmptyMessage = emptyMessage ?? t("trackList.emptyDefault");
+
   if (tracks.length === 0) {
     return (
       <div className="text-center py-8 text-gray-500">
-        <p>{emptyMessage}</p>
+        <p>{resolvedEmptyMessage}</p>
         {emptySubMessage && <p className="text-sm">{emptySubMessage}</p>}
       </div>
     );
@@ -60,7 +64,7 @@ export default function TrackList({
                 {showStatus && <TrackStatusBadge status={track.status} />}
                 {onRadioMap?.[track.id] && (
                   <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700">
-                    На радио
+                    {t("trackList.onRadio")}
                   </span>
                 )}
                 {showDuration && (
@@ -77,7 +81,9 @@ export default function TrackList({
             )}
           </div>
           {track.error && (
-            <p className="text-xs text-danger-600 mt-1">Error: {track.error}</p>
+            <p className="text-xs text-danger-600 mt-1">
+              {t("trackList.errorLabel")}: {track.error}
+            </p>
           )}
         </div>
       ))}

@@ -1,8 +1,44 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { isPublicPath } from "@/lib/utils/authPaths";
+import { defaultLocale, locales, type Locale } from "@/lib/i18n/config";
+
+const PUBLIC_FILE = /\.(.*)$/;
+
+function getLocaleFromPathname(pathname: string): Locale | null {
+  const seg = pathname.split("/")[1];
+  if (seg && locales.includes(seg as Locale)) return seg as Locale;
+  return null;
+}
+
+function stripLocale(pathname: string): string {
+  const seg = pathname.split("/")[1];
+  if (seg && locales.includes(seg as Locale)) {
+    return pathname.replace(`/${seg}`, "") || "/";
+  }
+  return pathname;
+}
 
 export async function proxy(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  if (
+    pathname.startsWith("/_next") ||
+    pathname.startsWith("/api") ||
+    pathname.startsWith("/auth") ||
+    pathname.startsWith("/favicon.ico") ||
+    PUBLIC_FILE.test(pathname)
+  ) {
+    return NextResponse.next();
+  }
+
+  const locale = getLocaleFromPathname(pathname);
+  if (!locale) {
+    const url = request.nextUrl.clone();
+    url.pathname = `/${defaultLocale}${pathname === "/" ? "" : pathname}`;
+    return NextResponse.redirect(url);
+  }
+
   let response = NextResponse.next({
     request: { headers: request.headers },
   });
@@ -30,8 +66,9 @@ export async function proxy(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser();
 
-  if (!user && !isPublicPath(request.nextUrl.pathname)) {
-    return NextResponse.redirect(new URL("/login", request.url));
+  const authPath = stripLocale(pathname);
+  if (!user && !isPublicPath(authPath)) {
+    return NextResponse.redirect(new URL(`/${locale}/login`, request.url));
   }
 
   return response;

@@ -8,6 +8,7 @@ import {
 } from "@/lib/utils/trackFilters";
 import { getUserFacingErrorMessage } from "@/lib/utils/errorMessage";
 import { downloadTrackAction } from "@/lib/actions/trackActions";
+import { useI18n } from "./I18nProvider";
 
 interface DownloadTrackProps {
   onTracksUpdate: () => void;
@@ -19,6 +20,7 @@ export default function DownloadTrack({
   onTracksUpdate,
   tracks,
 }: DownloadTrackProps) {
+  const { t } = useI18n();
   const [url, setUrl] = useState("");
   const [source, setSource] = useState<"youtube" | "youtube-music" | "auto">(
     "auto"
@@ -38,10 +40,15 @@ export default function DownloadTrack({
   const visibleDownloadedTracks = getDownloadedTracks(tracks).filter(
     (track) => !hiddenTrackIds[track.id]
   );
+  const placeholderBySource = {
+    auto: t("download.placeholder.auto"),
+    youtube: t("download.placeholder.youtube"),
+    "youtube-music": t("download.placeholder.youtubeMusic"),
+  } as const;
 
   const handleDownload = async () => {
     if (!url.trim()) {
-      setError("Please enter a valid URL");
+      setError(t("download.errors.invalidUrl"));
       return;
     }
 
@@ -61,7 +68,7 @@ export default function DownloadTrack({
       setUrl("");
       onTracksUpdate();
     } catch (err) {
-      setError(getUserFacingErrorMessage(err, "Download failed"));
+      setError(getUserFacingErrorMessage(err, t("download.errors.downloadFailed")));
     } finally {
       setIsDownloading(false);
     }
@@ -115,7 +122,8 @@ export default function DownloadTrack({
       }
 
       if (!signResponse.ok) {
-        const rawMessage = signResult?.error || signText || "Local upload failed";
+        const rawMessage =
+          signResult?.error || signText || t("download.errors.localUploadFailed");
         const lowered = rawMessage.toLowerCase();
         const isTooLarge =
           signResponse.status === 413 ||
@@ -124,7 +132,7 @@ export default function DownloadTrack({
 
         throw new Error(
           isTooLarge
-            ? "Файл слишком большой для загрузки на сервер. Попробуйте меньший файл."
+            ? t("download.errors.fileTooLarge")
             : rawMessage
         );
       }
@@ -132,7 +140,7 @@ export default function DownloadTrack({
       const signedUrl = signResult?.signedUrl;
       const trackId = signResult?.trackId;
       if (!signedUrl || !trackId) {
-        throw new Error("Signed upload URL not received");
+        throw new Error(t("download.errors.signedUrlMissing"));
       }
 
       const uploadResponse = await fetch(signedUrl, {
@@ -146,7 +154,7 @@ export default function DownloadTrack({
 
       if (!uploadResponse.ok) {
         const uploadText = await uploadResponse.text();
-        throw new Error(uploadText || "Upload to Storage failed");
+        throw new Error(uploadText || t("download.errors.storageUploadFailed"));
       }
 
       const completeResponse = await fetch("/api/upload-local/complete", {
@@ -171,7 +179,7 @@ export default function DownloadTrack({
 
       if (!completeResponse.ok) {
         const rawMessage =
-          completeResult?.error || completeText || "Local upload failed";
+          completeResult?.error || completeText || t("download.errors.localUploadFailed");
         const lowered = rawMessage.toLowerCase();
         const isTooLarge =
           completeResponse.status === 413 ||
@@ -180,14 +188,14 @@ export default function DownloadTrack({
 
         throw new Error(
           isTooLarge
-            ? "Файл слишком большой для загрузки на сервер. Попробуйте меньший файл."
+            ? t("download.errors.fileTooLarge")
             : rawMessage
         );
       }
 
       onTracksUpdate();
     } catch (err) {
-      setError(getUserFacingErrorMessage(err, "Local upload failed"));
+      setError(getUserFacingErrorMessage(err, t("download.errors.localUploadFailed")));
     } finally {
       setIsUploadingLocal(false);
     }
@@ -226,11 +234,11 @@ export default function DownloadTrack({
 
   const handleDeleteTrack = async (trackId: string) => {
     if (!trackId || trackId === "undefined" || trackId === "null") {
-      setError("Track ID is required");
+      setError(t("download.errors.trackIdRequired"));
       return;
     }
     const confirmed = window.confirm(
-      "Удалить трек? Файл будет удалён из базы и Storage."
+      t("download.deleteConfirm")
     );
     if (!confirmed) return;
 
@@ -252,7 +260,7 @@ export default function DownloadTrack({
       }
       onTracksUpdate();
     } catch (err) {
-      setError(getUserFacingErrorMessage(err, "Delete failed"));
+      setError(getUserFacingErrorMessage(err, t("download.errors.deleteFailed")));
     } finally {
       setDeletingIds((prev) => ({ ...prev, [trackId]: false }));
     }
@@ -261,10 +269,9 @@ export default function DownloadTrack({
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-semibold mb-4">Download Tracks</h2>
+        <h2 className="text-xl font-semibold mb-4">{t("download.title")}</h2>
         <p className="text-gray-600 mb-6">
-          Enter a URL from YouTube or YouTube Music to download tracks for
-          processing.
+          {t("download.description")}
         </p>
       </div>
 
@@ -272,7 +279,7 @@ export default function DownloadTrack({
         {/* Local File Upload */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Local File
+            {t("download.localFile")}
           </label>
           <div
             className={`rounded-lg border-2 border-dashed p-6 text-center transition ${
@@ -293,11 +300,9 @@ export default function DownloadTrack({
               }
             }}
           >
-            <p className="text-sm text-gray-700">
-              Drag & drop an MP3 file here, or click to choose a file
-            </p>
+            <p className="text-sm text-gray-700">{t("download.dragDrop")}</p>
             <p className="text-xs text-gray-500 mt-2">
-              Supported format: MP3
+              {t("download.supportedFormat")}
             </p>
           </div>
           <input
@@ -309,7 +314,7 @@ export default function DownloadTrack({
             disabled={isDownloading || isUploadingLocal}
           />
           {isUploadingLocal && (
-            <p className="text-sm text-gray-600 mt-2">Uploading file...</p>
+            <p className="text-sm text-gray-600 mt-2">{t("download.uploadingFile")}</p>
           )}
         </div>
 
@@ -319,7 +324,7 @@ export default function DownloadTrack({
             htmlFor="source"
             className="block text-sm font-medium text-gray-700 mb-2"
           >
-            Source Platform
+            {t("download.sourcePlatform")}
           </label>
           <select
             id="source"
@@ -328,9 +333,9 @@ export default function DownloadTrack({
             className="input"
             disabled={isDownloading || isUploadingLocal}
           >
-            <option value="auto">Auto-detect</option>
-            <option value="youtube">YouTube</option>
-            <option value="youtube-music">YouTube Music</option>
+            <option value="auto">{t("download.source.auto")}</option>
+            <option value="youtube">{t("download.source.youtube")}</option>
+            <option value="youtube-music">{t("download.source.youtubeMusic")}</option>
           </select>
         </div>
 
@@ -340,22 +345,14 @@ export default function DownloadTrack({
             htmlFor="url"
             className="block text-sm font-medium text-gray-700 mb-2"
           >
-            Track URL
+            {t("download.trackUrl")}
           </label>
           <input
             type="url"
             id="url"
             value={url}
             onChange={handleUrlChange}
-            placeholder={`Enter ${
-              source === "auto"
-                ? "YouTube or YouTube Music"
-                : source === "youtube"
-                ? "YouTube"
-                : source === "youtube-music"
-                ? "YouTube Music"
-                : "YouTube"
-            } URL`}
+            placeholder={placeholderBySource[source]}
             className="input"
             disabled={isDownloading || isUploadingLocal}
           />
@@ -377,10 +374,10 @@ export default function DownloadTrack({
           {isDownloading ? (
             <div className="flex items-center space-x-2">
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-              <span>Downloading...</span>
+              <span>{t("download.downloading")}</span>
             </div>
           ) : (
-            "Download Track"
+            t("download.downloadAction")
           )}
         </button>
       </div>
@@ -388,7 +385,7 @@ export default function DownloadTrack({
       {/* Downloading Tracks */}
       {visibleDownloadingTracks.length > 0 && (
         <div className="mt-6">
-          <h3 className="text-lg font-medium mb-3">Downloading Tracks</h3>
+          <h3 className="text-lg font-medium mb-3">{t("download.downloadingTitle")}</h3>
           <div className="space-y-3">
             {visibleDownloadingTracks.map((track) => (
               <div key={track.id} className="border rounded-lg p-4 bg-blue-50">
@@ -417,7 +414,7 @@ export default function DownloadTrack({
                     disabled={!!deletingIds[track.id]}
                     className="btn btn-secondary text-sm disabled:opacity-50"
                   >
-                    {deletingIds[track.id] ? "Deleting..." : "Delete"}
+                    {deletingIds[track.id] ? t("download.deleting") : t("download.delete")}
                   </button>
                 </div>
               </div>
@@ -429,7 +426,7 @@ export default function DownloadTrack({
       {/* Recently Downloaded Tracks */}
       {visibleDownloadedTracks.length > 0 && (
         <div className="mt-6">
-          <h3 className="text-lg font-medium mb-3">Recently Downloaded</h3>
+          <h3 className="text-lg font-medium mb-3">{t("download.recentlyDownloaded")}</h3>
           <div className="space-y-2">
             {visibleDownloadedTracks
               .slice(0, 5)
@@ -459,7 +456,7 @@ export default function DownloadTrack({
                               clipRule="evenodd"
                             />
                           </svg>
-                          Обрезан
+                          {t("download.trimmedBadge")}
                         </span>
                       </div>
                     )}
@@ -476,15 +473,15 @@ export default function DownloadTrack({
                   <div className="flex items-center space-x-3">
                     <span className="text-sm text-green-600 font-medium">
                       {track.metadata.isTrimmed
-                        ? "РћР±СЂР°Р±РѕС‚Р°РЅ"
-                        : "Ready for processing"}
+                        ? t("download.processed")
+                        : t("download.readyForProcessing")}
                     </span>
                     <button
                       onClick={() => handleDeleteTrack(track.id)}
                       disabled={!!deletingIds[track.id]}
                       className="btn btn-secondary text-sm disabled:opacity-50"
                     >
-                      {deletingIds[track.id] ? "Deleting..." : "Delete"}
+                      {deletingIds[track.id] ? t("download.deleting") : t("download.delete")}
                     </button>
                   </div>
                 </div>

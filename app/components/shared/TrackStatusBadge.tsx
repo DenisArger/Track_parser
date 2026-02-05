@@ -1,4 +1,7 @@
+"use client";
+
 import { TrackStatus } from "@/types/track";
+import { useI18n } from "../I18nProvider";
 
 interface TrackStatusBadgeProps {
   status: TrackStatus;
@@ -9,6 +12,8 @@ export default function TrackStatusBadge({
   status,
   className = "",
 }: TrackStatusBadgeProps) {
+  const { t } = useI18n();
+
   const getStatusStyles = (status: TrackStatus) => {
     switch (status) {
       case "uploaded":
@@ -36,7 +41,7 @@ export default function TrackStatusBadge({
         status
       )} ${className}`}
     >
-      {status}
+      {t(`status.${status}`)}
     </span>
   );
 }

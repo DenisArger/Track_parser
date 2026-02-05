@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Track, FtpConfig } from "@/types/track";
 import { getUploadedTracks } from "@/lib/utils/trackFilters";
 import { getUserFacingErrorMessage } from "@/lib/utils/errorMessage";
+import { useI18n } from "./I18nProvider";
 
 interface FtpUploaderProps {
   onTracksUpdate: () => void;
@@ -15,6 +16,7 @@ export default function FtpUploader({
   onTracksUpdate,
   tracks,
 }: FtpUploaderProps) {
+  const { t } = useI18n();
   const [ftpConfig, setFtpConfig] = useState<FtpConfig>({
     host: "",
     port: 21,
@@ -84,13 +86,13 @@ export default function FtpUploader({
 
       if (!response.ok) {
         console.error("Upload failed:", responseData);
-        throw new Error(responseData.error || "Upload failed");
+        throw new Error(responseData.error || t("ftp.errors.uploadFailed"));
       }
 
       setHiddenTrackIds((prev) => ({ ...prev, [trackId]: true }));
       onTracksUpdate();
     } catch (err) {
-      const errorMessage = getUserFacingErrorMessage(err, "Upload failed");
+      const errorMessage = getUserFacingErrorMessage(err, t("ftp.errors.uploadFailed"));
       console.error("Upload error:", errorMessage);
       setError(errorMessage);
     } finally {
@@ -104,7 +106,7 @@ export default function FtpUploader({
 
   const handleUploadAll = async () => {
     if (processedTracks.length === 0) {
-      setError("No tracks available for upload");
+      setError(t("ftp.errors.noTracks"));
       return;
     }
 
@@ -130,13 +132,13 @@ export default function FtpUploader({
           const responseData = await response.json();
 
           if (!response.ok) {
-            const errorMsg = responseData.error || "Upload failed";
+            const errorMsg = responseData.error || t("ftp.errors.uploadFailed");
             console.error(
               `Upload failed for ${track.metadata.title}:`,
               errorMsg,
             );
             throw new Error(
-              `Failed to upload ${track.metadata.title}: ${errorMsg}`,
+              `${t("ftp.errors.uploadFailedFor")} ${track.metadata.title}: ${errorMsg}`,
             );
           }
 
@@ -147,7 +149,7 @@ export default function FtpUploader({
           setUploadProgress((prev) => ({ ...prev, [track.id]: 0 }));
           // Continue with next track instead of stopping all
           setError(
-            `Failed to upload ${track.metadata.title}: ${
+            `${t("ftp.errors.uploadFailedFor")} ${track.metadata.title}: ${
               trackError instanceof Error
                 ? trackError.message
                 : String(trackError)
@@ -158,7 +160,7 @@ export default function FtpUploader({
 
       onTracksUpdate();
     } catch (err) {
-      const errorMessage = getUserFacingErrorMessage(err, "Upload failed");
+      const errorMessage = getUserFacingErrorMessage(err, t("ftp.errors.uploadFailed"));
       console.error("Upload all error:", errorMessage);
       setError(errorMessage);
     } finally {
@@ -178,21 +180,21 @@ export default function FtpUploader({
       });
 
       if (!response.ok) {
-        throw new Error("Connection failed");
+        throw new Error(t("ftp.errors.connectionFailed"));
       }
 
-      alert("FTP connection successful!");
+      alert(t("ftp.connectionSuccess"));
     } catch {
-      setError("FTP connection failed. Please check your settings.");
+      setError(t("ftp.errors.connectionFailedHint"));
     }
   };
 
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="text-xl font-semibold mb-4">FTP Upload Configuration</h2>
+        <h2 className="text-xl font-semibold mb-4">{t("ftp.title")}</h2>
         <p className="text-gray-600 mb-6">
-          Test FTP connection and upload processed tracks to your server.
+          {t("ftp.description")}
         </p>
       </div>
 
@@ -203,14 +205,14 @@ export default function FtpUploader({
               onClick={handleTestConnection}
               className="btn btn-secondary"
             >
-              Test Connection
+              {t("ftp.testConnection")}
             </button>
           </div>
         </div>
 
         {/* Upload Section */}
         <div>
-          <h3 className="text-lg font-medium mb-3">Upload Tracks</h3>
+          <h3 className="text-lg font-medium mb-3">{t("ftp.uploadTitle")}</h3>
 
           {error && (
             <div className="bg-danger-50 border border-danger-200 rounded-lg p-3 mb-4">
@@ -220,24 +222,21 @@ export default function FtpUploader({
 
           {processedTracks.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
-              <p>No processed tracks available for upload</p>
+              <p>{t("ftp.emptyTitle")}</p>
               <p className="text-sm mt-2">
-                Process or trim some tracks first. Tracks must have status
-                &quot;processed&quot;, &quot;trimmed&quot;, or
-                &quot;uploaded&quot; with a processed path.
+                {t("ftp.emptyHint")}
               </p>
               <p className="text-xs mt-1 text-gray-400">
-                Available tracks: {tracks.length} total,{" "}
-                {
-                  tracks.filter(
+                {t("ftp.availableTracks", {
+                  total: tracks.length,
+                  ready: tracks.filter(
                     (t) =>
                       (t.status === "processed" ||
                         t.status === "trimmed" ||
                         t.status === "uploaded") &&
                       t.processedPath,
-                  ).length
-                }{" "}
-                ready for upload
+                  ).length,
+                })}
               </p>
             </div>
           ) : (
@@ -248,8 +247,8 @@ export default function FtpUploader({
                 className="btn btn-primary w-full disabled:opacity-50"
               >
                 {isUploading
-                  ? "Uploading All Tracks..."
-                  : `Upload All Tracks (${processedTracks.length})`}
+                  ? t("ftp.uploadAllLoading")
+                  : t("ftp.uploadAll", { count: processedTracks.length })}
               </button>
 
               <div className="space-y-2 max-h-96 overflow-y-auto">
@@ -283,14 +282,14 @@ export default function FtpUploader({
                           disabled={isUploading}
                           className="btn btn-secondary text-sm disabled:opacity-50"
                         >
-                          Upload
+                          {t("ftp.upload")}
                         </button>
                         <button
                           onClick={() => handleRemoveFromQueue(track.id)}
                           disabled={isUploading}
                           className="btn btn-secondary text-sm disabled:opacity-50"
                         >
-                          Remove from queue
+                          {t("ftp.remove")}
                         </button>
                       </div>
                     </div>
@@ -314,7 +313,7 @@ export default function FtpUploader({
       {/* Uploaded Tracks Summary */}
       {getUploadedTracks(tracks).length > 0 && (
         <div className="mt-6">
-          <h3 className="text-lg font-medium mb-3">Recently Uploaded</h3>
+          <h3 className="text-lg font-medium mb-3">{t("ftp.recentlyUploaded")}</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {getUploadedTracks(tracks)
               .slice(0, 6)
@@ -330,7 +329,7 @@ export default function FtpUploader({
                     {track.metadata.artist}
                   </p>
                   <span className="text-xs text-green-600 font-medium">
-                    Uploaded successfully
+                    {t("ftp.uploadedSuccess")}
                   </span>
                 </div>
               ))}
