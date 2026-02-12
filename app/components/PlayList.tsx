@@ -15,6 +15,7 @@ type PlaylistTrack = {
   track_type: string | null;
   year: number | null;
   rating?: number | null;
+  created_at?: string | null;
 };
 
 type AgeGroup = "old" | "new" | "any";
@@ -132,6 +133,8 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
   const [targetMinutes, setTargetMinutes] = useState(60);
   const [avgMinutes, setAvgMinutes] = useState(3);
   const [avgSeconds, setAvgSeconds] = useState(30);
+  const [useRecentOnly, setUseRecentOnly] = useState(false);
+  const [recentDays, setRecentDays] = useState(14);
   const [minArtistGapMinutes, setMinArtistGapMinutes] = useState(0);
   const [minTrackGapMinutes, setMinTrackGapMinutes] = useState(0);
   const [relatedGroups, setRelatedGroups] = useState<RelatedGroup[]>([]);
@@ -277,12 +280,26 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
     }
   }, [uploadBasePath]);
 
+  const recentCutoffMs = useMemo(
+    () => Date.now() - Math.max(1, recentDays) * 24 * 60 * 60 * 1000,
+    [recentDays]
+  );
+
+  const tracksForGeneration = useMemo(() => {
+    if (!useRecentOnly) return tracks;
+    return tracks.filter((t) => {
+      if (!t.created_at) return false;
+      const timestamp = Date.parse(t.created_at);
+      return Number.isFinite(timestamp) && timestamp >= recentCutoffMs;
+    });
+  }, [tracks, useRecentOnly, recentCutoffMs]);
+
   const availableStats = useMemo(() => {
-    const total = tracks.length;
-    const oldCount = tracks.filter((t) => isOldTrack(t.year)).length;
-    const newCount = tracks.filter((t) => isNewTrack(t.year)).length;
+    const total = tracksForGeneration.length;
+    const oldCount = tracksForGeneration.filter((t) => isOldTrack(t.year)).length;
+    const newCount = tracksForGeneration.filter((t) => isNewTrack(t.year)).length;
     return { total, oldCount, newCount };
-  }, [tracks]);
+  }, [tracksForGeneration]);
 
   const relatedIndex = useMemo(() => {
     const map = new Map<string, string>();
@@ -382,7 +399,7 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
       const key = `${row.trackType}|${row.ageGroup}`;
       if (pools.has(key)) return pools.get(key) || [];
       const typeNorm = normalizeTrackType(row.trackType);
-      const pool = tracks.filter((t) => {
+      const pool = tracksForGeneration.filter((t) => {
         const typeOk =
           row.trackType === "Любой" ||
           normalizeTrackType(t.track_type) === typeNorm;
@@ -791,7 +808,7 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
           <h3 className="text-lg font-medium">{t("playlist.durationTitle")}</h3>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
             <label className="block text-xs text-gray-500 mb-1">
               {t("playlist.targetDuration")}
@@ -843,6 +860,30 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
               />
               <span className="text-sm text-gray-500">{t("playlist.secondsShort")}</span>
             </div>
+          </div>
+
+          <div>
+            <label className="inline-flex items-center gap-2 text-xs text-gray-500 mb-1">
+              <input
+                type="checkbox"
+                checked={useRecentOnly}
+                onChange={(e) => setUseRecentOnly(e.target.checked)}
+              />
+              {t("playlist.recentOnly")}
+            </label>
+            <label className="block text-xs text-gray-500 mb-1">{t("playlist.recentDays")}</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min={1}
+                value={recentDays}
+                onChange={(e) => setRecentDays(Math.max(1, Number(e.target.value) || 1))}
+                disabled={!useRecentOnly}
+                className="w-20 rounded border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1 text-sm disabled:opacity-60"
+              />
+              <span className="text-sm text-gray-500">{t("playlist.daysShort")}</span>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">{t("playlist.recentHint")}</p>
           </div>
 
           <div>
@@ -1222,8 +1263,5 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
     </div>
   );
 }
-
-
-
 
 

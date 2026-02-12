@@ -133,13 +133,47 @@ export async function POST(request: Request) {
       : new Blob([m3uText], { type: "audio/x-mpegurl" });
     form.append("m3u", m3uBlob, `${safeName}.m3u`);
 
-    const res = await fetch(`${base}/api/v2/playlists/`, {
-      method: "POST",
-      headers: {
-        "SC-API-KEY": apiKey,
-      },
-      body: form,
-    });
+    const uploadUrl = `${base}/api/v2/playlists/`;
+    const timeoutMs = Math.max(
+      3000,
+      Number.parseInt(process.env.STREAMING_CENTER_UPLOAD_TIMEOUT_MS || "15000", 10) || 15000
+    );
+    const abort = new AbortController();
+    const timer = setTimeout(() => abort.abort(), timeoutMs);
+
+    let res: Response;
+    try {
+      res = await fetch(uploadUrl, {
+        method: "POST",
+        headers: {
+          "SC-API-KEY": apiKey,
+        },
+        body: form,
+        signal: abort.signal,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const timeoutHint =
+        message.includes("aborted") || message.toLowerCase().includes("timeout")
+          ? `Timeout after ${timeoutMs}ms`
+          : message;
+      console.error("[radio upload] network error", {
+        uploadUrl,
+        timeoutMs,
+        error: timeoutHint,
+      });
+      return NextResponse.json(
+        {
+          error:
+            `Не удалось подключиться к Streaming.Center (${uploadUrl}). ` +
+            `Проверьте STREAMING_CENTER_API_URL, доступность сервера и TLS. ` +
+            `Детали: ${timeoutHint}`,
+        },
+        { status: 502 }
+      );
+    } finally {
+      clearTimeout(timer);
+    }
 
     const contentType = res.headers.get("content-type") || "";
     const text = await res.text();

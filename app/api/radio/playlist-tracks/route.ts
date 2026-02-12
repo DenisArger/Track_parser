@@ -18,7 +18,8 @@ export async function GET() {
     const supabase = createSupabaseServerClient();
     const { data, error } = await supabase
       .from("radio_tracks")
-      .select("id, raw_name, artist, title, track_type, year, rating");
+      .select("id, raw_name, artist, title, track_type, year, rating, created_at")
+      .order("created_at", { ascending: false, nullsFirst: false });
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 502 });
