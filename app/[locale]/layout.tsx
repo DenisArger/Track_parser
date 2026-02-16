@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import packageJson from "../../package.json";
 import { getAuthUser } from "@/lib/supabase/server";
 import { logoutAction } from "@/lib/actions/authActions";
 import { locales, type Locale } from "@/lib/i18n/config";
@@ -54,6 +55,7 @@ export default async function LocaleLayout({
   const loginLabel = layout?.login ?? "Login";
   const signupLabel = layout?.signup ?? "Sign up";
   const logoutLabel = layout?.logout ?? "Logout";
+  const appVersion = packageJson.version || "dev";
 
   return (
     <I18nProvider locale={typedLocale} messages={messages}>
@@ -90,6 +92,11 @@ export default async function LocaleLayout({
           </div>
         </header>
         <main>{children}</main>
+        <footer className="mt-8 flex justify-end">
+          <span className="text-[11px] text-gray-400 dark:text-gray-500 opacity-70 select-none">
+            v{appVersion}
+          </span>
+        </footer>
       </div>
     </I18nProvider>
   );
