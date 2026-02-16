@@ -1,6 +1,6 @@
 {
   "name": "track-parser",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "Web application for automated radio track preparation",
   "private": true,
   "scripts": {
