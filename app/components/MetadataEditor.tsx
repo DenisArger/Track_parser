@@ -46,8 +46,14 @@ export default function MetadataEditor({
     let isMounted = true;
     const loadArtists = async () => {
       try {
-        const res = await fetch("/api/radio/artists");
-        if (!res.ok) return;
+        const res = await fetch("/api/radio/artists", {
+          cache: "no-store",
+          credentials: "same-origin",
+        });
+        if (!res.ok) {
+          console.warn("Failed to load artist suggestions:", res.status);
+          return;
+        }
         const data = (await res.json()) as { artists?: string[] };
         if (isMounted && Array.isArray(data.artists)) {
           setArtistSuggestions(data.artists);
