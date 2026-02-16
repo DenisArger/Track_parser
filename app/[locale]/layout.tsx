@@ -92,8 +92,8 @@ export default async function LocaleLayout({
           </div>
         </header>
         <main>{children}</main>
-        <footer className="mt-8 flex justify-end">
-          <span className="text-[11px] text-gray-400 dark:text-gray-500 opacity-70 select-none">
+        <footer className="fixed bottom-2 right-3 z-10 pointer-events-none">
+          <span className="text-[11px] text-gray-500 dark:text-gray-400 opacity-70 select-none">
             v{appVersion}
           </span>
         </footer>
