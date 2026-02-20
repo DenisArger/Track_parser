@@ -227,7 +227,6 @@ export default function DownloadTrack({
         method: "PUT",
         headers: {
           "Content-Type": file.type || "audio/mpeg",
-          "x-upsert": "true",
         },
         body: file,
       });
@@ -285,8 +284,16 @@ export default function DownloadTrack({
       onTracksUpdate();
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
+      const likelyCorsOnSignedUpload =
+        errorMessage.toLowerCase().includes("failed to fetch") &&
+        currentStage === "signed-upload";
       setDetailedError(
-        getUserFacingErrorMessage(err, t("download.errors.localUploadFailed")),
+        likelyCorsOnSignedUpload
+          ? `${getUserFacingErrorMessage(
+              err,
+              t("download.errors.localUploadFailed")
+            )}. Вероятно CORS на signed upload URL (Supabase Storage).`
+          : getUserFacingErrorMessage(err, t("download.errors.localUploadFailed")),
         "local-file-upload",
         err,
         {
@@ -294,9 +301,7 @@ export default function DownloadTrack({
           endpoint: currentEndpoint,
           httpStatus: currentHttpStatus,
           signedUrlHost: currentSignedUrlHost,
-          isLikelyCors:
-            errorMessage.toLowerCase().includes("failed to fetch") &&
-            currentStage === "signed-upload",
+          isLikelyCors: likelyCorsOnSignedUpload,
           fileName: file.name,
           fileType: file.type || "audio/mpeg",
           fileSize: file.size,
