@@ -137,6 +137,60 @@ describe("getTrackStats", () => {
       rejected: 0,
     });
   });
+
+  it("returns zeros during Next.js production build phase", async () => {
+    process.env.NEXT_PHASE = "phase-production-build";
+    const mod = await import("./trackUtils");
+    const stats = await mod.getTrackStats();
+    expect(stats).toEqual({
+      total: 0,
+      downloaded: 0,
+      processed: 0,
+      trimmed: 0,
+      rejected: 0,
+    });
+  });
+
+  it("counts statuses and trimmed tracks correctly", async () => {
+    vi.resetModules();
+    vi.doMock("fs-extra", () => ({
+      pathExists: vi.fn().mockResolvedValue(true),
+      readJson: vi.fn().mockResolvedValue([
+        {
+          id: "d1",
+          status: "downloaded",
+          metadata: { ...baseMeta, isTrimmed: false },
+        },
+        {
+          id: "p1",
+          status: "processed",
+          metadata: {
+            ...baseMeta,
+            isTrimmed: true,
+            trimSettings: { startTime: 10, fadeIn: 0, fadeOut: 0 },
+          },
+        },
+        {
+          id: "r1",
+          status: "rejected",
+          metadata: { ...baseMeta, isTrimmed: false },
+        },
+      ]),
+    }));
+    vi.doMock("@/lib/utils/environment", () => ({
+      getSafeWorkingDirectory: () => "/tmp",
+    }));
+
+    const mod = await import("./trackUtils");
+    const stats = await mod.getTrackStats();
+    expect(stats).toEqual({
+      total: 3,
+      downloaded: 1,
+      processed: 1,
+      trimmed: 1,
+      rejected: 1,
+    });
+  });
 });
 
 describe("cleanupTrackStatuses", () => {
@@ -156,5 +210,81 @@ describe("cleanupTrackStatuses", () => {
   it("does not throw when tracks.json does not exist", async () => {
     const mod = await import("./trackUtils");
     await expect(mod.cleanupTrackStatuses()).resolves.toBeUndefined();
+  });
+
+  it("returns early in build phase", async () => {
+    process.env.NEXT_PHASE = "phase-production-build";
+    const mod = await import("./trackUtils");
+    await expect(mod.cleanupTrackStatuses()).resolves.toBeUndefined();
+  });
+
+  it("writes updated json when invalid trim flags are found", async () => {
+    vi.resetModules();
+    const writeJson = vi.fn();
+    vi.doMock("fs-extra", () => ({
+      pathExists: vi.fn().mockResolvedValue(true),
+      readJson: vi.fn().mockResolvedValue([
+        {
+          id: "t1",
+          metadata: {
+            ...baseMeta,
+            isTrimmed: true,
+            trimSettings: { startTime: 0, fadeIn: 0, fadeOut: 0 },
+          },
+        },
+        {
+          id: "t2",
+          metadata: {
+            ...baseMeta,
+            isTrimmed: false,
+            trimSettings: { startTime: 5, fadeIn: 0, fadeOut: 0 },
+          },
+        },
+      ]),
+      writeJson,
+    }));
+    vi.doMock("@/lib/utils/environment", () => ({
+      getSafeWorkingDirectory: () => "/tmp",
+    }));
+
+    const mod = await import("./trackUtils");
+    await mod.cleanupTrackStatuses();
+
+    expect(writeJson).toHaveBeenCalledWith(
+      "/tmp/tracks.json",
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "t1",
+          metadata: expect.not.objectContaining({ isTrimmed: true }),
+        }),
+      ]),
+      { spaces: 2 }
+    );
+  });
+
+  it("does not write json when no cleanup is needed", async () => {
+    vi.resetModules();
+    const writeJson = vi.fn();
+    vi.doMock("fs-extra", () => ({
+      pathExists: vi.fn().mockResolvedValue(true),
+      readJson: vi.fn().mockResolvedValue([
+        {
+          id: "ok-1",
+          metadata: {
+            ...baseMeta,
+            isTrimmed: true,
+            trimSettings: { startTime: 10, fadeIn: 0, fadeOut: 0 },
+          },
+        },
+      ]),
+      writeJson,
+    }));
+    vi.doMock("@/lib/utils/environment", () => ({
+      getSafeWorkingDirectory: () => "/tmp",
+    }));
+
+    const mod = await import("./trackUtils");
+    await mod.cleanupTrackStatuses();
+    expect(writeJson).not.toHaveBeenCalled();
   });
 });
