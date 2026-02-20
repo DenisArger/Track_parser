@@ -155,4 +155,21 @@ describe("DownloadTrack", () => {
     });
     expect(onTracksUpdate).toHaveBeenCalledTimes(1);
   });
+
+  it("shows debug details on network failure during download", async () => {
+    mockDownloadTrackAction.mockRejectedValue(new Error("Failed to fetch"));
+    renderWithI18n(<DownloadTrack onTracksUpdate={vi.fn()} tracks={[]} />);
+
+    fireEvent.change(screen.getByLabelText("Track URL"), {
+      target: { value: "https://youtube.com/watch?v=123" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Download Track" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Failed to fetch")).toBeInTheDocument();
+      expect(screen.getByText("Debug details")).toBeInTheDocument();
+      expect(screen.getByText(/operation: download-track-action-threw/)).toBeInTheDocument();
+      expect(screen.getByText(/online:/)).toBeInTheDocument();
+    });
+  });
 });

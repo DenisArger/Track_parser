@@ -16,6 +16,22 @@ interface DownloadTrackProps {
   onRadioMap?: Record<string, boolean>;
 }
 
+type ErrorDiagnostics = {
+  operation: string;
+  timestamp: string;
+  urlInput?: string;
+  source?: "youtube" | "youtube-music" | "auto";
+  httpStatus?: number;
+  endpoint?: string;
+  fileName?: string;
+  fileType?: string;
+  fileSize?: number;
+  online?: boolean;
+  errorName?: string;
+  errorMessage?: string;
+  stack?: string;
+};
+
 export default function DownloadTrack({
   onTracksUpdate,
   tracks,
@@ -33,6 +49,7 @@ export default function DownloadTrack({
     {}
   );
   const [error, setError] = useState("");
+  const [errorDiagnostics, setErrorDiagnostics] = useState<ErrorDiagnostics | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const visibleDownloadingTracks = getDownloadingTracks(tracks).filter(
     (track) => !hiddenTrackIds[track.id]
@@ -46,21 +63,57 @@ export default function DownloadTrack({
     "youtube-music": t("download.placeholder.youtubeMusic"),
   } as const;
 
+  const setDetailedError = (
+    userMessage: string,
+    operation: string,
+    err?: unknown,
+    extras: Partial<ErrorDiagnostics> = {}
+  ) => {
+    setError(userMessage);
+    const errorName = err instanceof Error ? err.name : typeof err;
+    const errorMessage = err instanceof Error ? err.message : String(err ?? "");
+    const stack =
+      err instanceof Error && err.stack
+        ? err.stack.split("\n").slice(0, 8).join("\n")
+        : undefined;
+
+    setErrorDiagnostics({
+      operation,
+      timestamp: new Date().toISOString(),
+      urlInput: url || undefined,
+      source,
+      online: typeof navigator !== "undefined" ? navigator.onLine : undefined,
+      errorName,
+      errorMessage,
+      stack,
+      ...extras,
+    });
+
+    console.error("[DownloadTrack] UI error", {
+      userMessage,
+      operation,
+      errorName,
+      errorMessage,
+      extras,
+    });
+  };
+
   const handleDownload = async () => {
     if (!url.trim()) {
-      setError(t("download.errors.invalidUrl"));
+      setDetailedError(t("download.errors.invalidUrl"), "validate-download-url");
       return;
     }
 
     setIsDownloading(true);
     setError("");
+    setErrorDiagnostics(null);
 
     try {
       const sourceParam = source === "auto" ? undefined : source;
       const result = await downloadTrackAction(url, sourceParam);
 
       if (!result.ok) {
-        setError(result.error);
+        setDetailedError(result.error, "download-track-action-returned-error");
         return;
       }
 
@@ -68,7 +121,11 @@ export default function DownloadTrack({
       setUrl("");
       onTracksUpdate();
     } catch (err) {
-      setError(getUserFacingErrorMessage(err, t("download.errors.downloadFailed")));
+      setDetailedError(
+        getUserFacingErrorMessage(err, t("download.errors.downloadFailed")),
+        "download-track-action-threw",
+        err
+      );
     } finally {
       setIsDownloading(false);
     }
@@ -77,6 +134,7 @@ export default function DownloadTrack({
   const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setUrl(e.target.value);
     setError("");
+    setErrorDiagnostics(null);
   };
 
   const handleSourceChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -86,6 +144,7 @@ export default function DownloadTrack({
   const handleLocalFileUpload = async (file: File) => {
     setIsUploadingLocal(true);
     setError("");
+    setErrorDiagnostics(null);
 
     try {
       const signResponse = await fetch("/api/upload-local/signed", {
@@ -133,7 +192,7 @@ export default function DownloadTrack({
         throw new Error(
           isTooLarge
             ? t("download.errors.fileTooLarge")
-            : rawMessage
+            : `${rawMessage} (HTTP ${signResponse.status}, /api/upload-local/signed)`
         );
       }
 
@@ -154,7 +213,11 @@ export default function DownloadTrack({
 
       if (!uploadResponse.ok) {
         const uploadText = await uploadResponse.text();
-        throw new Error(uploadText || t("download.errors.storageUploadFailed"));
+        throw new Error(
+          `${uploadText || t("download.errors.storageUploadFailed")} (HTTP ${
+            uploadResponse.status
+          }, signed upload)`
+        );
       }
 
       const completeResponse = await fetch("/api/upload-local/complete", {
@@ -189,13 +252,22 @@ export default function DownloadTrack({
         throw new Error(
           isTooLarge
             ? t("download.errors.fileTooLarge")
-            : rawMessage
+            : `${rawMessage} (HTTP ${completeResponse.status}, /api/upload-local/complete)`
         );
       }
 
       onTracksUpdate();
     } catch (err) {
-      setError(getUserFacingErrorMessage(err, t("download.errors.localUploadFailed")));
+      setDetailedError(
+        getUserFacingErrorMessage(err, t("download.errors.localUploadFailed")),
+        "local-file-upload",
+        err,
+        {
+          fileName: file.name,
+          fileType: file.type || "audio/mpeg",
+          fileSize: file.size,
+        }
+      );
     } finally {
       setIsUploadingLocal(false);
     }
@@ -234,7 +306,7 @@ export default function DownloadTrack({
 
   const handleDeleteTrack = async (trackId: string) => {
     if (!trackId || trackId === "undefined" || trackId === "null") {
-      setError(t("download.errors.trackIdRequired"));
+      setDetailedError(t("download.errors.trackIdRequired"), "validate-track-id-for-delete");
       return;
     }
     const confirmed = window.confirm(
@@ -244,6 +316,7 @@ export default function DownloadTrack({
 
     setDeletingIds((prev) => ({ ...prev, [trackId]: true }));
     setError("");
+    setErrorDiagnostics(null);
     try {
       setHiddenTrackIds((prev) => ({ ...prev, [trackId]: true }));
       const response = await fetch(`/api/tracks/${trackId}`, {
@@ -256,11 +329,18 @@ export default function DownloadTrack({
           delete next[trackId];
           return next;
         });
-        throw new Error(result?.error || "Delete failed");
+        throw new Error(
+          `${result?.error || "Delete failed"} (HTTP ${response.status}, /api/tracks/${trackId})`
+        );
       }
       onTracksUpdate();
     } catch (err) {
-      setError(getUserFacingErrorMessage(err, t("download.errors.deleteFailed")));
+      setDetailedError(
+        getUserFacingErrorMessage(err, t("download.errors.deleteFailed")),
+        "delete-track",
+        err,
+        { endpoint: `/api/tracks/${trackId}` }
+      );
     } finally {
       setDeletingIds((prev) => ({ ...prev, [trackId]: false }));
     }
@@ -362,6 +442,27 @@ export default function DownloadTrack({
         {error && (
           <div className="bg-danger-50 border border-danger-200 rounded-lg p-3">
             <p className="text-danger-700 text-sm">{error}</p>
+            {errorDiagnostics && (
+              <div className="mt-3 p-3 rounded border border-danger-200 bg-white">
+                <p className="text-xs font-semibold text-gray-700 mb-1">Debug details</p>
+                <pre className="text-xs text-gray-700 whitespace-pre-wrap break-all">
+{`operation: ${errorDiagnostics.operation}
+time: ${errorDiagnostics.timestamp}
+urlInput: ${errorDiagnostics.urlInput || "-"}
+source: ${errorDiagnostics.source || "-"}
+endpoint: ${errorDiagnostics.endpoint || "-"}
+httpStatus: ${errorDiagnostics.httpStatus ?? "-"}
+fileName: ${errorDiagnostics.fileName || "-"}
+fileType: ${errorDiagnostics.fileType || "-"}
+fileSize: ${errorDiagnostics.fileSize ?? "-"}
+online: ${errorDiagnostics.online === undefined ? "-" : String(errorDiagnostics.online)}
+errorName: ${errorDiagnostics.errorName || "-"}
+errorMessage: ${errorDiagnostics.errorMessage || "-"}
+stack:
+${errorDiagnostics.stack || "-"}`}
+                </pre>
+              </div>
+            )}
           </div>
         )}
 
@@ -492,4 +593,3 @@ export default function DownloadTrack({
     </div>
   );
 }
-
