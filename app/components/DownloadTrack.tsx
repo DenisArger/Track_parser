@@ -18,15 +18,19 @@ interface DownloadTrackProps {
 
 type ErrorDiagnostics = {
   operation: string;
+  stage?: "sign-request" | "signed-upload" | "complete-request" | "unknown";
   timestamp: string;
   urlInput?: string;
   source?: "youtube" | "youtube-music" | "auto";
   httpStatus?: number;
   endpoint?: string;
+  signedUrlHost?: string;
   fileName?: string;
   fileType?: string;
   fileSize?: number;
   online?: boolean;
+  userAgent?: string;
+  isLikelyCors?: boolean;
   errorName?: string;
   errorMessage?: string;
   stack?: string;
@@ -83,6 +87,7 @@ export default function DownloadTrack({
       urlInput: url || undefined,
       source,
       online: typeof navigator !== "undefined" ? navigator.onLine : undefined,
+      userAgent: typeof navigator !== "undefined" ? navigator.userAgent : undefined,
       errorName,
       errorMessage,
       stack,
@@ -145,8 +150,15 @@ export default function DownloadTrack({
     setIsUploadingLocal(true);
     setError("");
     setErrorDiagnostics(null);
+    let currentStage: ErrorDiagnostics["stage"] = "unknown";
+    let currentEndpoint: string | undefined;
+    let currentHttpStatus: number | undefined;
+    let currentSignedUrlHost: string | undefined;
 
     try {
+      currentStage = "sign-request";
+      currentEndpoint = "/api/upload-local/signed";
+      currentHttpStatus = undefined;
       const signResponse = await fetch("/api/upload-local/signed", {
         method: "POST",
         headers: {
@@ -157,6 +169,7 @@ export default function DownloadTrack({
           contentType: file.type || "audio/mpeg",
         }),
       });
+      currentHttpStatus = signResponse.status;
 
       const signContentType = signResponse.headers.get("content-type") || "";
       const signText = await signResponse.text();
@@ -201,6 +214,14 @@ export default function DownloadTrack({
       if (!signedUrl || !trackId) {
         throw new Error(t("download.errors.signedUrlMissing"));
       }
+      currentStage = "signed-upload";
+      currentEndpoint = signedUrl;
+      currentHttpStatus = undefined;
+      try {
+        currentSignedUrlHost = new URL(signedUrl).host;
+      } catch {
+        currentSignedUrlHost = undefined;
+      }
 
       const uploadResponse = await fetch(signedUrl, {
         method: "PUT",
@@ -210,6 +231,7 @@ export default function DownloadTrack({
         },
         body: file,
       });
+      currentHttpStatus = uploadResponse.status;
 
       if (!uploadResponse.ok) {
         const uploadText = await uploadResponse.text();
@@ -220,6 +242,9 @@ export default function DownloadTrack({
         );
       }
 
+      currentStage = "complete-request";
+      currentEndpoint = "/api/upload-local/complete";
+      currentHttpStatus = undefined;
       const completeResponse = await fetch("/api/upload-local/complete", {
         method: "POST",
         headers: {
@@ -227,6 +252,7 @@ export default function DownloadTrack({
         },
         body: JSON.stringify({ trackId }),
       });
+      currentHttpStatus = completeResponse.status;
 
       const completeContentType =
         completeResponse.headers.get("content-type") || "";
@@ -258,11 +284,19 @@ export default function DownloadTrack({
 
       onTracksUpdate();
     } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
       setDetailedError(
         getUserFacingErrorMessage(err, t("download.errors.localUploadFailed")),
         "local-file-upload",
         err,
         {
+          stage: currentStage,
+          endpoint: currentEndpoint,
+          httpStatus: currentHttpStatus,
+          signedUrlHost: currentSignedUrlHost,
+          isLikelyCors:
+            errorMessage.toLowerCase().includes("failed to fetch") &&
+            currentStage === "signed-upload",
           fileName: file.name,
           fileType: file.type || "audio/mpeg",
           fileSize: file.size,
@@ -447,15 +481,19 @@ export default function DownloadTrack({
                 <p className="text-xs font-semibold text-gray-700 mb-1">Debug details</p>
                 <pre className="text-xs text-gray-700 whitespace-pre-wrap break-all">
 {`operation: ${errorDiagnostics.operation}
+stage: ${errorDiagnostics.stage || "-"}
 time: ${errorDiagnostics.timestamp}
 urlInput: ${errorDiagnostics.urlInput || "-"}
 source: ${errorDiagnostics.source || "-"}
 endpoint: ${errorDiagnostics.endpoint || "-"}
+signedUrlHost: ${errorDiagnostics.signedUrlHost || "-"}
 httpStatus: ${errorDiagnostics.httpStatus ?? "-"}
 fileName: ${errorDiagnostics.fileName || "-"}
 fileType: ${errorDiagnostics.fileType || "-"}
 fileSize: ${errorDiagnostics.fileSize ?? "-"}
 online: ${errorDiagnostics.online === undefined ? "-" : String(errorDiagnostics.online)}
+isLikelyCors: ${errorDiagnostics.isLikelyCors === undefined ? "-" : String(errorDiagnostics.isLikelyCors)}
+userAgent: ${errorDiagnostics.userAgent || "-"}
 errorName: ${errorDiagnostics.errorName || "-"}
 errorMessage: ${errorDiagnostics.errorMessage || "-"}
 stack:
