@@ -31,6 +31,7 @@ type ErrorDiagnostics = {
   online?: boolean;
   userAgent?: string;
   isLikelyCors?: boolean;
+  isLikelyBrowserBlock?: boolean;
   errorName?: string;
   errorMessage?: string;
   stack?: string;
@@ -292,7 +293,7 @@ export default function DownloadTrack({
           ? `${getUserFacingErrorMessage(
               err,
               t("download.errors.localUploadFailed")
-            )}. Вероятно CORS на signed upload URL (Supabase Storage).`
+            )}. Вероятно блокировка запроса браузером/расширением (signed upload URL Supabase Storage).`
           : getUserFacingErrorMessage(err, t("download.errors.localUploadFailed")),
         "local-file-upload",
         err,
@@ -302,6 +303,7 @@ export default function DownloadTrack({
           httpStatus: currentHttpStatus,
           signedUrlHost: currentSignedUrlHost,
           isLikelyCors: likelyCorsOnSignedUpload,
+          isLikelyBrowserBlock: likelyCorsOnSignedUpload,
           fileName: file.name,
           fileType: file.type || "audio/mpeg",
           fileSize: file.size,
@@ -483,6 +485,13 @@ export default function DownloadTrack({
             <p className="text-danger-700 text-sm">{error}</p>
             {errorDiagnostics && (
               <div className="mt-3 p-3 rounded border border-danger-200 bg-white">
+                {errorDiagnostics.isLikelyBrowserBlock && (
+                  <div className="mb-3 rounded border border-amber-300 bg-amber-50 p-2 text-xs text-amber-800">
+                    Похоже, браузер блокирует upload-запрос к Supabase.
+                    Проверьте расширения/блокировщики, отключите Protect и повторите в режиме
+                    инкогнито (Chrome) без расширений.
+                  </div>
+                )}
                 <p className="text-xs font-semibold text-gray-700 mb-1">Debug details</p>
                 <pre className="text-xs text-gray-700 whitespace-pre-wrap break-all">
 {`operation: ${errorDiagnostics.operation}
@@ -498,6 +507,7 @@ fileType: ${errorDiagnostics.fileType || "-"}
 fileSize: ${errorDiagnostics.fileSize ?? "-"}
 online: ${errorDiagnostics.online === undefined ? "-" : String(errorDiagnostics.online)}
 isLikelyCors: ${errorDiagnostics.isLikelyCors === undefined ? "-" : String(errorDiagnostics.isLikelyCors)}
+isLikelyBrowserBlock: ${errorDiagnostics.isLikelyBrowserBlock === undefined ? "-" : String(errorDiagnostics.isLikelyBrowserBlock)}
 userAgent: ${errorDiagnostics.userAgent || "-"}
 errorName: ${errorDiagnostics.errorName || "-"}
 errorMessage: ${errorDiagnostics.errorMessage || "-"}
