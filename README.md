@@ -1,4 +1,5 @@
 # Track Parser
+[![CI](https://github.com/DenisArger/Track_parser/actions/workflows/ci.yml/badge.svg)](https://github.com/DenisArger/Track_parser/actions/workflows/ci.yml)
 
 ## English
 ## Problem
