@@ -39,6 +39,13 @@
       "status": "Status",
       "error": "Error",
       "actions": "Actions"
+    },
+    "actions": {
+      "approve": "Approve",
+      "reject": "Reject",
+      "readyForUpload": "Ready for upload",
+      "backToDownloaded": "Back to downloaded",
+      "uploadedFtp": "Uploaded via FTP"
     }
   },
   "messages": {

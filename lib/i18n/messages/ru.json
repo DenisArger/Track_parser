@@ -39,6 +39,13 @@
       "status": "Статус",
       "error": "Ошибка",
       "actions": "Действия"
+    },
+    "actions": {
+      "approve": "Одобрить",
+      "reject": "Отклонить",
+      "readyForUpload": "Готов к загрузке",
+      "backToDownloaded": "Вернуть в загрузку",
+      "uploadedFtp": "Загружен по FTP"
     }
   },
   "messages": {

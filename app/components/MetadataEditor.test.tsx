@@ -32,10 +32,6 @@ describe("MetadataEditor", () => {
         );
       }
 
-      if (url.includes("/api/tracks/t1/status") && method === "POST") {
-        return Promise.resolve(new Response(JSON.stringify({ ok: true }), { status: 200 }));
-      }
-
       return Promise.resolve(new Response(JSON.stringify({ ok: true }), { status: 200 }));
     });
 
@@ -102,42 +98,14 @@ describe("MetadataEditor", () => {
     expect(onTracksUpdate).toHaveBeenCalledTimes(1);
   });
 
-  it("changes status and triggers refresh", async () => {
-    const onTracksUpdate = vi.fn();
-    renderEditor(onTracksUpdate);
-
-    fireEvent.click(screen.getByText("Old title"));
-
-    fireEvent.change(screen.getByLabelText("Status"), {
-      target: { value: "trimmed" },
-    });
-
-    await waitFor(() => {
-      expect(mockFetch).toHaveBeenCalledWith(
-        "/api/tracks/t1/status",
-        expect.objectContaining({ method: "POST" })
-      );
-    });
-    expect(onTracksUpdate).toHaveBeenCalled();
-  });
-
   it("shows errors when save or status update fails", async () => {
     mockUpdateMetadataAction.mockRejectedValueOnce(new Error("save failed"));
     mockFetch.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
       const url = typeof input === "string" ? input : input.toString();
-      const method = init?.method || "GET";
       if (url.includes("/api/radio/artists")) {
         return Promise.resolve(
           new Response(JSON.stringify({ artists: [] }), {
             status: 200,
-            headers: { "Content-Type": "application/json" },
-          })
-        );
-      }
-      if (url.includes("/api/tracks/t1/status") && method === "POST") {
-        return Promise.resolve(
-          new Response(JSON.stringify({ error: "forbidden" }), {
-            status: 500,
             headers: { "Content-Type": "application/json" },
           })
         );
@@ -154,14 +122,6 @@ describe("MetadataEditor", () => {
       expect(mockAlert).toHaveBeenCalledWith("Error updating metadata: save failed");
     });
 
-    fireEvent.change(screen.getByLabelText("Status"), {
-      target: { value: "trimmed" },
-    });
-
-    await waitFor(() => {
-      expect(mockAlert).toHaveBeenCalledWith(
-        "Failed to change status: forbidden"
-      );
-    });
+    expect(screen.queryByLabelText("Status")).not.toBeInTheDocument();
   });
 });

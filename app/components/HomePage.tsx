@@ -28,6 +28,43 @@ const OVERVIEW_STATUS_FILTERS = [
   "uploaded_radio",
 ] as const;
 
+const OVERVIEW_STATUS_TRANSITIONS: Partial<
+  Record<
+    Track["status"],
+    { status: Track["status"]; labelKey: string }[]
+  >
+> = {
+  downloaded: [
+    { status: "reviewed_approved", labelKey: "overview.actions.approve" },
+    { status: "reviewed_rejected", labelKey: "overview.actions.reject" },
+  ],
+  reviewed_approved: [
+    { status: "ready_for_upload", labelKey: "overview.actions.readyForUpload" },
+    { status: "reviewed_rejected", labelKey: "overview.actions.reject" },
+    { status: "downloaded", labelKey: "overview.actions.backToDownloaded" },
+  ],
+  reviewed_rejected: [
+    { status: "reviewed_approved", labelKey: "overview.actions.approve" },
+    { status: "ready_for_upload", labelKey: "overview.actions.readyForUpload" },
+    { status: "downloaded", labelKey: "overview.actions.backToDownloaded" },
+  ],
+  trimmed: [
+    { status: "reviewed_approved", labelKey: "overview.actions.approve" },
+    { status: "ready_for_upload", labelKey: "overview.actions.readyForUpload" },
+    { status: "reviewed_rejected", labelKey: "overview.actions.reject" },
+  ],
+  ready_for_upload: [
+    { status: "reviewed_approved", labelKey: "overview.actions.approve" },
+    { status: "reviewed_rejected", labelKey: "overview.actions.reject" },
+    { status: "uploaded_ftp", labelKey: "overview.actions.uploadedFtp" },
+  ],
+  uploaded_radio: [
+    { status: "reviewed_approved", labelKey: "overview.actions.approve" },
+    { status: "ready_for_upload", labelKey: "overview.actions.readyForUpload" },
+    { status: "reviewed_rejected", labelKey: "overview.actions.reject" },
+  ],
+};
+
 export default function HomePage() {
   const { t } = useI18n();
   const [tracks, setTracks] = useState<Track[]>([]);
@@ -229,6 +266,14 @@ export default function HomePage() {
       ? tracks
       : tracks.filter((track) => track.status === overviewFilter);
 
+  const updateTrackStatus = async (
+    trackId: string,
+    status: Track["status"]
+  ) => {
+    await changeTrackStatusAction(trackId, status);
+    await fetchTracks();
+  };
+
   return (
     <div className="space-y-6">
       {loadError && (
@@ -308,9 +353,6 @@ export default function HomePage() {
                     {t("overview.table.status")}
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">
-                    {t("overview.table.error")}
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">
                     {t("overview.table.actions")}
                   </th>
                 </tr>
@@ -318,7 +360,7 @@ export default function HomePage() {
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-900">
                 {overviewTracks.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-500">
+                    <td colSpan={4} className="px-4 py-8 text-center text-sm text-gray-500">
                       {t("trackList.emptyDefault")}
                     </td>
                   </tr>
@@ -334,26 +376,50 @@ export default function HomePage() {
                         {track.metadata.artist}
                       </td>
                       <td className="px-4 py-3 align-top">
-                        <TrackStatusBadge status={track.status} />
-                      </td>
-                      <td className="px-4 py-3 align-top">
                         {track.error ? (
-                          <div className="flex flex-wrap items-center gap-2">
+                          <div className="space-y-2">
+                            <TrackStatusBadge status={track.status} />
                             <p className="text-xs text-danger-600 dark:text-danger-400 max-w-xs">
                               {t("overview.errorLabel")}: {track.error}
                             </p>
+                          </div>
+                        ) : (
+                          <TrackStatusBadge status={track.status} />
+                        )}
+                      </td>
+                      <td className="px-4 py-3 align-top">
+                        <div className="flex flex-wrap gap-2">
+                          {track.status !== "uploaded_ftp" &&
+                            OVERVIEW_STATUS_TRANSITIONS[track.status]?.map((transition) => (
+                              <button
+                                key={transition.status}
+                                type="button"
+                                onClick={async () => {
+                                  if (clearingErrorId) return;
+                                  setClearingErrorId(track.id);
+                                  try {
+                                    await updateTrackStatus(track.id, transition.status);
+                                  } finally {
+                                    setClearingErrorId(null);
+                                  }
+                                }}
+                                disabled={!!clearingErrorId}
+                                className="text-xs px-2 py-1 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 disabled:opacity-50"
+                              >
+                                {clearingErrorId === track.id ? "…" : t(transition.labelKey)}
+                              </button>
+                            ))}
+                          {track.error && track.status !== "uploaded_ftp" && (
                             <button
                               type="button"
-                              onClick={async (e) => {
-                                e.stopPropagation();
+                              onClick={async () => {
                                 if (clearingErrorId) return;
                                 setClearingErrorId(track.id);
                                 try {
-                                  await changeTrackStatusAction(
+                                  await updateTrackStatus(
                                     track.id,
                                     track.processedPath ? "ready_for_upload" : "downloaded"
                                   );
-                                  await fetchTracks();
                                 } finally {
                                   setClearingErrorId(null);
                                 }
@@ -363,12 +429,9 @@ export default function HomePage() {
                             >
                               {clearingErrorId === track.id ? "…" : t("overview.clearError")}
                             </button>
-                          </div>
-                        ) : (
-                          <span className="text-sm text-gray-400 dark:text-gray-500">—</span>
-                        )}
+                          )}
+                        </div>
                       </td>
-                      <td className="px-4 py-3 align-top text-sm text-gray-500">—</td>
                     </tr>
                   ))
                 )}

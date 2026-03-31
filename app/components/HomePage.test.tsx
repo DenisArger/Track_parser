@@ -211,4 +211,36 @@ describe("HomePage", () => {
       expect(screen.getByText("sync failed")).toBeInTheDocument();
     });
   });
+
+  it("shows status errors inline and renders transition actions", async () => {
+    mockGetAllTracks.mockResolvedValue([
+      {
+        id: "t1",
+        filename: "Song.mp3",
+        status: "ready_for_upload",
+        error: "broken state",
+        metadata: { title: "Song", artist: "Artist", genre: "Средний", year: 2026, rating: 5 },
+      },
+      {
+        id: "t2",
+        filename: "Done.mp3",
+        status: "uploaded_ftp",
+        metadata: { title: "Done", artist: "Artist", genre: "Средний", year: 2026, rating: 5 },
+      },
+    ]);
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText(/Error: broken state/)).toBeInTheDocument();
+    });
+    expect(screen.getByRole("button", { name: "Approve" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Reject" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Ready for upload" })
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Back to downloaded" })).not.toBeInTheDocument();
+    expect(screen.getAllByText("Uploaded via FTP").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("status:uploaded_ftp").length).toBeGreaterThan(0);
+  });
 });

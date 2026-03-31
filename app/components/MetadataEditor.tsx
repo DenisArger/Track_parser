@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Track, TrackMetadata, TrackType, TrackStatus } from "@/types/track";
+import { Track, TrackMetadata, TrackType } from "@/types/track";
 import TrackList from "./shared/TrackList";
-import TrackStatusBadge from "./shared/TrackStatusBadge";
 import { getProcessedTracks } from "@/lib/utils/trackFilters";
 import { formatTime } from "@/lib/utils/timeFormatter";
 import { getUserFacingErrorMessage } from "@/lib/utils/errorMessage";
@@ -31,7 +30,6 @@ export default function MetadataEditor({
     year: 2025,
   });
   const [isSaving, setIsSaving] = useState(false);
-  const [isChangingStatus, setIsChangingStatus] = useState(false);
   const [artistSuggestions, setArtistSuggestions] = useState<string[]>([]);
   const processedTracks = getProcessedTracks(tracks);
   const trackTypes: TrackType[] = ["Быстрый", "Средний", "Медленный", "Модерн"];
@@ -304,76 +302,6 @@ export default function MetadataEditor({
                       />
                     </div>
                   )}
-
-                  {/* Status Change */}
-                  <div>
-                    <label
-                      htmlFor="status"
-                      className="block text-sm font-medium text-gray-700 mb-1"
-                    >
-                      {t("metadata.fields.status")}
-                    </label>
-                    <div className="flex items-center space-x-3">
-                      <select
-                        id="status"
-                        value={selectedTrack.status}
-                        onChange={async (e) => {
-                          const newStatus = e.target.value as TrackStatus;
-                          if (newStatus === selectedTrack.status) return;
-
-                          setIsChangingStatus(true);
-                          try {
-                            const response = await fetch(
-                              `/api/tracks/${selectedTrack.id}/status`,
-                              {
-                                method: "POST",
-                                headers: {
-                                  "Content-Type": "application/json",
-                                },
-                                body: JSON.stringify({ status: newStatus }),
-                              }
-                            );
-
-                            if (!response.ok) {
-                              const errorData = await response.json();
-                              throw new Error(
-                                errorData.error || t("metadata.errors.changeStatus")
-                              );
-                            }
-
-                            onTracksUpdate();
-                            // Update selected track status
-                            setSelectedTrack({ ...selectedTrack, status: newStatus });
-                          } catch (error) {
-                            console.error("Error changing status:", error);
-                            alert(
-                              `${t("metadata.errors.changeStatus")}: ${getUserFacingErrorMessage(
-                                error,
-                                t("metadata.errors.unknown")
-                              )}`
-                            );
-                          } finally {
-                            setIsChangingStatus(false);
-                          }
-                        }}
-                        disabled={isChangingStatus}
-                        className="input flex-1 disabled:opacity-50"
-                      >
-                        <option value="downloaded">{t("status.downloaded")}</option>
-                        <option value="reviewed_approved">{t("status.reviewed_approved")}</option>
-                        <option value="reviewed_rejected">{t("status.reviewed_rejected")}</option>
-                        <option value="ready_for_upload">{t("status.ready_for_upload")}</option>
-                        <option value="trimmed">{t("status.trimmed")}</option>
-                        <option value="uploaded_ftp">{t("status.uploaded_ftp")}</option>
-                        <option value="uploaded_radio">{t("status.uploaded_radio")}</option>
-                        <option value="error">{t("status.error")}</option>
-                      </select>
-                      <TrackStatusBadge status={selectedTrack.status} />
-                    </div>
-                    <p className="mt-1 text-xs text-gray-500">
-                      {t("metadata.statusHint")}
-                    </p>
-                  </div>
 
                   {/* Save Button */}
                   <button
