@@ -30,7 +30,7 @@
       "reviewedRejected": "Rejected",
       "trimmed": "Trimmed",
       "readyForUpload": "Ready for upload",
-      "uploadedFtp": "Uploaded to FTP",
+      "uploadedFtp": "Uploaded via FTP",
       "uploadedRadio": "Uploaded to radio"
     },
     "table": {
@@ -82,7 +82,7 @@
     "ready_for_upload": "Ready for upload",
     "trimmed": "Trimmed",
     "uploading": "Uploading",
-    "uploaded_ftp": "Uploaded to FTP",
+    "uploaded_ftp": "Uploaded via FTP",
     "uploaded_radio": "Uploaded to radio",
     "error": "Error"
   },

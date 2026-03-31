@@ -16,7 +16,7 @@ const renderWithI18n = (ui: React.ReactNode) => {
 describe("TrackStatusBadge", () => {
   it("renders status text for uploaded ftp", () => {
     renderWithI18n(<TrackStatusBadge status="uploaded_ftp" />);
-    expect(screen.getByText("Uploaded to FTP")).toBeInTheDocument();
+    expect(screen.getByText("Uploaded via FTP")).toBeInTheDocument();
   });
 
   it("applies bg-success-100 for uploaded ftp", () => {

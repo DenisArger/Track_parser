@@ -63,7 +63,7 @@ describe("TrackList", () => {
   it("shows TrackStatusBadge when showStatus is true", () => {
     const tracks = [mkTrack("1", { status: "uploaded_ftp" })];
     renderWithI18n(<TrackList tracks={tracks} showStatus />);
-    expect(screen.getByText("Uploaded to FTP")).toBeInTheDocument();
+    expect(screen.getByText("Uploaded via FTP")).toBeInTheDocument();
   });
 
   it("shows duration when showDuration is true", () => {

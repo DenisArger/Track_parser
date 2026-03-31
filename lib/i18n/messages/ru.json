@@ -30,7 +30,7 @@
       "reviewedRejected": "Отклонён",
       "trimmed": "Обрезан",
       "readyForUpload": "Готов к загрузке",
-      "uploadedFtp": "Загружен в FTP",
+      "uploadedFtp": "Загружен по FTP",
       "uploadedRadio": "Загружен на радио"
     },
     "table": {
@@ -82,7 +82,7 @@
     "ready_for_upload": "Готов к загрузке",
     "trimmed": "Обрезан",
     "uploading": "Загрузка",
-    "uploaded_ftp": "Загружен в FTP",
+    "uploaded_ftp": "Загружен по FTP",
     "uploaded_radio": "Загружен на радио",
     "error": "Ошибка"
   },

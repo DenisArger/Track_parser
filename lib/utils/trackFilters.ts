@@ -28,14 +28,14 @@ export function getDownloadedTracks(tracks: Track[]): Track[] {
 }
 
 /**
- * Получает треки, готовые к редактуре тегов или загрузке (processed, approved, trimmed, ready_for_upload, uploaded)
+ * Получает треки, готовые к редактуре тегов или загрузке.
+ * Сюда входят только этапы до фактической FTP-загрузки.
  */
 export function getProcessedTracks(tracks: Track[]): Track[] {
   return filterTracksByStatuses(tracks, [
     "reviewed_approved",
     "trimmed",
     "ready_for_upload",
-    "uploaded_ftp",
     "uploaded_radio",
   ]);
 }

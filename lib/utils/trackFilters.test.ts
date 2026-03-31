@@ -66,14 +66,15 @@ describe("getDownloadedTracks", () => {
 });
 
 describe("getProcessedTracks", () => {
-  it("returns processed, trimmed, uploaded", () => {
+  it("returns processed, trimmed and radio-synced tracks", () => {
     const tracks = [
       mkTrack("1", "downloaded"),
       mkTrack("2", "reviewed_approved"),
       mkTrack("3", "trimmed"),
       mkTrack("4", "uploaded_ftp"),
+      mkTrack("5", "uploaded_radio"),
     ];
-    expect(getProcessedTracks(tracks)).toEqual([tracks[1], tracks[2], tracks[3]]);
+    expect(getProcessedTracks(tracks)).toEqual([tracks[1], tracks[2], tracks[4]]);
   });
 });
 
