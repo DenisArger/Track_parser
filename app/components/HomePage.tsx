@@ -224,14 +224,6 @@ export default function HomePage() {
               >
                 {isSyncingRadio ? t("overview.syncing") : t("overview.syncRadio")}
               </button>
-              <button
-                type="button"
-                onClick={checkTracksOnRadio}
-                disabled={isCheckingRadio}
-                className="btn btn-secondary text-sm disabled:opacity-50"
-              >
-                {isCheckingRadio ? t("overview.checking") : t("overview.checkRadio")}
-              </button>
             </div>
           </div>
           {syncRadioError && (

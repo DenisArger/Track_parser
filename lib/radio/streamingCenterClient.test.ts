@@ -216,6 +216,27 @@ describe("streamingCenterClient", () => {
     expect(entries[1000].normalizedName).toBe("page2_last");
   });
 
+  it("checkTracksOnRadio matches multiple normalized variants", () => {
+    mockGenerateSafeFilename.mockImplementation(({ artist, title }: { artist?: string; title?: string }) =>
+      artist && title ? `${artist} - ${title}.mp3` : `${title || artist || "Unknown"}.mp3`
+    );
+
+    const result = checkTracksOnRadio(
+      [
+        { id: "1", metadata: { artist: "Artist", title: "Song" } },
+        { id: "2", metadata: { artist: "Artist", title: "Song" } },
+        { id: "3", metadata: { artist: "", title: "Song" } },
+      ],
+      new Set(["song - artist", "song"])
+    );
+
+    expect(result).toEqual({
+      "1": true,
+      "2": true,
+      "3": true,
+    });
+  });
+
   it("syncFromApi reads metadata from row-level fields and JSON meta", async () => {
     mockParseArtistTitleFromRawName.mockReturnValue({
       artist: "Raw Artist",

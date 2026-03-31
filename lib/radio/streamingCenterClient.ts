@@ -450,6 +450,42 @@ export type TrackForCheck = {
   metadata: { title?: string; artist?: string };
 };
 
+function buildTrackMatchKeys(track: TrackForCheck): string[] {
+  const artist = (track.metadata.artist || "").trim();
+  const title = (track.metadata.title || "").trim();
+  const keys: string[] = [];
+
+  const add = (value: string) => {
+    const key = normalizeForMatch(value);
+    if (key && !keys.includes(key)) keys.push(key);
+  };
+
+  // 1) Самый точный вариант: ожидаемый файловый формат трека.
+  if (artist && title) {
+    add(`${artist} - ${title}`);
+    add(generateSafeFilename({ artist, title }));
+  }
+
+  // 2) Альтернативный порядок иногда встречается в ручных плейлистах.
+  if (artist && title) {
+    add(`${title} - ${artist}`);
+  }
+
+  // 3) Более широкие fallback-ключи на случай упрощённых названий.
+  if (title) {
+    add(title);
+    add(generateSafeFilename({ title }));
+  }
+
+  if (artist) {
+    add(artist);
+  }
+
+  add(generateSafeFilename(track.metadata));
+
+  return keys;
+}
+
 /**
  * Проверяет, какие треки уже есть в плейлисте (на радио).
  * radioSet — Set нормализованных имён из БД (или API).
@@ -462,9 +498,8 @@ export function checkTracksOnRadio(
   const result: Record<string, boolean> = {};
 
   for (const t of tracks) {
-    const our = generateSafeFilename(t.metadata);
-    const key = normalizeForMatch(our);
-    result[t.id] = key ? radioSet.has(key) : false;
+    const keys = buildTrackMatchKeys(t);
+    result[t.id] = keys.some((key) => radioSet.has(key));
   }
 
   return result;

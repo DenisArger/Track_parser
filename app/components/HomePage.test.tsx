@@ -159,10 +159,11 @@ describe("HomePage", () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Sync with radio" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Refresh radio data" })).toBeInTheDocument();
     });
+    expect(screen.queryByRole("button", { name: "Check radio" })).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Sync with radio" }));
+    fireEvent.click(screen.getByRole("button", { name: "Refresh radio data" }));
 
     await waitFor(() => {
       expect(screen.getByText("Loaded 2 tracks into the database.")).toBeInTheDocument();
@@ -205,7 +206,7 @@ describe("HomePage", () => {
       expect(mockChangeTrackStatusAction).toHaveBeenCalledWith("t1", "downloaded");
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Sync with radio" }));
+    fireEvent.click(screen.getByRole("button", { name: "Refresh radio data" }));
     await waitFor(() => {
       expect(screen.getByText("sync failed")).toBeInTheDocument();
     });

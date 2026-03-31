@@ -17,7 +17,7 @@
   },
   "overview": {
     "title": "Tracks Overview",
-    "syncRadio": "Sync with radio",
+    "syncRadio": "Refresh radio data",
     "syncing": "Syncing…",
     "checkRadio": "Check on radio",
     "checking": "Checking…",
