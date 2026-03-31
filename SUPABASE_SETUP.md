@@ -22,17 +22,24 @@
 
 1. **Миграция 002 — таблица `public.users`**  
    В SQL Editor выполните содержимое `supabase/migrations/002_create_users_table.sql`.  
-   Таблица `users` дополняет `auth.users` (id, email, created_at, updated_at). Триггер при INSERT в `auth.users` создаёт запись в `public.users`. RLS разрешает пользователю только чтение и обновление своей строки.
+   Таблица `users` дополняет `auth.users` (id, email, created_at, updated_at). Триггер при INSERT в `auth.users` создаёт запись в `public.users`.
 
-2. **Бэкфилл (если в `auth.users` уже есть пользователи):**
+2. **Миграция 008 — поле `role`**  
+   В SQL Editor выполните содержимое `supabase/migrations/008_add_users_role.sql`.  
+   Эта миграция добавляет `role` в `public.users`, заполняет его значением `user` по умолчанию и создаёт индекс для админских проверок.
+
+3. **Бэкфилл (если в `auth.users` уже есть пользователи):**
    ```sql
    INSERT INTO public.users (id, email) SELECT id, email FROM auth.users ON CONFLICT (id) DO NOTHING;
    ```
 
-3. **Authentication → Providers → Email:**  
+4. **Назначение админов:**  
+   В таблице `public.users` установите `role = 'admin'` для нужных аккаунтов.
+
+5. **Authentication → Providers → Email:**  
    Включите **Email**. Оставьте включённым **Confirm email** — после регистрации пользователь получает письмо со ссылкой; перейдя по ней, он попадает в приложение уже авторизованным.
 
-4. **URL Configuration (Authentication):**  
+6. **URL Configuration (Authentication):**  
    - **Site URL:** `http://localhost:3000` (dev) или `https://<ваш-домен>` (prod)  
    - **Redirect URLs** (обязательно для писем подтверждения и сброса пароля):  
      `http://localhost:3000/auth/callback`  

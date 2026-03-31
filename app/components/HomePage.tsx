@@ -14,6 +14,8 @@ import { useTracksRealtime } from "@/lib/hooks/useTracksRealtime";
 import { getUserFacingErrorMessage } from "@/lib/utils/errorMessage";
 import { getSupabase } from "@/lib/supabase/client";
 import { useI18n } from "./I18nProvider";
+import { isAdminUserClient } from "@/lib/auth/admin";
+import type { User } from "@supabase/supabase-js";
 
 export default function HomePage() {
   const { t } = useI18n();
@@ -26,7 +28,8 @@ export default function HomePage() {
   const [activeTab, setActiveTab] = useState("download");
   const [clearingErrorId, setClearingErrorId] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [user, setUser] = useState<Partial<Pick<User, "id" | "email">> | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const checkTracksOnRadio = async () => {
     if (tracks.length === 0) {
@@ -112,12 +115,25 @@ export default function HomePage() {
     supabase.auth
       .getUser()
       .then(({ data }) => {
-        setUserEmail(data.user?.email?.toLowerCase() ?? null);
+        setUser(data.user ? { id: data.user.id, email: data.user.email } : null);
       })
       .catch(() => {
-        setUserEmail(null);
+        setUser(null);
       });
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const admin = await isAdminUserClient(user?.id);
+      if (!cancelled) {
+        setIsAdmin(admin);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
 
   useEffect(() => {
     if (tracks.length === 0) {
@@ -142,8 +158,6 @@ export default function HomePage() {
       .catch(() => setOnRadioMap({}));
   }, [tracks]);
 
-  const isAdminEmail = userEmail === "den.arger@gmail.com";
-
   const allTabs = [
     { id: "download", label: t("tabs.download"), component: DownloadTrack },
     { id: "listen", label: t("tabs.listen"), component: TrackPlayer },
@@ -153,15 +167,15 @@ export default function HomePage() {
     { id: "playlist", label: t("tabs.playlist"), component: PlayList },
   ];
 
-  const tabs = isAdminEmail
+  const tabs = isAdmin
     ? allTabs
     : allTabs.filter((tab) => !["manage", "playlist"].includes(tab.id));
 
   useEffect(() => {
-    if (!isAdminEmail && (activeTab === "manage" || activeTab === "playlist")) {
+    if (!isAdmin && (activeTab === "manage" || activeTab === "playlist")) {
       setActiveTab("download");
     }
-  }, [isAdminEmail, activeTab]);
+  }, [isAdmin, activeTab]);
 
   const ActiveComponent =
     tabs.find((tab) => tab.id === activeTab)?.component || DownloadTrack;

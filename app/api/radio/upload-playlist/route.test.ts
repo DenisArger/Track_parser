@@ -5,9 +5,16 @@ const mockGetAuthUser = vi.fn();
 const mockGenerateSafeFilename = vi.fn();
 const mockIconvEncode = vi.fn();
 const mockFetch = vi.fn();
+const mockCreateSupabaseServerClient = vi.fn();
+const mockFrom = vi.fn();
+const mockUserSelect = vi.fn();
+const mockUserEq = vi.fn();
+const mockUserMaybeSingle = vi.fn();
 
 vi.mock("@/lib/supabase/server", () => ({
   getAuthUser: (...args: unknown[]) => mockGetAuthUser(...args),
+  createSupabaseServerClient: (...args: unknown[]) =>
+    mockCreateSupabaseServerClient(...args),
 }));
 
 vi.mock("@/lib/utils/filenameUtils", () => ({
@@ -41,6 +48,16 @@ describe("POST /api/radio/upload-playlist", () => {
     process.env.STREAMING_CENTER_UPLOAD_TIMEOUT_MS = "4000";
     mockGenerateSafeFilename.mockReturnValue("generated-track");
     mockIconvEncode.mockImplementation((value: string) => Buffer.from(value));
+    mockUserSelect.mockReturnValue({ eq: (...args: unknown[]) => mockUserEq(...args) });
+    mockUserEq.mockReturnValue({
+      maybeSingle: (...args: unknown[]) => mockUserMaybeSingle(...args),
+    });
+    mockCreateSupabaseServerClient.mockReturnValue({
+      from: (table: string) =>
+        table === "users"
+          ? { select: (...args: unknown[]) => mockUserSelect(...args) }
+          : mockFrom(table),
+    });
   });
 
   afterEach(() => {
@@ -50,6 +67,7 @@ describe("POST /api/radio/upload-playlist", () => {
 
   it("returns 401 when user is not authenticated", async () => {
     mockGetAuthUser.mockResolvedValue(null);
+    mockUserMaybeSingle.mockResolvedValue({ data: { role: "admin" }, error: null });
 
     const res = await POST(jsonRequest({}));
 
@@ -69,7 +87,11 @@ describe("POST /api/radio/upload-playlist", () => {
   });
 
   it("returns 400 when playlist name is missing", async () => {
-    mockGetAuthUser.mockResolvedValue({ email: "den.arger@gmail.com" });
+    mockGetAuthUser.mockResolvedValue({
+      id: "u1",
+      email: "admin@example.com",
+    });
+    mockUserMaybeSingle.mockResolvedValue({ data: { role: "admin" }, error: null });
 
     const res = await POST(jsonRequest({ tracks: [{ raw_name: "a.mp3" }] }));
 
@@ -80,7 +102,11 @@ describe("POST /api/radio/upload-playlist", () => {
   });
 
   it("returns 400 when tracks are empty", async () => {
-    mockGetAuthUser.mockResolvedValue({ email: "den.arger@gmail.com" });
+    mockGetAuthUser.mockResolvedValue({
+      id: "u1",
+      email: "admin@example.com",
+    });
+    mockUserMaybeSingle.mockResolvedValue({ data: { role: "admin" }, error: null });
 
     const res = await POST(jsonRequest({ name: "test", tracks: [] }));
 
@@ -89,7 +115,11 @@ describe("POST /api/radio/upload-playlist", () => {
   });
 
   it("returns 500 when api env is missing", async () => {
-    mockGetAuthUser.mockResolvedValue({ email: "den.arger@gmail.com" });
+    mockGetAuthUser.mockResolvedValue({
+      id: "u1",
+      email: "admin@example.com",
+    });
+    mockUserMaybeSingle.mockResolvedValue({ data: { role: "admin" }, error: null });
     delete process.env.STREAMING_CENTER_API_URL;
 
     const res = await POST(
@@ -106,7 +136,11 @@ describe("POST /api/radio/upload-playlist", () => {
   });
 
   it("returns 502 when fetch throws a timeout-like error", async () => {
-    mockGetAuthUser.mockResolvedValue({ email: "den.arger@gmail.com" });
+    mockGetAuthUser.mockResolvedValue({
+      id: "u1",
+      email: "admin@example.com",
+    });
+    mockUserMaybeSingle.mockResolvedValue({ data: { role: "admin" }, error: null });
     mockFetch.mockRejectedValue(new Error("timeout while connecting"));
 
     const res = await POST(
@@ -123,7 +157,11 @@ describe("POST /api/radio/upload-playlist", () => {
   });
 
   it("returns 502 when streaming.center responds with error", async () => {
-    mockGetAuthUser.mockResolvedValue({ email: "den.arger@gmail.com" });
+    mockGetAuthUser.mockResolvedValue({
+      id: "u1",
+      email: "admin@example.com",
+    });
+    mockUserMaybeSingle.mockResolvedValue({ data: { role: "admin" }, error: null });
     mockFetch.mockResolvedValue(
       new Response(JSON.stringify({ detail: "invalid payload" }), {
         status: 400,
@@ -144,7 +182,11 @@ describe("POST /api/radio/upload-playlist", () => {
   });
 
   it("uploads playlist and returns payload on success", async () => {
-    mockGetAuthUser.mockResolvedValue({ email: "Den.Arger@gmail.com" });
+    mockGetAuthUser.mockResolvedValue({
+      id: "u1",
+      email: "admin@example.com",
+    });
+    mockUserMaybeSingle.mockResolvedValue({ data: { role: "admin" }, error: null });
     mockFetch.mockResolvedValue(
       new Response(JSON.stringify({ id: 55, name: "Evening Set" }), {
         status: 201,
@@ -200,7 +242,10 @@ describe("POST /api/radio/upload-playlist", () => {
   });
 
   it("encodes m3u using windows-1251 when useWindows1251=true", async () => {
-    mockGetAuthUser.mockResolvedValue({ email: "den.arger@gmail.com" });
+    mockGetAuthUser.mockResolvedValue({
+      id: "u1",
+      email: "admin@example.com",
+    });
     mockFetch.mockResolvedValue(
       new Response(JSON.stringify({ id: 1 }), {
         status: 201,

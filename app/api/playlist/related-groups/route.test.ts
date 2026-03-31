@@ -9,6 +9,9 @@ const mockOrder = vi.fn();
 const mockDelete = vi.fn();
 const mockNeq = vi.fn();
 const mockInsert = vi.fn();
+const mockUserSelect = vi.fn();
+const mockUserEq = vi.fn();
+const mockUserMaybeSingle = vi.fn();
 
 vi.mock("@/lib/supabase/server", () => ({
   getAuthUser: (...args: unknown[]) => mockGetAuthUser(...args),
@@ -36,12 +39,22 @@ describe("playlist related-groups route", () => {
       insert: (...args: unknown[]) => mockInsert(...args),
     }));
     mockCreateSupabaseServerClient.mockReturnValue({
-      from: (...args: unknown[]) => mockFrom(...args),
+      from: (table: string) =>
+        table === "users"
+          ? {
+              select: (...args: unknown[]) => mockUserSelect(...args),
+            }
+          : mockFrom(table),
+    });
+    mockUserSelect.mockReturnValue({ eq: (...args: unknown[]) => mockUserEq(...args) });
+    mockUserEq.mockReturnValue({
+      maybeSingle: (...args: unknown[]) => mockUserMaybeSingle(...args),
     });
   });
 
   it("GET returns 401 for unauthorized user", async () => {
     mockGetAuthUser.mockResolvedValue(null);
+    mockUserMaybeSingle.mockResolvedValue({ data: { role: "user" }, error: null });
 
     const res = await GET();
     expect(res.status).toBe(401);
@@ -50,6 +63,7 @@ describe("playlist related-groups route", () => {
 
   it("GET returns 403 for non-admin user", async () => {
     mockGetAuthUser.mockResolvedValue({ email: "user@example.com" });
+    mockUserMaybeSingle.mockResolvedValue({ data: { role: "user" }, error: null });
 
     const res = await GET();
     expect(res.status).toBe(403);
@@ -57,7 +71,11 @@ describe("playlist related-groups route", () => {
   });
 
   it("GET returns groups for admin", async () => {
-    mockGetAuthUser.mockResolvedValue({ email: "Den.Arger@gmail.com" });
+    mockGetAuthUser.mockResolvedValue({
+      id: "u1",
+      email: "admin@example.com",
+    });
+    mockUserMaybeSingle.mockResolvedValue({ data: { role: "admin" }, error: null });
     mockOrder.mockResolvedValue({
       data: [{ id: "g1", name: "Gold", members: ["A", "B"] }],
       error: null,
@@ -71,7 +89,11 @@ describe("playlist related-groups route", () => {
   });
 
   it("POST cleans groups, replaces data and returns count", async () => {
-    mockGetAuthUser.mockResolvedValue({ email: "den.arger@gmail.com" });
+    mockGetAuthUser.mockResolvedValue({
+      id: "u1",
+      email: "admin@example.com",
+    });
+    mockUserMaybeSingle.mockResolvedValue({ data: { role: "admin" }, error: null });
     mockNeq.mockResolvedValue({ error: null });
     mockInsert.mockResolvedValue({ error: null });
 
@@ -92,7 +114,11 @@ describe("playlist related-groups route", () => {
   });
 
   it("POST returns 502 when delete fails", async () => {
-    mockGetAuthUser.mockResolvedValue({ email: "den.arger@gmail.com" });
+    mockGetAuthUser.mockResolvedValue({
+      id: "u1",
+      email: "admin@example.com",
+    });
+    mockUserMaybeSingle.mockResolvedValue({ data: { role: "admin" }, error: null });
     mockNeq.mockResolvedValue({ error: { message: "delete failed" } });
 
     const res = await POST(jsonRequest({ groups: [] }));
@@ -101,7 +127,11 @@ describe("playlist related-groups route", () => {
   });
 
   it("GET returns 502 when select fails", async () => {
-    mockGetAuthUser.mockResolvedValue({ email: "den.arger@gmail.com" });
+    mockGetAuthUser.mockResolvedValue({
+      id: "u1",
+      email: "admin@example.com",
+    });
+    mockUserMaybeSingle.mockResolvedValue({ data: { role: "admin" }, error: null });
     mockOrder.mockResolvedValue({ data: null, error: { message: "select failed" } });
 
     const res = await GET();
@@ -126,7 +156,10 @@ describe("playlist related-groups route", () => {
   });
 
   it("POST returns 502 when insert fails", async () => {
-    mockGetAuthUser.mockResolvedValue({ email: "den.arger@gmail.com" });
+    mockGetAuthUser.mockResolvedValue({
+      id: "u1",
+      email: "admin@example.com",
+    });
     mockNeq.mockResolvedValue({ error: null });
     mockInsert.mockResolvedValue({ error: { message: "insert failed" } });
 
@@ -138,7 +171,10 @@ describe("playlist related-groups route", () => {
   });
 
   it("POST skips insert when sanitized groups are empty", async () => {
-    mockGetAuthUser.mockResolvedValue({ email: "den.arger@gmail.com" });
+    mockGetAuthUser.mockResolvedValue({
+      id: "u1",
+      email: "admin@example.com",
+    });
     mockNeq.mockResolvedValue({ error: null });
 
     const res = await POST(jsonRequest({ groups: [{ name: " ", members: [""] }] }));

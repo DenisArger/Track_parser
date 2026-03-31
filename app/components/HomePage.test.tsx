@@ -77,9 +77,16 @@ describe("HomePage", () => {
     mockGetSupabase.mockReturnValue({
       auth: {
         getUser: vi.fn().mockResolvedValue({
-          data: { user: { email: "user@example.com" } },
+          data: { user: { id: "u1", email: "user@example.com" } },
         }),
       },
+      from: vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            maybeSingle: vi.fn().mockResolvedValue({ data: { role: "user" }, error: null }),
+          }),
+        }),
+      }),
     });
     mockFetch.mockResolvedValue({
       ok: true,
@@ -112,9 +119,16 @@ describe("HomePage", () => {
     mockGetSupabase.mockReturnValue({
       auth: {
         getUser: vi.fn().mockResolvedValue({
-          data: { user: { email: "den.arger@gmail.com" } },
+          data: { user: { id: "u1", email: "admin@example.com" } },
         }),
       },
+      from: vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            maybeSingle: vi.fn().mockResolvedValue({ data: { role: "admin" }, error: null }),
+          }),
+        }),
+      }),
     });
 
     renderPage();

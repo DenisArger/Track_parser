@@ -6,6 +6,9 @@ const mockCreateSupabaseServerClient = vi.fn();
 const mockFrom = vi.fn();
 const mockSelect = vi.fn();
 const mockOrder = vi.fn();
+const mockUserSelect = vi.fn();
+const mockUserEq = vi.fn();
+const mockUserMaybeSingle = vi.fn();
 
 vi.mock("@/lib/supabase/server", () => ({
   getAuthUser: (...args: unknown[]) => mockGetAuthUser(...args),
@@ -19,11 +22,20 @@ beforeEach(() => {
   mockSelect.mockReturnValue({
     order: (...args: unknown[]) => mockOrder(...args),
   });
+  mockUserSelect.mockReturnValue({
+    eq: (...args: unknown[]) => mockUserEq(...args),
+  });
+  mockUserEq.mockReturnValue({
+    maybeSingle: (...args: unknown[]) => mockUserMaybeSingle(...args),
+  });
   mockFrom.mockReturnValue({
     select: (...args: unknown[]) => mockSelect(...args),
   });
   mockCreateSupabaseServerClient.mockReturnValue({
-    from: (...args: unknown[]) => mockFrom(...args),
+    from: (table: string) =>
+      table === "users"
+        ? { select: (...args: unknown[]) => mockUserSelect(...args) }
+        : mockFrom(table),
   });
 });
 
@@ -40,16 +52,20 @@ describe("GET /api/radio/playlist-tracks", () => {
 
   it("returns 403 when user is not admin", async () => {
     mockGetAuthUser.mockResolvedValue({ email: "user@example.com" });
+    mockUserMaybeSingle.mockResolvedValue({ data: { role: "user" }, error: null });
 
     const res = await GET();
 
     expect(res.status).toBe(403);
     expect(await res.json()).toEqual({ error: "Forbidden" });
-    expect(mockCreateSupabaseServerClient).not.toHaveBeenCalled();
   });
 
   it("returns tracks for admin user", async () => {
-    mockGetAuthUser.mockResolvedValue({ email: "Den.Arger@gmail.com" });
+    mockGetAuthUser.mockResolvedValue({
+      id: "u1",
+      email: "admin@example.com",
+    });
+    mockUserMaybeSingle.mockResolvedValue({ data: { role: "admin" }, error: null });
     mockOrder.mockResolvedValue({
       data: [{ id: "r1", raw_name: "test.mp3" }],
       error: null,
@@ -72,7 +88,11 @@ describe("GET /api/radio/playlist-tracks", () => {
   });
 
   it("returns 502 when query fails", async () => {
-    mockGetAuthUser.mockResolvedValue({ email: "den.arger@gmail.com" });
+    mockGetAuthUser.mockResolvedValue({
+      id: "u1",
+      email: "admin@example.com",
+    });
+    mockUserMaybeSingle.mockResolvedValue({ data: { role: "admin" }, error: null });
     mockOrder.mockResolvedValue({
       data: null,
       error: { message: "db failed" },

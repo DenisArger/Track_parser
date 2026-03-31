@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
-import { getAuthUser } from "@/lib/supabase/server";
+import { getAuthUser, createSupabaseServerClient } from "@/lib/supabase/server";
+import { isAdminUser } from "@/lib/auth/admin";
 import { generateSafeFilename } from "@/lib/utils/filenameUtils";
 import iconv from "iconv-lite";
 
 export const runtime = "nodejs";
-
-const ADMIN_EMAIL = "den.arger@gmail.com";
 
 type UploadTrack = {
   raw_name?: string | null;
@@ -71,8 +70,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const email = (user.email || "").toLowerCase();
-    if (email !== ADMIN_EMAIL) {
+    if (!(await isAdminUser(createSupabaseServerClient(), user))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

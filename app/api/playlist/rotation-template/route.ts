@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAuthUser, createSupabaseServerClient } from "@/lib/supabase/server";
-
-const ADMIN_EMAIL = "den.arger@gmail.com";
+import { isAdminUser } from "@/lib/auth/admin";
 const DEFAULT_TEMPLATE_NAME = "default";
 
 function getTemplateNameFromUrl(url: string): string {
@@ -18,7 +17,7 @@ export async function GET(req: Request) {
   try {
     const user = await getAuthUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    if ((user.email || "").toLowerCase() !== ADMIN_EMAIL) {
+    if (!(await isAdminUser(createSupabaseServerClient(), user))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -46,7 +45,7 @@ export async function POST(req: Request) {
   try {
     const user = await getAuthUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    if ((user.email || "").toLowerCase() !== ADMIN_EMAIL) {
+    if (!(await isAdminUser(createSupabaseServerClient(), user))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
