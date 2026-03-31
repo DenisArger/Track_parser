@@ -111,6 +111,7 @@ describe("HomePage", () => {
     });
     expect(screen.getByText("Tracks Overview")).toBeInTheDocument();
     expect(screen.getByText("Song")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Upload" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Track Manager" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Playlist" })).not.toBeInTheDocument();
   });

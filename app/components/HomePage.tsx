@@ -169,10 +169,13 @@ export default function HomePage() {
 
   const tabs = isAdmin
     ? allTabs
-    : allTabs.filter((tab) => !["manage", "playlist"].includes(tab.id));
+    : allTabs.filter((tab) => !["upload", "manage", "playlist"].includes(tab.id));
 
   useEffect(() => {
-    if (!isAdmin && (activeTab === "manage" || activeTab === "playlist")) {
+    if (
+      !isAdmin &&
+      (activeTab === "upload" || activeTab === "manage" || activeTab === "playlist")
+    ) {
       setActiveTab("download");
     }
   }, [isAdmin, activeTab]);

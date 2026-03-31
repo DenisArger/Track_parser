@@ -2,10 +2,18 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "./route";
 
 const mockGetAuthUser = vi.fn();
+const mockCreateSupabaseServerClient = vi.fn();
+const mockIsAdminUser = vi.fn();
 const mockUploadTrackAction = vi.fn();
 
 vi.mock("@/lib/supabase/server", () => ({
   getAuthUser: (...args: unknown[]) => mockGetAuthUser(...args),
+  createSupabaseServerClient: (...args: unknown[]) =>
+    mockCreateSupabaseServerClient(...args),
+}));
+
+vi.mock("@/lib/auth/admin", () => ({
+  isAdminUser: (...args: unknown[]) => mockIsAdminUser(...args),
 }));
 
 vi.mock("@/lib/actions/trackActions", () => ({
@@ -25,6 +33,8 @@ describe("POST /api/upload-ftp", () => {
     vi.clearAllMocks();
     vi.spyOn(console, "error").mockImplementation(() => {});
     vi.spyOn(console, "log").mockImplementation(() => {});
+    mockIsAdminUser.mockResolvedValue(true);
+    mockCreateSupabaseServerClient.mockReturnValue({});
   });
 
   it("returns 401 when user is not authenticated", async () => {
@@ -37,8 +47,20 @@ describe("POST /api/upload-ftp", () => {
     expect(mockUploadTrackAction).not.toHaveBeenCalled();
   });
 
+  it("returns 403 when user is not admin", async () => {
+    mockGetAuthUser.mockResolvedValue({ id: "u1" });
+    mockIsAdminUser.mockResolvedValue(false);
+
+    const res = await POST(jsonRequest({}) as never);
+
+    expect(res.status).toBe(403);
+    expect(await res.json()).toEqual({ error: "Forbidden" });
+    expect(mockUploadTrackAction).not.toHaveBeenCalled();
+  });
+
   it("returns 400 when trackId is missing", async () => {
     mockGetAuthUser.mockResolvedValue({ id: "u1" });
+    mockIsAdminUser.mockResolvedValue(true);
 
     const res = await POST(
       jsonRequest({ ftpConfig: { host: "ftp.example.com", user: "radio" } }) as never
@@ -51,6 +73,7 @@ describe("POST /api/upload-ftp", () => {
 
   it("returns 400 when ftpConfig is invalid", async () => {
     mockGetAuthUser.mockResolvedValue({ id: "u1" });
+    mockIsAdminUser.mockResolvedValue(true);
 
     const res = await POST(jsonRequest({ trackId: "t1", ftpConfig: {} }) as never);
 
@@ -63,6 +86,7 @@ describe("POST /api/upload-ftp", () => {
 
   it("returns 200 and uploads track on success", async () => {
     mockGetAuthUser.mockResolvedValue({ id: "u1" });
+    mockIsAdminUser.mockResolvedValue(true);
     mockUploadTrackAction.mockResolvedValue(undefined);
     const ftpConfig = { host: "ftp.example.com", user: "radio", password: "x" };
 
@@ -78,6 +102,7 @@ describe("POST /api/upload-ftp", () => {
 
   it("returns 500 when upload action throws non-error value", async () => {
     mockGetAuthUser.mockResolvedValue({ id: "u1" });
+    mockIsAdminUser.mockResolvedValue(true);
     mockUploadTrackAction.mockRejectedValue("Upload failed hard");
 
     const res = await POST(
