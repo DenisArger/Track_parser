@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { Track, FtpConfig } from "@/types/track";
-import { getUploadedTracks } from "@/lib/utils/trackFilters";
 import { getUserFacingErrorMessage } from "@/lib/utils/errorMessage";
 import { useI18n } from "./I18nProvider";
 
@@ -292,8 +291,7 @@ export default function FtpUploader({
                     (t) =>
                       (t.status === "reviewed_approved" ||
                         t.status === "ready_for_upload" ||
-                        t.status === "trimmed" ||
-                        t.status === "uploaded_ftp") &&
+                        t.status === "trimmed") &&
                       t.processedPath,
                   ).length,
                 })}
@@ -377,32 +375,6 @@ export default function FtpUploader({
         </div>
       </div>
 
-      {/* Uploaded Tracks Summary */}
-      {getUploadedTracks(tracks).length > 0 && (
-        <div className="mt-6">
-          <h3 className="text-lg font-medium mb-3">{t("ftp.recentlyUploaded")}</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {getUploadedTracks(tracks)
-              .slice(0, 6)
-              .map((track) => (
-                <div
-                  key={track.id}
-                  className="border rounded-lg p-3 bg-green-50"
-                >
-                  <h4 className="font-medium text-gray-900 truncate">
-                    {track.metadata.title}
-                  </h4>
-                  <p className="text-sm text-gray-600">
-                    {track.metadata.artist}
-                  </p>
-                  <span className="text-xs text-green-600 font-medium">
-                    {t("ftp.uploadedSuccess")}
-                  </span>
-                </div>
-              ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

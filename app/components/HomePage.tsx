@@ -312,9 +312,6 @@ export default function HomePage() {
                     {t("overview.table.status")}
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">
-                    {t("overview.table.radio")}
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">
                     {t("overview.table.error")}
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">
@@ -342,15 +339,6 @@ export default function HomePage() {
                       </td>
                       <td className="px-4 py-3 align-top">
                         <TrackStatusBadge status={track.status} />
-                      </td>
-                      <td className="px-4 py-3 align-top">
-                        {track.status === "uploaded_radio" || onRadioMap[track.id] ? (
-                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
-                            {t("overview.onRadio")}
-                          </span>
-                        ) : (
-                          <span className="text-sm text-gray-400 dark:text-gray-500">—</span>
-                        )}
                       </td>
                       <td className="px-4 py-3 align-top">
                         {track.error ? (

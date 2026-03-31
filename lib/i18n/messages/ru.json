@@ -21,7 +21,6 @@
     "syncing": "Синхронизация…",
     "checkRadio": "Проверить наличие на радио",
     "checking": "Проверка…",
-    "onRadio": "На радио",
     "clearError": "Сбросить ошибку",
     "errorLabel": "Ошибка",
     "filters": {
@@ -38,7 +37,6 @@
       "track": "Трек",
       "artist": "Артист",
       "status": "Статус",
-      "radio": "Радио",
       "error": "Ошибка",
       "actions": "Действия"
     }

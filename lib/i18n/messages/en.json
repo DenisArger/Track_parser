@@ -21,7 +21,6 @@
     "syncing": "Syncing…",
     "checkRadio": "Check on radio",
     "checking": "Checking…",
-    "onRadio": "On radio",
     "clearError": "Clear error",
     "errorLabel": "Error",
     "filters": {
@@ -38,7 +37,6 @@
       "track": "Track",
       "artist": "Artist",
       "status": "Status",
-      "radio": "Radio",
       "error": "Error",
       "actions": "Actions"
     }
