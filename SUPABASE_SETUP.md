@@ -24,9 +24,9 @@
    В SQL Editor выполните содержимое `supabase/migrations/002_create_users_table.sql`.  
    Таблица `users` дополняет `auth.users` (id, email, created_at, updated_at). Триггер при INSERT в `auth.users` создаёт запись в `public.users`.
 
-2. **Миграция 008 — поле `role`**  
-   В SQL Editor выполните содержимое `supabase/migrations/008_add_users_role.sql`.  
-   Эта миграция добавляет `role` в `public.users`, заполняет его значением `user` по умолчанию и создаёт индекс для админских проверок.
+2. **Миграция 009 — поле `role` как enum**  
+   В SQL Editor выполните содержимое `supabase/migrations/009_add_users_role_enum.sql`.  
+   Эта миграция добавляет enum `public.user_role`, переводит `role` в `public.users` на этот enum, задаёт значение по умолчанию `user` и создаёт индекс для админских проверок.
 
 3. **Бэкфилл (если в `auth.users` уже есть пользователи):**
    ```sql
@@ -34,7 +34,7 @@
    ```
 
 4. **Назначение админов:**  
-   В таблице `public.users` установите `role = 'admin'` для нужных аккаунтов.
+   В таблице `public.users` установите `role = 'admin'::public.user_role` для нужных аккаунтов.
 
 5. **Authentication → Providers → Email:**  
    Включите **Email**. Оставьте включённым **Confirm email** — после регистрации пользователь получает письмо со ссылкой; перейдя по ней, он попадает в приложение уже авторизованным.
