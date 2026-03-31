@@ -32,7 +32,6 @@ export default function HomePage() {
   const { t } = useI18n();
   const [tracks, setTracks] = useState<Track[]>([]);
   const [onRadioMap, setOnRadioMap] = useState<Record<string, boolean>>({});
-  const [isCheckingRadio, setIsCheckingRadio] = useState(false);
   const [isSyncingRadio, setIsSyncingRadio] = useState(false);
   const [syncRadioError, setSyncRadioError] = useState<string | null>(null);
   const [syncRadioMessage, setSyncRadioMessage] = useState<string | null>(null);
@@ -48,7 +47,6 @@ export default function HomePage() {
       setOnRadioMap({});
       return;
     }
-    setIsCheckingRadio(true);
     try {
       const r = await fetch("/api/radio/check-batch", {
         method: "POST",
@@ -79,8 +77,6 @@ export default function HomePage() {
       }
     } catch {
       setOnRadioMap({});
-    } finally {
-      setIsCheckingRadio(false);
     }
   };
 
