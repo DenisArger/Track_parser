@@ -28,7 +28,7 @@ export async function GET(
         filePath = track.processedPath;
         bucket = "processed";
       }
-    } else if (track.status === "rejected") {
+    } else if (track.status === "reviewed_rejected") {
       bucket = "rejected";
     }
 
