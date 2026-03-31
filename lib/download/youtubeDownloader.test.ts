@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import axios from "axios";
 import { downloadTrackViaRapidAPI, extractVideoId } from "./youtubeDownloader";
 
+const normalizePath = (value: string) => value.replace(/\\/g, "/");
+
 const mockEnsureDir = vi.fn();
 const mockWriteFile = vi.fn();
 const mockRemove = vi.fn();
@@ -110,14 +112,15 @@ describe("youtubeDownloader", () => {
     );
 
     expect(mockSanitizeFilenameForStorage).toHaveBeenCalledWith("Title.mp3");
-    expect(mockWriteFile).toHaveBeenCalledWith("/tmp/out/safe.mp3", expect.any(Buffer));
+    expect(normalizePath(mockWriteFile.mock.calls[0][0] as string)).toBe("/tmp/out/safe.mp3");
+    expect(mockWriteFile.mock.calls[0][1]).toEqual(expect.any(Buffer));
     expect(mockUploadFileToStorage).toHaveBeenCalledWith(
       "downloads",
       "trk1/safe.mp3",
       expect.any(Buffer),
       { contentType: "audio/mpeg", upsert: true }
     );
-    expect(mockRemove).toHaveBeenCalledWith("/tmp/out/safe.mp3");
+    expect(normalizePath(mockRemove.mock.calls[0][0] as string)).toBe("/tmp/out/safe.mp3");
     expect(result).toEqual({
       filePath: "trk1/safe.mp3",
       title: "Title",

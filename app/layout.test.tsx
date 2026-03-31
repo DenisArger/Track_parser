@@ -3,13 +3,26 @@ import RootLayout from "./layout";
 
 const LocaleHtmlUpdaterMock = vi.fn(() => null);
 
+type LayoutTree = {
+  type: string;
+  props: {
+    lang: string;
+    children: {
+      type: string;
+      props: {
+        className: string;
+      };
+    };
+  };
+};
+
 vi.mock("./components/LocaleHtmlUpdater", () => ({
   default: (...args: unknown[]) => LocaleHtmlUpdaterMock(...args),
 }));
 
 describe("RootLayout", () => {
   it("renders html/body wrapper and includes children", () => {
-    const tree = RootLayout({ children: <div id="child">Child</div> }) as any;
+    const tree = RootLayout({ children: <div id="child">Child</div> }) as LayoutTree;
 
     expect(tree.type).toBe("html");
     expect(tree.props.lang).toBe("ru");

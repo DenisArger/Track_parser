@@ -9,6 +9,15 @@ const mockProcessTrackAction = vi.fn();
 const mockDeleteTrackAction = vi.fn();
 const mockAlert = vi.fn();
 
+type PlayerTrack = {
+  id: string;
+  filename: string;
+  originalPath: string;
+  processedPath?: string;
+  status: string;
+  metadata: Record<string, unknown>;
+};
+
 vi.mock("@/lib/actions/trackActions", () => ({
   processTrackAction: (...args: unknown[]) => mockProcessTrackAction(...args),
   deleteTrackAction: (...args: unknown[]) => mockDeleteTrackAction(...args),
@@ -79,7 +88,7 @@ describe("TrackPlayer", () => {
         },
       },
     },
-  ] as any;
+  ] as PlayerTrack[];
 
   const renderPlayer = (onTracksUpdate = vi.fn()) =>
     render(

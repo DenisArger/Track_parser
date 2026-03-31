@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { uploadToFtp } from "./ftpUploader";
 
+const normalizePath = (value: string) => value.replace(/\\/g, "/");
+
 const mockGenerateSafeFilename = vi.fn();
 const mockLoadConfig = vi.fn();
 const mockDownloadFileFromStorage = vi.fn();
@@ -115,7 +117,7 @@ describe("uploadToFtp", () => {
     expect(mockClientAccess).toHaveBeenCalled();
     expect(mockClientEnsureDir).toHaveBeenCalledWith("/radio/music");
     const uploadedPath = mockClientUploadFrom.mock.calls[0][0] as string;
-    expect(uploadedPath).toContain("/tmp/upload/temp_");
+    expect(normalizePath(uploadedPath)).toContain("/tmp/upload/temp_");
     expect(uploadedPath).toContain("_local.mp3");
     expect(mockClientUploadFrom.mock.calls[0][1]).toBe("Artist - Song.mp3");
     expect(mockClientClose).toHaveBeenCalled();

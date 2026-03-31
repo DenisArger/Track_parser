@@ -9,6 +9,14 @@ const mockTrimTrackAction = vi.fn();
 const mockCreatePreviewAction = vi.fn();
 const mockAlert = vi.fn();
 
+type TrimmerTrack = {
+  id: string;
+  filename: string;
+  originalPath: string;
+  status: string;
+  metadata: Record<string, unknown>;
+};
+
 vi.mock("@/lib/actions/trackActions", () => ({
   trimTrackAction: (...args: unknown[]) => mockTrimTrackAction(...args),
   createPreviewAction: (...args: unknown[]) => mockCreatePreviewAction(...args),
@@ -49,7 +57,7 @@ describe("TrackTrimmer", () => {
       year: 2025,
       duration: 180,
     },
-  } as any;
+  } as TrimmerTrack;
 
   const renderTrimmer = (onCancel = vi.fn()) =>
     render(

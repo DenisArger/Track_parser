@@ -12,6 +12,17 @@ const mockGetUploadedTracks = vi.fn();
 const mockFetch = vi.fn();
 const mockAlert = vi.fn();
 
+type TrackRow = {
+  id: string;
+  filename: string;
+  status: string;
+  processedPath?: string;
+  metadata: {
+    title: string;
+    artist: string;
+  };
+};
+
 vi.mock("@/lib/utils/errorMessage", () => ({
   getUserFacingErrorMessage: (...args: unknown[]) =>
     mockGetUserFacingErrorMessage(...args),
@@ -27,7 +38,7 @@ describe("FtpUploader", () => {
     vi.stubGlobal("fetch", mockFetch);
     vi.stubGlobal("alert", mockAlert);
     vi.spyOn(window, "confirm").mockReturnValue(true);
-    mockGetUploadedTracks.mockImplementation((tracks: any[]) =>
+    mockGetUploadedTracks.mockImplementation((tracks: TrackRow[]) =>
       tracks.filter((t) => t.status === "uploaded_ftp")
     );
     mockFetch.mockResolvedValue(
@@ -67,7 +78,7 @@ describe("FtpUploader", () => {
       processedPath: "u1/u.mp3",
       metadata: { title: "Uploaded 1", artist: "B" },
     },
-  ] as any;
+  ] as TrackRow[];
 
   it("renders empty upload state when no processed tracks", async () => {
     renderWithI18n(<FtpUploader onTracksUpdate={vi.fn()} tracks={[]} />);
@@ -150,7 +161,7 @@ describe("FtpUploader", () => {
         processedPath: "p2/b.mp3",
         metadata: { title: "Processed 2", artist: "B" },
       },
-    ] as any;
+    ] as TrackRow[];
 
     mockFetch
       .mockResolvedValueOnce(

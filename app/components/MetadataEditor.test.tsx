@@ -9,6 +9,15 @@ const mockUpdateMetadataAction = vi.fn();
 const mockFetch = vi.fn();
 const mockAlert = vi.fn();
 
+type EditableTrack = {
+  id: string;
+  filename: string;
+  originalPath: string;
+  processedPath?: string;
+  status: string;
+  metadata: Record<string, unknown>;
+};
+
 vi.mock("@/lib/actions/trackActions", () => ({
   updateMetadataAction: (...args: unknown[]) => mockUpdateMetadataAction(...args),
 }));
@@ -19,9 +28,8 @@ describe("MetadataEditor", () => {
     vi.stubGlobal("fetch", mockFetch);
     vi.stubGlobal("alert", mockAlert);
 
-    mockFetch.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+    mockFetch.mockImplementation((input: RequestInfo | URL, _init?: RequestInit) => {
       const url = typeof input === "string" ? input : input.toString();
-      const method = init?.method || "GET";
 
       if (url.includes("/api/radio/artists")) {
         return Promise.resolve(
@@ -69,7 +77,7 @@ describe("MetadataEditor", () => {
         year: 2024,
       },
     },
-  ] as any;
+  ] as EditableTrack[];
 
   const renderEditor = (onTracksUpdate = vi.fn()) =>
     render(
@@ -100,7 +108,7 @@ describe("MetadataEditor", () => {
 
   it("shows errors when save or status update fails", async () => {
     mockUpdateMetadataAction.mockRejectedValueOnce(new Error("save failed"));
-    mockFetch.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+    mockFetch.mockImplementation((input: RequestInfo | URL, _init?: RequestInit) => {
       const url = typeof input === "string" ? input : input.toString();
       if (url.includes("/api/radio/artists")) {
         return Promise.resolve(

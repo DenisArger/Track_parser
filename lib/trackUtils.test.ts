@@ -6,6 +6,8 @@ import {
 } from "./trackUtils";
 import type { TrackMetadata } from "@/types/track";
 
+const normalizePath = (value: string) => value.replace(/\\/g, "/");
+
 const baseMeta: TrackMetadata = {
   title: "",
   artist: "",
@@ -262,16 +264,16 @@ describe("cleanupTrackStatuses", () => {
     const mod = await import("./trackUtils");
     await mod.cleanupTrackStatuses();
 
-    expect(writeJson).toHaveBeenCalledWith(
-      "/tmp/tracks.json",
+    expect(normalizePath(writeJson.mock.calls[0][0] as string)).toBe("/tmp/tracks.json");
+    expect(writeJson.mock.calls[0][1]).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           id: "t1",
           metadata: expect.not.objectContaining({ isTrimmed: true }),
         }),
-      ]),
-      { spaces: 2 }
+      ])
     );
+    expect(writeJson.mock.calls[0][2]).toEqual({ spaces: 2 });
   });
 
   it("does not write json when no cleanup is needed", async () => {

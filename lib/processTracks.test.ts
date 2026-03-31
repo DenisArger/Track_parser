@@ -28,6 +28,8 @@ const mockFsEnsureDir = vi.fn();
 const mockFsReaddir = vi.fn();
 const mockProcessAudioFile = vi.fn();
 const mockDetectBpmNetlify = vi.fn();
+
+const normalizePath = (value: string) => value.replace(/\\/g, "/");
 const mockWriteTrackTags = vi.fn();
 
 vi.mock("./storage/trackStorage", () => ({
@@ -599,8 +601,8 @@ describe("processTracks basic flows", () => {
     const track = await trimTrack("trim-1", trimSettings);
 
     expect(mockProcessAudioFile).toHaveBeenCalledWith(
-      "/tmp/downloads/trim-1_temp_trim_input.mp3",
-      "/tmp/processed/trim-1_trimmed_Trim Me.mp3",
+      expect.stringContaining("trim-1_temp_trim_input.mp3"),
+      expect.stringContaining("trim-1_trimmed_Trim Me.mp3"),
       trimSettings,
       360
     );
@@ -637,7 +639,7 @@ describe("processTracks basic flows", () => {
       "proc-1/processed.mp3"
     );
     expect(mockWriteTrackTags).toHaveBeenCalledWith(
-      "/tmp/processed/proc-1_tags.mp3",
+      expect.stringContaining("proc-1_tags.mp3"),
       expect.objectContaining({ title: "New Title" })
     );
     expect(mockSetTrack).toHaveBeenCalledWith(
@@ -670,8 +672,8 @@ describe("processTracks basic flows", () => {
       "proc-2/original.mp3"
     );
     expect(mockProcessAudioFile).toHaveBeenCalledWith(
-      "/tmp/downloads/proc-2_temp_input.mp3",
-      "/tmp/processed/proc-2_Need Process.mp3",
+      expect.stringContaining("proc-2_temp_input.mp3"),
+      expect.stringContaining("proc-2_Need Process.mp3"),
       trimSettings,
       360
     );

@@ -7,6 +7,11 @@ import AuthForgotPasswordPage from "./AuthForgotPasswordPage";
 import { I18nProvider } from "./I18nProvider";
 import { getMessages } from "@/lib/i18n/getMessages";
 
+type LinkProps = {
+  href: string;
+  children: React.ReactNode;
+};
+
 const mockSignInWithPassword = vi.fn();
 const mockSignUp = vi.fn();
 const mockResetPasswordForEmail = vi.fn();
@@ -15,7 +20,7 @@ const mockRefresh = vi.fn();
 const mockUsePathname = vi.fn(() => "/en/login");
 
 vi.mock("next/link", () => ({
-  default: ({ href, children, ...rest }: any) => (
+  default: ({ href, children, ...rest }: LinkProps & Record<string, unknown>) => (
     <a href={href} {...rest}>
       {children}
     </a>

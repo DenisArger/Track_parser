@@ -19,6 +19,8 @@ function exePath(dir: string, base: string) {
   return path.join(dir, exeName(base));
 }
 
+const normalizePath = (value: string) => value.replace(/\\/g, "/");
+
 async function loadFinder(options: FinderOptions = {}) {
   vi.resetModules();
 
@@ -91,7 +93,7 @@ describe("findFfmpegPath", () => {
       pathExistsImpl: (filePath) => filePath === ffmpeg || filePath === ffprobe,
     });
 
-    await expect(findFfmpegPath()).resolves.toBe(binDir);
+    expect(normalizePath(String(await findFfmpegPath()))).toBe(binDir);
   });
 
   it("uses FFMPEG_PATH environment variable when valid", async () => {
@@ -104,7 +106,7 @@ describe("findFfmpegPath", () => {
       pathExistsImpl: (filePath) => filePath === ffmpeg || filePath === ffprobe,
     });
 
-    await expect(findFfmpegPath()).resolves.toBe(envDir);
+    expect(normalizePath(String(await findFfmpegPath()))).toBe(envDir);
   });
 
   it("uses config ffmpeg.path when valid", async () => {

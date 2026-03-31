@@ -60,7 +60,7 @@ describe("DownloadTrack", () => {
         rating: 5,
       },
     },
-  ] as any;
+  ] as const;
 
   it("renders track sections and validates empty URL", async () => {
     renderWithI18n(

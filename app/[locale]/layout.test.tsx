@@ -29,7 +29,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("next/link", () => ({
-  default: ({ href, children, ...props }: any) => (
+  default: ({ href, children, ...props }: { href: string | URL; children: React.ReactNode } & Record<string, unknown>) => (
     <a href={typeof href === "string" ? href : String(href)} {...props}>
       {children}
     </a>
@@ -86,7 +86,7 @@ describe("LocaleLayout", () => {
       params: Promise.resolve({ locale: "en" }),
     });
 
-    render(ui as any);
+    render(ui);
     expect(screen.getByText("Track Parser EN")).toBeInTheDocument();
     expect(screen.getByText("Login")).toBeInTheDocument();
     expect(screen.getByText("Sign up")).toBeInTheDocument();
@@ -100,7 +100,7 @@ describe("LocaleLayout", () => {
       params: Promise.resolve({ locale: "en" }),
     });
 
-    render(ui as any);
+    render(ui);
     expect(screen.getByText("user@example.com")).toBeInTheDocument();
     expect(screen.getByText("Logout")).toBeInTheDocument();
     expect(screen.queryByText("Login")).not.toBeInTheDocument();

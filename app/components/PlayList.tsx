@@ -76,12 +76,6 @@ function isNewTrack(year: number | null): boolean {
   return year !== null && year >= 2023;
 }
 
-function pickRandom<T>(items: T[]): T | null {
-  if (items.length === 0) return null;
-  const idx = Math.floor(Math.random() * items.length);
-  return items[idx] ?? null;
-}
-
 function pickWeightedByRating(
   items: PlaylistTrack[],
 ): PlaylistTrack | null {

@@ -9,6 +9,8 @@ const mockWriteJson = vi.fn();
 const mockIsServerlessEnvironment = vi.fn();
 const mockGetSafeWorkingDirectory = vi.fn();
 
+const normalizePath = (value: string) => value.replace(/\\/g, "/");
+
 vi.mock("fs-extra", () => ({
   pathExists: (...args: unknown[]) => mockPathExists(...args),
   readJson: (...args: unknown[]) => mockReadJson(...args),
@@ -153,7 +155,7 @@ describe("config module", () => {
 
     expect(cfg.processing.maxDuration).toBe(240);
     expect(mockPathExists).toHaveBeenNthCalledWith(1, expect.stringContaining("config.json"));
-    expect(mockPathExists).toHaveBeenNthCalledWith(2, "/tmp/config.json");
+    expect(normalizePath(mockPathExists.mock.calls[1][0] as string)).toBe("/tmp/config.json");
   });
 
   it("loadConfig returns defaults when config exists but read fails", async () => {
@@ -214,7 +216,9 @@ describe("config module", () => {
 
     await saveConfig(cfg);
 
-    expect(mockWriteJson).toHaveBeenCalledWith("/repo/config.json", cfg, { spaces: 2 });
+    expect(normalizePath(mockWriteJson.mock.calls[0][0] as string)).toBe("/repo/config.json");
+    expect(mockWriteJson.mock.calls[0][1]).toBe(cfg);
+    expect(mockWriteJson.mock.calls[0][2]).toEqual({ spaces: 2 });
   });
 
   it("saveConfig handles write errors without throwing", async () => {

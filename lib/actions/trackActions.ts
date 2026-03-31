@@ -304,6 +304,7 @@ export async function createPreviewAction(
   trackId: string,
   trimSettings: TrimSettings
 ): Promise<{ previewId: string }> {
+  let stage = "init";
   try {
     await requireAuth();
     const fs = await import("fs-extra");
@@ -312,6 +313,12 @@ export async function createPreviewAction(
     if (!trackId) {
       throw new Error("Track ID is required");
     }
+
+    stage = "load-track";
+    console.log("[createPreviewAction] Starting preview generation", {
+      trackId,
+      trimSettings,
+    });
 
     const track = await getTrackFromLib(trackId);
     if (!track) {
@@ -328,6 +335,12 @@ export async function createPreviewAction(
       STORAGE_BUCKETS,
     } = await import("@/lib/storage/supabaseStorage");
 
+    stage = "download-source";
+    console.log("[createPreviewAction] Downloading source audio", {
+      bucket: STORAGE_BUCKETS.downloads,
+      path: track.originalPath,
+    });
+
     const fileBuffer = await downloadFileFromStorage(STORAGE_BUCKETS.downloads, track.originalPath);
     const tempInputPath = path.join(tempDir, `${trackId}_preview_input.mp3`);
     await fs.writeFile(tempInputPath, fileBuffer);
@@ -336,9 +349,20 @@ export async function createPreviewAction(
     const previewPath = path.join(tempDir, `${previewId}.mp3`);
 
     const { processAudioFile } = await import("@/lib/audio/audioProcessor");
+    stage = "process-audio";
+    console.log("[createPreviewAction] Processing audio preview", {
+      inputPath: tempInputPath,
+      outputPath: previewPath,
+    });
     await processAudioFile(tempInputPath, previewPath, trimSettings, 360);
 
     const previewBuffer = await fs.readFile(previewPath);
+    stage = "upload-preview";
+    console.log("[createPreviewAction] Uploading preview to storage", {
+      bucket: STORAGE_BUCKETS.previews,
+      path: `${previewId}.mp3`,
+      size: previewBuffer.length,
+    });
     await uploadFileToStorage(
       STORAGE_BUCKETS.previews,
       `${previewId}.mp3`,
@@ -353,13 +377,18 @@ export async function createPreviewAction(
       console.warn("Error removing temp preview files:", e);
     }
 
+    console.log("[createPreviewAction] Preview generation completed", {
+      trackId,
+      previewId,
+    });
+
     return { previewId };
   } catch (error) {
-    console.error("[createPreviewAction] Error:", error instanceof Error ? error.message : String(error), (error as Error)?.stack);
+    const message = error instanceof Error ? error.message : String(error);
+    const stack = (error as Error)?.stack;
+    console.error(`[createPreviewAction] Error at stage "${stage}":`, message, stack);
     throw new Error(
-      `Preview failed: ${
-        error instanceof Error ? error.message : String(error)
-      }`
+      `Preview failed at ${stage}: ${message}`
     );
   }
 }

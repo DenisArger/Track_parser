@@ -170,7 +170,7 @@ describe("trackActions additional coverage", () => {
 
     await expect(
       createPreviewAction("missing", { startTime: 0, fadeIn: 0, fadeOut: 0, maxDuration: 10 })
-    ).rejects.toThrow("Preview failed: Track not found");
+    ).rejects.toThrow("Preview failed at load-track: Track not found");
   });
 
   it("updateMetadataAction updates storage and writes tags when processedPath exists", async () => {
