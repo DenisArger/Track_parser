@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import type { Track } from "@/types/track";
+import { normalizeTrackStatus } from "@/lib/utils/trackStatus";
 
 /**
  * React хук для подписки на изменения треков в реальном времени
@@ -76,7 +77,7 @@ function mapRowToTrack(row: any): Track {
       sourceUrl: row.metadata?.sourceUrl,
       sourceType: row.metadata?.sourceType,
     },
-    status: row.status,
+    status: normalizeTrackStatus(row.status),
     downloadProgress: row.download_progress ?? undefined,
     processingProgress: row.processing_progress ?? undefined,
     uploadProgress: row.upload_progress ?? undefined,

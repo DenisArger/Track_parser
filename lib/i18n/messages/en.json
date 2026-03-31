@@ -23,7 +23,25 @@
     "checking": "Checking…",
     "onRadio": "On radio",
     "clearError": "Clear error",
-    "errorLabel": "Error"
+    "errorLabel": "Error",
+    "filters": {
+      "all": "All",
+      "downloaded": "Downloaded",
+      "reviewedApproved": "Approved",
+      "reviewedRejected": "Rejected",
+      "trimmed": "Trimmed",
+      "readyForUpload": "Ready for upload",
+      "uploadedFtp": "Uploaded to FTP",
+      "uploadedRadio": "Uploaded to radio"
+    },
+    "table": {
+      "track": "Track",
+      "artist": "Artist",
+      "status": "Status",
+      "radio": "Radio",
+      "error": "Error",
+      "actions": "Actions"
+    }
   },
   "messages": {
     "syncedN": "Loaded {n} tracks into the database.",
@@ -61,11 +79,13 @@
     "downloading": "Downloading",
     "downloaded": "Downloaded",
     "processing": "Processing",
-    "processed": "Processed",
+    "reviewed_approved": "Approved",
+    "reviewed_rejected": "Rejected",
+    "ready_for_upload": "Ready for upload",
     "trimmed": "Trimmed",
-    "rejected": "Rejected",
     "uploading": "Uploading",
-    "uploaded": "Uploaded",
+    "uploaded_ftp": "Uploaded to FTP",
+    "uploaded_radio": "Uploaded to radio",
     "error": "Error"
   },
   "trackList": {

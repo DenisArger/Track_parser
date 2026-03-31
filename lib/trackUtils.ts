@@ -73,8 +73,12 @@ export async function getTrackStats(): Promise<{
   total: number;
   downloaded: number;
   processed: number;
+  approved: number;
   trimmed: number;
   rejected: number;
+  readyForUpload: number;
+  uploaded: number;
+  uploadedRadio: number;
 }> {
   // Dynamic imports to avoid issues during static generation
   const fs = await import("fs-extra");
@@ -83,14 +87,34 @@ export async function getTrackStats(): Promise<{
 
   // Check if we're in a build-time environment
   if (typeof process !== "undefined" && process.env.NEXT_PHASE === "phase-production-build") {
-    return { total: 0, downloaded: 0, processed: 0, trimmed: 0, rejected: 0 };
+    return {
+      total: 0,
+      downloaded: 0,
+      processed: 0,
+      approved: 0,
+      trimmed: 0,
+      rejected: 0,
+      readyForUpload: 0,
+      uploaded: 0,
+      uploadedRadio: 0,
+    };
   }
 
   const workingDir = getSafeWorkingDirectory();
   const tracksPath = path.join(workingDir, "tracks.json");
 
   if (!(await fs.pathExists(tracksPath))) {
-    return { total: 0, downloaded: 0, processed: 0, trimmed: 0, rejected: 0 };
+    return {
+      total: 0,
+      downloaded: 0,
+      processed: 0,
+      approved: 0,
+      trimmed: 0,
+      rejected: 0,
+      readyForUpload: 0,
+      uploaded: 0,
+      uploadedRadio: 0,
+    };
   }
 
   const tracksData = await fs.readJson(tracksPath);
@@ -99,8 +123,12 @@ export async function getTrackStats(): Promise<{
     total: tracksData.length,
     downloaded: 0,
     processed: 0,
+    approved: 0,
     trimmed: 0,
     rejected: 0,
+    readyForUpload: 0,
+    uploaded: 0,
+    uploadedRadio: 0,
   };
 
   for (const track of tracksData) {
@@ -108,11 +136,20 @@ export async function getTrackStats(): Promise<{
       case "downloaded":
         stats.downloaded++;
         break;
-      case "processed":
-        stats.processed++;
+      case "reviewed_approved":
+        stats.approved++;
         break;
-      case "rejected":
+      case "reviewed_rejected":
         stats.rejected++;
+        break;
+      case "ready_for_upload":
+        stats.readyForUpload++;
+        break;
+      case "uploaded_ftp":
+        stats.uploaded++;
+        break;
+      case "uploaded_radio":
+        stats.uploadedRadio++;
         break;
     }
 

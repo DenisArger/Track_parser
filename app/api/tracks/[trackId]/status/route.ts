@@ -33,11 +33,13 @@ export async function POST(
       "downloading",
       "downloaded",
       "processing",
-      "processed",
+      "reviewed_approved",
+      "reviewed_rejected",
+      "ready_for_upload",
       "trimmed",
-      "rejected",
       "uploading",
-      "uploaded",
+      "uploaded_ftp",
+      "uploaded_radio",
       "error",
     ];
 
@@ -62,4 +64,3 @@ export async function POST(
     );
   }
 }
-

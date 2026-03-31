@@ -91,10 +91,12 @@ export default function FtpUploader({
     }
   }, [tracks, hiddenTrackIds]);
 
-  // Get tracks that can be uploaded (processed or trimmed with processedPath)
+  // Get tracks that can be uploaded (ready_for_upload / reviewed_approved / trimmed with processedPath)
   const processedTracks = tracks.filter(
     (track) =>
-      (track.status === "processed" || track.status === "trimmed") &&
+      (track.status === "ready_for_upload" ||
+        track.status === "trimmed" ||
+        track.status === "reviewed_approved") &&
       track.processedPath &&
       !hiddenTrackIds[track.id],
   );
@@ -288,9 +290,10 @@ export default function FtpUploader({
                   total: tracks.length,
                   ready: tracks.filter(
                     (t) =>
-                      (t.status === "processed" ||
+                      (t.status === "reviewed_approved" ||
+                        t.status === "ready_for_upload" ||
                         t.status === "trimmed" ||
-                        t.status === "uploaded") &&
+                        t.status === "uploaded_ftp") &&
                       t.processedPath,
                   ).length,
                 })}

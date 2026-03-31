@@ -7,6 +7,7 @@ import {
   STORAGE_BUCKETS,
   clearBucket,
 } from "./supabaseStorage";
+import { normalizeTrackStatus } from "@/lib/utils/trackStatus";
 
 // Database row type (matches Supabase schema)
 interface TrackRow {
@@ -47,7 +48,7 @@ function rowToTrack(row: TrackRow): Track {
       sourceUrl: row.metadata.sourceUrl,
       sourceType: row.metadata.sourceType,
     },
-    status: row.status as TrackStatus,
+    status: normalizeTrackStatus(row.status),
     downloadProgress: row.download_progress ?? undefined,
     processingProgress: row.processing_progress ?? undefined,
     uploadProgress: row.upload_progress ?? undefined,

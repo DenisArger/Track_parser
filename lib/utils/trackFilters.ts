@@ -28,18 +28,23 @@ export function getDownloadedTracks(tracks: Track[]): Track[] {
 }
 
 /**
- * Получает обработанные треки (processed, trimmed, uploaded)
- * Включает uploaded треки для возможности повторной обработки
+ * Получает треки, готовые к редактуре тегов или загрузке (processed, approved, trimmed, ready_for_upload, uploaded)
  */
 export function getProcessedTracks(tracks: Track[]): Track[] {
-  return filterTracksByStatuses(tracks, ["processed", "trimmed", "uploaded"]);
+  return filterTracksByStatuses(tracks, [
+    "reviewed_approved",
+    "trimmed",
+    "ready_for_upload",
+    "uploaded_ftp",
+    "uploaded_radio",
+  ]);
 }
 
 /**
  * Получает загруженные треки (uploaded)
  */
 export function getUploadedTracks(tracks: Track[]): Track[] {
-  return filterTracksByStatus(tracks, "uploaded");
+  return filterTracksByStatus(tracks, "uploaded_ftp");
 }
 
 /**
@@ -48,4 +53,3 @@ export function getUploadedTracks(tracks: Track[]): Track[] {
 export function getDownloadingTracks(tracks: Track[]): Track[] {
   return filterTracksByStatus(tracks, "downloading");
 }
-

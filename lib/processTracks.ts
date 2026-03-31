@@ -474,7 +474,7 @@ export async function rejectTrack(trackId: string): Promise<void> {
   );
   await deleteFileFromStorage(STORAGE_BUCKETS.downloads, track.originalPath);
 
-  track.status = "rejected";
+  track.status = "reviewed_rejected";
   await setTrack(trackId, track);
 }
 
@@ -502,10 +502,13 @@ export async function processTrack(
 
   console.log("Track found:", track.filename, "status:", track.status);
 
-  // Р•СЃР»Рё С‚СЂРµРє СѓР¶Рµ РѕР±СЂР°Р±РѕС‚Р°РЅ РёР»Рё Р·Р°РіСЂСѓР¶РµРЅ, СЂР°Р·СЂРµС€Р°РµРј РїРѕРІС‚РѕСЂРЅСѓСЋ РѕР±СЂР°Р±РѕС‚РєСѓ
-  // РЅРѕ РµСЃР»Рё РµСЃС‚СЊ processedPath Рё СЃС‚Р°С‚СѓСЃ processed/trimmed/uploaded, РѕР±РЅРѕРІР»СЏРµРј С‚РѕР»СЊРєРѕ РјРµС‚Р°РґР°РЅРЅС‹Рµ РµСЃР»Рё РЅРµ РїРµСЂРµРґР°РЅС‹ trimSettings
+  // Если трек уже подготовлен, обновляем только метаданные без повторной обработки.
   if (
-    (track.status === "processed" || track.status === "trimmed" || track.status === "uploaded") &&
+    (track.status === "reviewed_approved" ||
+      track.status === "trimmed" ||
+      track.status === "ready_for_upload" ||
+      track.status === "uploaded_ftp" ||
+      track.status === "uploaded_radio") &&
     track.processedPath &&
     !trimSettings
   ) {
@@ -656,7 +659,7 @@ export async function processTrack(
   }
 
   track.processedPath = finalProcessedPath;
-  track.status = "processed";
+  track.status = "reviewed_approved";
 
   await setTrack(trackId, track);
 
@@ -818,11 +821,11 @@ export async function uploadToFtp(
 
     console.log("FTP upload completed successfully for track:", trackId);
 
-    // Update status to uploaded
-    track.status = "uploaded";
+    // Update status to uploaded FTP
+    track.status = "uploaded_ftp";
     await setTrack(trackId, track);
 
-    console.log("Track status updated to 'uploaded'");
+    console.log("Track status updated to 'uploaded_ftp'");
   } catch (error) {
     console.error("FTP upload failed for track:", trackId, error);
     
@@ -834,6 +837,3 @@ export async function uploadToFtp(
     throw error;
   }
 }
-
-
-

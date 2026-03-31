@@ -214,16 +214,56 @@ describe("trackActions additional coverage", () => {
 
   it("getTrackStatsAction and cleanupTracksAction", async () => {
     mockGetTrackStats
-      .mockResolvedValueOnce({ total: 2, downloaded: 1, processed: 1, trimmed: 0, rejected: 0 })
-      .mockResolvedValueOnce({ total: 2, downloaded: 2, processed: 0, trimmed: 0, rejected: 0 });
+      .mockResolvedValueOnce({
+        total: 2,
+        downloaded: 1,
+        processed: 0,
+        approved: 1,
+        trimmed: 0,
+        rejected: 0,
+        readyForUpload: 0,
+        uploaded: 0,
+        uploadedRadio: 0,
+      })
+      .mockResolvedValueOnce({
+        total: 2,
+        downloaded: 2,
+        processed: 0,
+        approved: 0,
+        trimmed: 0,
+        rejected: 0,
+        readyForUpload: 0,
+        uploaded: 0,
+        uploadedRadio: 0,
+      });
 
     const stats = await getTrackStatsAction();
     expect(stats.total).toBe(2);
 
     mockGetTrackStats.mockReset();
     mockGetTrackStats
-      .mockResolvedValueOnce({ total: 3, downloaded: 1, processed: 1, trimmed: 1, rejected: 0 })
-      .mockResolvedValueOnce({ total: 3, downloaded: 2, processed: 1, trimmed: 0, rejected: 0 });
+      .mockResolvedValueOnce({
+        total: 3,
+        downloaded: 1,
+        processed: 0,
+        approved: 1,
+        trimmed: 1,
+        rejected: 0,
+        readyForUpload: 0,
+        uploaded: 0,
+        uploadedRadio: 0,
+      })
+      .mockResolvedValueOnce({
+        total: 3,
+        downloaded: 2,
+        processed: 0,
+        approved: 1,
+        trimmed: 0,
+        rejected: 0,
+        readyForUpload: 0,
+        uploaded: 0,
+        uploadedRadio: 0,
+      });
 
     const cleaned = await cleanupTracksAction();
     expect(cleaned.statsBefore.total).toBe(3);

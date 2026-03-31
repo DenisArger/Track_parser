@@ -23,7 +23,25 @@
     "checking": "Проверка…",
     "onRadio": "На радио",
     "clearError": "Сбросить ошибку",
-    "errorLabel": "Ошибка"
+    "errorLabel": "Ошибка",
+    "filters": {
+      "all": "Все",
+      "downloaded": "Загружен",
+      "reviewedApproved": "Одобрен",
+      "reviewedRejected": "Отклонён",
+      "trimmed": "Обрезан",
+      "readyForUpload": "Готов к загрузке",
+      "uploadedFtp": "Загружен в FTP",
+      "uploadedRadio": "Загружен на радио"
+    },
+    "table": {
+      "track": "Трек",
+      "artist": "Артист",
+      "status": "Статус",
+      "radio": "Радио",
+      "error": "Ошибка",
+      "actions": "Действия"
+    }
   },
   "messages": {
     "syncedN": "Загружено {n} треков в базу.",
@@ -61,11 +79,13 @@
     "downloading": "Скачивание",
     "downloaded": "Скачан",
     "processing": "Обработка",
-    "processed": "Обработан",
+    "reviewed_approved": "Одобрен",
+    "reviewed_rejected": "Отклонён",
+    "ready_for_upload": "Готов к загрузке",
     "trimmed": "Обрезан",
-    "rejected": "Отклонен",
     "uploading": "Загрузка",
-    "uploaded": "Загружен",
+    "uploaded_ftp": "Загружен в FTP",
+    "uploaded_radio": "Загружен на радио",
     "error": "Ошибка"
   },
   "trackList": {

@@ -214,7 +214,7 @@ describe("processTracks basic flows", () => {
     );
     expect(mockSetTrack).toHaveBeenCalledWith(
       "track-1",
-      expect.objectContaining({ status: "rejected" })
+      expect.objectContaining({ status: "reviewed_rejected" })
     );
   });
 
@@ -236,7 +236,7 @@ describe("processTracks basic flows", () => {
       id: "track-1",
       filename: "Artist - Song.mp3",
       processedPath: "track-1/processed.mp3",
-      status: "processed",
+      status: "reviewed_approved",
       metadata: { genre: "Средний", year: 2025, rating: 4 },
     };
     mockGetTrackFromStorage.mockResolvedValue(track);
@@ -269,7 +269,7 @@ describe("processTracks basic flows", () => {
     );
     expect(mockSetTrack).toHaveBeenLastCalledWith(
       "track-1",
-      expect.objectContaining({ status: "uploaded" })
+      expect.objectContaining({ status: "uploaded_ftp" })
     );
   });
 
@@ -278,7 +278,7 @@ describe("processTracks basic flows", () => {
       id: "track-2",
       filename: "Fail.mp3",
       processedPath: "track-2/processed.mp3",
-      status: "processed",
+      status: "reviewed_approved",
       metadata: { genre: "Средний", year: 2026, rating: 3 },
     };
     mockGetTrackFromStorage.mockResolvedValue(track);
@@ -625,7 +625,7 @@ describe("processTracks basic flows", () => {
       filename: "Processed.mp3",
       originalPath: "proc-1/original.mp3",
       processedPath: "proc-1/processed.mp3",
-      status: "processed",
+      status: "reviewed_approved",
       metadata: { title: "Old", artist: "Unknown" },
     });
     const { processTrack } = await import("./processTracks");
@@ -683,7 +683,7 @@ describe("processTracks basic flows", () => {
     );
     expect(track).toEqual(
       expect.objectContaining({
-        status: "processed",
+        status: "reviewed_approved",
         processedPath: "proc-2/Need Process.mp3",
         metadata: expect.objectContaining({
           bpm: 140,

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/supabase/server";
 import { getRadioTrackNamesSet } from "@/lib/radio/radioTracks";
 import { checkTracksOnRadio } from "@/lib/radio/streamingCenterClient";
+import { getTrack as getStoredTrack, setTrack } from "@/lib/storage/trackStorage";
 
 export async function POST(request: NextRequest) {
   try {
@@ -30,6 +31,19 @@ export async function POST(request: NextRequest) {
 
     const radioSet = await getRadioTrackNamesSet();
     const onRadio = checkTracksOnRadio(items, radioSet);
+
+    await Promise.all(
+      Object.entries(onRadio)
+        .filter(([, isOnRadio]) => isOnRadio)
+        .map(async ([trackId]) => {
+          const track = await getStoredTrack(trackId);
+          if (!track) return;
+          if (track.status !== "uploaded_radio") {
+            track.status = "uploaded_radio";
+            await setTrack(trackId, track);
+          }
+        })
+    );
 
     return NextResponse.json({ onRadio });
   } catch (error) {

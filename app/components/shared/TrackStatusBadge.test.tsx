@@ -14,13 +14,13 @@ const renderWithI18n = (ui: React.ReactNode) => {
 };
 
 describe("TrackStatusBadge", () => {
-  it("renders status text for uploaded", () => {
-    renderWithI18n(<TrackStatusBadge status="uploaded" />);
-    expect(screen.getByText("Uploaded")).toBeInTheDocument();
+  it("renders status text for uploaded ftp", () => {
+    renderWithI18n(<TrackStatusBadge status="uploaded_ftp" />);
+    expect(screen.getByText("Uploaded to FTP")).toBeInTheDocument();
   });
 
-  it("applies bg-success-100 for uploaded", () => {
-    const { container } = renderWithI18n(<TrackStatusBadge status="uploaded" />);
+  it("applies bg-success-100 for uploaded ftp", () => {
+    const { container } = renderWithI18n(<TrackStatusBadge status="uploaded_ftp" />);
     const span = container.querySelector("span");
     expect(span?.className).toContain("bg-success-100");
   });
@@ -31,10 +31,10 @@ describe("TrackStatusBadge", () => {
     expect(span?.className).toContain("bg-blue-100");
   });
 
-  it("applies bg-danger-100 for rejected", () => {
-    const { container } = renderWithI18n(<TrackStatusBadge status="rejected" />);
+  it("applies bg-orange-100 for reviewed rejected", () => {
+    const { container } = renderWithI18n(<TrackStatusBadge status="reviewed_rejected" />);
     const span = container.querySelector("span");
-    expect(span?.className).toContain("bg-danger-100");
+    expect(span?.className).toContain("bg-orange-100");
   });
 
   it("applies bg-yellow-100 for downloading", () => {

@@ -360,10 +360,12 @@ export default function MetadataEditor({
                         className="input flex-1 disabled:opacity-50"
                       >
                         <option value="downloaded">{t("status.downloaded")}</option>
-                        <option value="processed">{t("status.processed")}</option>
+                        <option value="reviewed_approved">{t("status.reviewed_approved")}</option>
+                        <option value="reviewed_rejected">{t("status.reviewed_rejected")}</option>
+                        <option value="ready_for_upload">{t("status.ready_for_upload")}</option>
                         <option value="trimmed">{t("status.trimmed")}</option>
-                        <option value="uploaded">{t("status.uploaded")}</option>
-                        <option value="rejected">{t("status.rejected")}</option>
+                        <option value="uploaded_ftp">{t("status.uploaded_ftp")}</option>
+                        <option value="uploaded_radio">{t("status.uploaded_radio")}</option>
                         <option value="error">{t("status.error")}</option>
                       </select>
                       <TrackStatusBadge status={selectedTrack.status} />

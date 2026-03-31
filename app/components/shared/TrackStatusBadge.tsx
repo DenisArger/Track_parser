@@ -16,14 +16,18 @@ export default function TrackStatusBadge({
 
   const getStatusStyles = (status: TrackStatus) => {
     switch (status) {
-      case "uploaded":
+      case "uploaded_ftp":
         return "bg-success-100 dark:bg-success-900/30 text-success-800 dark:text-success-300";
-      case "processed":
-        return "bg-primary-100 dark:bg-primary-900/30 text-primary-800 dark:text-primary-300";
+      case "uploaded_radio":
+        return "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-300";
+      case "reviewed_approved":
+        return "bg-cyan-100 dark:bg-cyan-900/30 text-cyan-800 dark:text-cyan-300";
+      case "reviewed_rejected":
+        return "bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300";
+      case "ready_for_upload":
+        return "bg-violet-100 dark:bg-violet-900/30 text-violet-800 dark:text-violet-300";
       case "downloaded":
         return "bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300";
-      case "rejected":
-        return "bg-danger-100 dark:bg-danger-900/30 text-danger-800 dark:text-danger-300";
       case "downloading":
       case "processing":
       case "uploading":

@@ -48,7 +48,7 @@ describe("MetadataEditor", () => {
       filename: "a.mp3",
       originalPath: "downloads/a.mp3",
       processedPath: "processed/a.mp3",
-      status: "processed",
+      status: "reviewed_approved",
       metadata: {
         title: "Old title",
         artist: "Artist",

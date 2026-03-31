@@ -30,7 +30,7 @@ describe("filterTracksByStatus", () => {
   it("filters by single status", () => {
     const tracks = [
       mkTrack("1", "downloaded"),
-      mkTrack("2", "processed"),
+      mkTrack("2", "reviewed_approved"),
       mkTrack("3", "downloaded"),
     ];
     expect(filterTracksByStatus(tracks, "downloaded")).toEqual([
@@ -44,12 +44,12 @@ describe("filterTracksByStatuses", () => {
   it("filters by multiple statuses", () => {
     const tracks = [
       mkTrack("1", "downloaded"),
-      mkTrack("2", "processed"),
+      mkTrack("2", "reviewed_approved"),
       mkTrack("3", "trimmed"),
-      mkTrack("4", "uploaded"),
-      mkTrack("5", "rejected"),
+      mkTrack("4", "uploaded_ftp"),
+      mkTrack("5", "reviewed_rejected"),
     ];
-    const r = filterTracksByStatuses(tracks, ["processed", "trimmed"]);
+    const r = filterTracksByStatuses(tracks, ["reviewed_approved", "trimmed"]);
     expect(r).toEqual([tracks[1], tracks[2]]);
   });
 });
@@ -69,9 +69,9 @@ describe("getProcessedTracks", () => {
   it("returns processed, trimmed, uploaded", () => {
     const tracks = [
       mkTrack("1", "downloaded"),
-      mkTrack("2", "processed"),
+      mkTrack("2", "reviewed_approved"),
       mkTrack("3", "trimmed"),
-      mkTrack("4", "uploaded"),
+      mkTrack("4", "uploaded_ftp"),
     ];
     expect(getProcessedTracks(tracks)).toEqual([tracks[1], tracks[2], tracks[3]]);
   });
@@ -80,8 +80,8 @@ describe("getProcessedTracks", () => {
 describe("getUploadedTracks", () => {
   it("returns only uploaded", () => {
     const tracks = [
-      mkTrack("1", "processed"),
-      mkTrack("2", "uploaded"),
+      mkTrack("1", "reviewed_approved"),
+      mkTrack("2", "uploaded_ftp"),
     ];
     expect(getUploadedTracks(tracks)).toEqual([tracks[1]]);
   });

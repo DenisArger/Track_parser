@@ -29,6 +29,7 @@ import {
 } from "@/types/track";
 import { requireAuth } from "@/lib/supabase/server";
 import { detectSourceFromUrl } from "@/lib/utils/sourceDetection";
+import { normalizeTrackStatus } from "@/lib/utils/trackStatus";
 
 /**
  * Получить все треки
@@ -103,7 +104,7 @@ export async function getAllTracks(): Promise<Track[]> {
               | "youtube-music"
               | undefined,
           },
-          status: String(track.status || "downloaded") as Track["status"],
+          status: normalizeTrackStatus(String(track.status || "downloaded")),
           downloadProgress: track.downloadProgress ? Number(track.downloadProgress) : undefined,
           processingProgress: track.processingProgress
             ? Number(track.processingProgress)
@@ -412,6 +413,14 @@ export async function updateMetadataAction(
       }
     }
 
+    if (
+      track.processedPath &&
+      track.status !== "uploaded_ftp" &&
+      track.status !== "uploaded_radio"
+    ) {
+      track.status = "ready_for_upload";
+    }
+
     await setTrack(trackId, track);
 
     return track;
@@ -432,8 +441,12 @@ export async function getTrackStatsAction(): Promise<{
   total: number;
   downloaded: number;
   processed: number;
+  approved: number;
   trimmed: number;
   rejected: number;
+  readyForUpload: number;
+  uploaded: number;
+  uploadedRadio: number;
 }> {
   try {
     await requireAuth();
@@ -456,15 +469,23 @@ export async function cleanupTracksAction(): Promise<{
     total: number;
     downloaded: number;
     processed: number;
+    approved: number;
     trimmed: number;
     rejected: number;
+    readyForUpload: number;
+    uploaded: number;
+    uploadedRadio: number;
   };
   statsAfter: {
     total: number;
     downloaded: number;
     processed: number;
+    approved: number;
     trimmed: number;
     rejected: number;
+    readyForUpload: number;
+    uploaded: number;
+    uploadedRadio: number;
   };
 }> {
   try {
@@ -630,4 +651,3 @@ export async function testFtpConnectionAction(
     throw new Error(`FTP connection failed: ${errMsg}${hint}`);
   }
 }
-

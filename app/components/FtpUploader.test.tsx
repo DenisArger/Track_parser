@@ -28,7 +28,7 @@ describe("FtpUploader", () => {
     vi.stubGlobal("alert", mockAlert);
     vi.spyOn(window, "confirm").mockReturnValue(true);
     mockGetUploadedTracks.mockImplementation((tracks: any[]) =>
-      tracks.filter((t) => t.status === "uploaded")
+      tracks.filter((t) => t.status === "uploaded_ftp")
     );
     mockFetch.mockResolvedValue(
       new Response(
@@ -56,14 +56,14 @@ describe("FtpUploader", () => {
     {
       id: "p1",
       filename: "a.mp3",
-      status: "processed",
+      status: "reviewed_approved",
       processedPath: "p1/a.mp3",
       metadata: { title: "Processed 1", artist: "A" },
     },
     {
       id: "u1",
       filename: "u.mp3",
-      status: "uploaded",
+      status: "uploaded_ftp",
       processedPath: "u1/u.mp3",
       metadata: { title: "Uploaded 1", artist: "B" },
     },
@@ -139,7 +139,7 @@ describe("FtpUploader", () => {
       {
         id: "p1",
         filename: "a.mp3",
-        status: "processed",
+        status: "reviewed_approved",
         processedPath: "p1/a.mp3",
         metadata: { title: "Processed 1", artist: "A" },
       },

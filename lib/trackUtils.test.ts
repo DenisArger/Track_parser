@@ -133,8 +133,12 @@ describe("getTrackStats", () => {
       total: 0,
       downloaded: 0,
       processed: 0,
+      approved: 0,
       trimmed: 0,
       rejected: 0,
+      readyForUpload: 0,
+      uploaded: 0,
+      uploadedRadio: 0,
     });
   });
 
@@ -146,8 +150,12 @@ describe("getTrackStats", () => {
       total: 0,
       downloaded: 0,
       processed: 0,
+      approved: 0,
       trimmed: 0,
       rejected: 0,
+      readyForUpload: 0,
+      uploaded: 0,
+      uploadedRadio: 0,
     });
   });
 
@@ -163,7 +171,7 @@ describe("getTrackStats", () => {
         },
         {
           id: "p1",
-          status: "processed",
+          status: "reviewed_approved",
           metadata: {
             ...baseMeta,
             isTrimmed: true,
@@ -172,7 +180,7 @@ describe("getTrackStats", () => {
         },
         {
           id: "r1",
-          status: "rejected",
+          status: "reviewed_rejected",
           metadata: { ...baseMeta, isTrimmed: false },
         },
       ]),
@@ -186,9 +194,13 @@ describe("getTrackStats", () => {
     expect(stats).toEqual({
       total: 3,
       downloaded: 1,
-      processed: 1,
+      processed: 0,
+      approved: 1,
       trimmed: 1,
       rejected: 1,
+      readyForUpload: 0,
+      uploaded: 0,
+      uploadedRadio: 0,
     });
   });
 });

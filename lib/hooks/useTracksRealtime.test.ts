@@ -69,7 +69,7 @@ describe("useTracksRealtime hooks", () => {
       original_path: "downloads/t1/Song.mp3",
       processed_path: "processed/t1/Song.mp3",
       metadata: { title: "Song", genre: "Средний", rating: 5, year: 2026 },
-      status: "processed",
+      status: "reviewed_approved",
       download_progress: 10,
       processing_progress: 20,
       upload_progress: 30,
@@ -87,7 +87,7 @@ describe("useTracksRealtime hooks", () => {
         id: "t1",
         originalPath: "downloads/t1/Song.mp3",
         processedPath: "processed/t1/Song.mp3",
-        status: "processed",
+        status: "reviewed_approved",
         metadata: expect.objectContaining({ title: "Song", rating: 5, year: 2026 }),
       })
     );
