@@ -227,6 +227,18 @@ describe("HomePage", () => {
         status: "uploaded_ftp",
         metadata: { title: "Done", artist: "Artist", genre: "Средний", year: 2026, rating: 5 },
       },
+      {
+        id: "t3",
+        filename: "Radio.mp3",
+        status: "uploaded_radio",
+        metadata: { title: "Radio", artist: "Artist", genre: "Средний", year: 2026, rating: 5 },
+      },
+      {
+        id: "t4",
+        filename: "Fresh.mp3",
+        status: "downloaded",
+        metadata: { title: "Fresh", artist: "Artist", genre: "Средний", year: 2026, rating: 5 },
+      },
     ]);
 
     renderPage();
@@ -234,13 +246,13 @@ describe("HomePage", () => {
     await waitFor(() => {
       expect(screen.getByText(/Error: broken state/)).toBeInTheDocument();
     });
-    expect(screen.getByRole("button", { name: "Approve" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Reject" })).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Ready for upload" })
+      screen.getByRole("button", { name: "Return to downloaded" })
     ).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Back to downloaded" })).not.toBeInTheDocument();
-    expect(screen.getAllByText("Uploaded via FTP").length).toBeGreaterThan(0);
+    expect(screen.queryByRole("button", { name: "Return to loading" })).not.toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Uploaded via FTP" })).toHaveLength(1);
     expect(screen.getAllByText("status:uploaded_ftp").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("status:uploaded_radio").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("status:downloaded").length).toBeGreaterThan(0);
   });
 });

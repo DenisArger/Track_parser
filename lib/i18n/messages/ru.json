@@ -41,10 +41,7 @@
       "actions": "Действия"
     },
     "actions": {
-      "approve": "Одобрить",
-      "reject": "Отклонить",
-      "readyForUpload": "Готов к загрузке",
-      "backToDownloaded": "Вернуть в загрузку",
+      "backToDownloaded": "Вернуть к Скачан",
       "uploadedFtp": "Загружен по FTP"
     }
   },

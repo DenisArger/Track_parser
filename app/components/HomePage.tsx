@@ -34,34 +34,17 @@ const OVERVIEW_STATUS_TRANSITIONS: Partial<
     { status: Track["status"]; labelKey: string }[]
   >
 > = {
-  downloaded: [
-    { status: "reviewed_approved", labelKey: "overview.actions.approve" },
-    { status: "reviewed_rejected", labelKey: "overview.actions.reject" },
-  ],
   reviewed_approved: [
-    { status: "ready_for_upload", labelKey: "overview.actions.readyForUpload" },
-    { status: "reviewed_rejected", labelKey: "overview.actions.reject" },
     { status: "downloaded", labelKey: "overview.actions.backToDownloaded" },
   ],
   reviewed_rejected: [
-    { status: "reviewed_approved", labelKey: "overview.actions.approve" },
-    { status: "ready_for_upload", labelKey: "overview.actions.readyForUpload" },
     { status: "downloaded", labelKey: "overview.actions.backToDownloaded" },
   ],
   trimmed: [
-    { status: "reviewed_approved", labelKey: "overview.actions.approve" },
-    { status: "ready_for_upload", labelKey: "overview.actions.readyForUpload" },
-    { status: "reviewed_rejected", labelKey: "overview.actions.reject" },
+    { status: "downloaded", labelKey: "overview.actions.backToDownloaded" },
   ],
   ready_for_upload: [
-    { status: "reviewed_approved", labelKey: "overview.actions.approve" },
-    { status: "reviewed_rejected", labelKey: "overview.actions.reject" },
-    { status: "uploaded_ftp", labelKey: "overview.actions.uploadedFtp" },
-  ],
-  uploaded_radio: [
-    { status: "reviewed_approved", labelKey: "overview.actions.approve" },
-    { status: "ready_for_upload", labelKey: "overview.actions.readyForUpload" },
-    { status: "reviewed_rejected", labelKey: "overview.actions.reject" },
+    { status: "downloaded", labelKey: "overview.actions.backToDownloaded" },
   ],
 };
 

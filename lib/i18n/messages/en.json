@@ -41,10 +41,7 @@
       "actions": "Actions"
     },
     "actions": {
-      "approve": "Approve",
-      "reject": "Reject",
-      "readyForUpload": "Ready for upload",
-      "backToDownloaded": "Back to downloaded",
+      "backToDownloaded": "Return to downloaded",
       "uploadedFtp": "Uploaded via FTP"
     }
   },
