@@ -75,10 +75,16 @@ describe("TrackTrimmer", () => {
     await waitFor(() => {
       expect(mockTrimTrackAction).toHaveBeenCalledWith(
         "t1",
-        expect.objectContaining({ startTime: 0, maxDuration: 360 })
+        expect.objectContaining({ startTime: 0, maxDuration: 180 })
       );
     });
     expect(onCancel).toHaveBeenCalled();
+  });
+
+  it("uses track metadata duration as the initial trim length", async () => {
+    renderTrimmer();
+
+    expect(screen.getByDisplayValue(180)).toBeInTheDocument();
   });
 
   it("creates preview, updates it and supports seek/restart", async () => {
@@ -89,7 +95,7 @@ describe("TrackTrimmer", () => {
     await waitFor(() => {
       expect(mockCreatePreviewAction).toHaveBeenCalledWith(
         "t1",
-        expect.objectContaining({ startTime: 0, maxDuration: 360 })
+        expect.objectContaining({ startTime: 0, maxDuration: 180 })
       );
     });
 
@@ -111,6 +117,38 @@ describe("TrackTrimmer", () => {
     fireEvent.click(screen.getByRole("button", { name: "Update preview" }));
     await waitFor(() => {
       expect(mockCreatePreviewAction).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it("does not re-enter ready state on preview autoplay", async () => {
+    const playSpy = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(HTMLMediaElement.prototype, "play", {
+      configurable: true,
+      value: playSpy,
+    });
+
+    renderTrimmer();
+
+    fireEvent.click(screen.getByRole("button", { name: "Preview listen" }));
+
+    await waitFor(() => {
+      expect(mockCreatePreviewAction).toHaveBeenCalledTimes(1);
+    });
+
+    const audio = await waitFor(
+      () => document.querySelector('audio[src="/api/preview-audio/p1"]') as HTMLAudioElement
+    );
+
+    fireEvent(audio, new Event("canplay"));
+    fireEvent(audio, new Event("canplay"));
+
+    await waitFor(() => {
+      expect(playSpy).toHaveBeenCalledTimes(1);
+    });
+    await waitFor(() => {
+      expect(
+        screen.getByText((_, element) => element?.textContent === "Playing…")
+      ).toBeInTheDocument();
     });
   });
 

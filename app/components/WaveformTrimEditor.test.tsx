@@ -154,4 +154,28 @@ describe("WaveformTrimEditor", () => {
       });
     });
   });
+
+  it("falls back to provided duration when wavesurfer duration is unavailable", async () => {
+    mockDuration = 0;
+    const onDurationLoaded = vi.fn();
+
+    render(
+      <WaveformTrimEditor
+        audioUrl="/api/audio/t3"
+        durationFallback={215}
+        startTime={0}
+        endTime={undefined}
+        maxDuration={60}
+        useEndTime={false}
+        onStartChange={vi.fn()}
+        onEndChange={vi.fn()}
+        onMaxDurationChange={vi.fn()}
+        onDurationLoaded={onDurationLoaded}
+      />
+    );
+
+    await waitFor(() => {
+      expect(onDurationLoaded).toHaveBeenCalledWith(215);
+    });
+  });
 });

@@ -20,6 +20,7 @@ const THRESH = 1e-3;
 
 export default function WaveformTrimEditor({
   audioUrl,
+  durationFallback,
   startTime,
   endTime,
   maxDuration,
@@ -74,7 +75,13 @@ export default function WaveformTrimEditor({
       await ws.load(audioUrl);
       if (!mounted) return;
 
-      const dur = ws.getDuration();
+      const loadedDuration = ws.getDuration();
+      const dur =
+        loadedDuration > 0
+          ? loadedDuration
+          : durationFallback != null && durationFallback > 0
+            ? durationFallback
+            : 0;
       if (dur > 0 && onDurationLoaded) onDurationLoaded(dur);
 
       const start = Math.max(0, Math.min(startTime, dur - 0.01));

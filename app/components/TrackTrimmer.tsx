@@ -14,11 +14,15 @@ interface TrackTrimmerProps {
 
 export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
   const { t } = useI18n();
+  const initialMaxDuration =
+    track.metadata.duration && track.metadata.duration > 0
+      ? Math.min(track.metadata.duration, 360)
+      : 360;
   const [startTime, setStartTime] = useState(0);
   const [endTime, setEndTime] = useState<number | undefined>(undefined);
   const [fadeIn, setFadeIn] = useState(0);
   const [fadeOut, setFadeOut] = useState(0);
-  const [maxDuration, setMaxDuration] = useState(360);
+  const [maxDuration, setMaxDuration] = useState(initialMaxDuration);
   const [useEndTime, setUseEndTime] = useState(false);
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
@@ -31,7 +35,7 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
   const shouldAutoPlayRef = useRef(false);
 
   const [startInput, setStartInput] = useState(() => formatTimeMs(0));
-  const [endInput, setEndInput] = useState(() => formatTimeMs(360));
+  const [endInput, setEndInput] = useState(() => formatTimeMs(initialMaxDuration));
   const startFocusedRef = useRef(false);
   const endFocusedRef = useRef(false);
 
@@ -69,6 +73,10 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
     }
   };
 
+  const requestPreviewAutoplay = () => {
+    shouldAutoPlayRef.current = true;
+  };
+
   const createPreview = async () => {
     setIsPreviewLoading(true);
     setPreviewStatus(t("trimmer.previewCreating"));
@@ -86,7 +94,7 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
       );
       const result = await createPreviewAction(track.id, trimSettings);
       setPreviewId(result.previewId);
-      shouldAutoPlayRef.current = true;
+      requestPreviewAutoplay();
       setPreviewStatus(t("trimmer.previewReady"));
       console.warn("Preview created:", result.previewId);
     } catch (error) {
@@ -110,16 +118,6 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
 
     try {
       audio.currentTime = 0;
-      const isJsdom =
-        typeof navigator !== "undefined" &&
-        /jsdom/i.test(navigator.userAgent || "");
-      if (!isJsdom) {
-        try {
-          audio.load();
-        } catch (loadError) {
-          console.warn("Preview audio reload skipped:", loadError);
-        }
-      }
       await audio.play();
       setIsPreviewPlaying(true);
       setPreviewStatus(t("trimmer.previewPlaying"));
@@ -203,13 +201,11 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
         );
         const result = await createPreviewAction(track.id, trimSettings);
         setPreviewId(result.previewId);
-        shouldAutoPlayRef.current = true;
+        requestPreviewAutoplay();
         setPreviewCurrentTime(0);
         setIsPreviewPlaying(false);
-        setPreviewStatus(
-          wasPlaying ? t("trimmer.previewPlaying") : t("trimmer.previewReady")
-        );
-        if (wasPlaying) shouldAutoPlayRef.current = true;
+        setPreviewStatus(t("trimmer.previewReady"));
+        if (wasPlaying) requestPreviewAutoplay();
         console.warn("Preview updated:", result.previewId);
       } catch (error) {
         console.error("Error updating preview:", error);
@@ -244,6 +240,7 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
   }, [endTime, useEndTime, startTime, maxDuration]);
 
   const handleDurationLoaded = (d: number) => {
+    setMaxDuration((prev) => (prev === 360 ? Math.min(d, 360) : Math.min(prev, d)));
     setEndTime((prev) => (prev != null ? prev : Math.min(d, 360)));
   };
 
@@ -259,18 +256,8 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
 
   useEffect(() => {
     if (!previewId || !shouldAutoPlayRef.current) return;
-
-    const audio = previewAudioRef.current;
-    if (!audio) return;
-
-    const tryStart = async () => {
-      const started = await startPreviewPlayback();
-      if (started) {
-        shouldAutoPlayRef.current = false;
-      }
-    };
-
-    void tryStart();
+    shouldAutoPlayRef.current = false;
+    void startPreviewPlayback();
   }, [previewId, startPreviewPlayback]);
 
   const totalDuration =
@@ -526,6 +513,3 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
     </div>
   );
 }
-
-
-
