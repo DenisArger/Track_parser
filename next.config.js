@@ -30,8 +30,7 @@ const nextConfig = {
 
   // Exclude unnecessary files from standalone output
   outputFileTracingIncludes: {
-    "/*": [
-      "./bin/**/*",
+    "/[locale]/page": [
       "./node_modules/@ffmpeg-installer/ffmpeg/**/*",
       "./node_modules/@ffprobe-installer/ffprobe/**/*",
       "./node_modules/@ffmpeg-installer/linux-x64/**/*",
