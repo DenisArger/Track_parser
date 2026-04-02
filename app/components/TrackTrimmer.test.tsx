@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import TrackTrimmer from "./TrackTrimmer";
 import { I18nProvider } from "./I18nProvider";
 import { getMessages } from "@/lib/i18n/getMessages";
+import type { WaveformTrimEditorProps } from "./WaveformTrimEditor";
 
 const mockTrimTrackAction = vi.fn();
 const mockCreatePreviewAction = vi.fn();
@@ -22,13 +23,31 @@ vi.mock("@/lib/actions/trackActions", () => ({
   createPreviewAction: (...args: unknown[]) => mockCreatePreviewAction(...args),
 }));
 
+let waveformProps: WaveformTrimEditorProps | null = null;
+
 vi.mock("./WaveformTrimEditor", () => ({
-  default: () => <div>WaveformTrimEditorMock</div>,
+  default: (props: WaveformTrimEditorProps) => {
+    waveformProps = props;
+    return (
+      <div>
+        <button type="button" onClick={() => props.onStartChange(15)}>
+          Waveform change start
+        </button>
+        <button type="button" onClick={() => props.onMaxDurationChange(30)}>
+          Waveform change duration
+        </button>
+        <button type="button" onClick={() => props.onEndChange(45)}>
+          Waveform change end
+        </button>
+      </div>
+    );
+  },
 }));
 
 describe("TrackTrimmer", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    waveformProps = null;
     vi.stubGlobal("alert", mockAlert);
     Object.defineProperty(HTMLMediaElement.prototype, "play", {
       configurable: true,
@@ -90,7 +109,8 @@ describe("TrackTrimmer", () => {
   it("creates preview, updates it and supports seek/restart", async () => {
     renderTrimmer();
 
-    fireEvent.click(screen.getByRole("button", { name: "Preview listen" }));
+    const previewButton = screen.getByRole("button", { name: "Preview listen" });
+    fireEvent.click(previewButton);
 
     await waitFor(() => {
       expect(mockCreatePreviewAction).toHaveBeenCalledWith(
@@ -114,9 +134,45 @@ describe("TrackTrimmer", () => {
     fireEvent.click(screen.getByTitle("From start"));
     expect(audio.currentTime).toBe(0);
 
+    fireEvent.click(screen.getByRole("button", { name: "Waveform change duration" }));
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Preview listen" })).toBeDisabled();
+    });
+    expect(mockCreatePreviewAction).toHaveBeenCalledTimes(1);
+
     fireEvent.click(screen.getByRole("button", { name: "Update preview" }));
     await waitFor(() => {
       expect(mockCreatePreviewAction).toHaveBeenCalledTimes(2);
+    });
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Preview listen" })).not.toBeDisabled();
+    });
+  });
+
+  it("does not auto-refresh preview after waveform changes and re-enables play after manual update", async () => {
+    renderTrimmer();
+
+    fireEvent.click(screen.getByRole("button", { name: "Preview listen" }));
+
+    await waitFor(() => {
+      expect(mockCreatePreviewAction).toHaveBeenCalledTimes(1);
+    });
+    expect(waveformProps).not.toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Waveform change start" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Preview listen" })).toBeDisabled();
+    });
+    expect(mockCreatePreviewAction).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "Update preview" }));
+
+    await waitFor(() => {
+      expect(mockCreatePreviewAction).toHaveBeenCalledTimes(2);
+    });
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Preview listen" })).not.toBeDisabled();
     });
   });
 

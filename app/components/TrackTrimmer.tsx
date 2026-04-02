@@ -27,12 +27,15 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const [isPreviewPlaying, setIsPreviewPlaying] = useState(false);
+  const [isPreviewStale, setIsPreviewStale] = useState(false);
   const [previewStatus, setPreviewStatus] = useState<string | null>(null);
   const [previewCurrentTime, setPreviewCurrentTime] = useState(0);
   const [previewDuration, setPreviewDuration] = useState(0);
   const [previewErrorStage, setPreviewErrorStage] = useState<string | null>(null);
+  const [previewSignatureAtCreate, setPreviewSignatureAtCreate] = useState<string | null>(null);
   const previewAudioRef = useRef<HTMLAudioElement>(null);
   const shouldAutoPlayRef = useRef(false);
+  const requestSeq = useRef(0);
 
   const [startInput, setStartInput] = useState(() => formatTimeMs(0));
   const [endInput, setEndInput] = useState(() => formatTimeMs(initialMaxDuration));
@@ -45,15 +48,22 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
     return match?.[1] ?? null;
   };
 
-  // Синхронизация полей MM:SS.ms при изменении из волновой формы
-
-  const handleTrim = async () => {
-    const trimSettings: TrimSettings = {
+  const buildTrimSettings = useCallback(
+    (): TrimSettings => ({
       startTime,
       fadeIn,
       fadeOut,
       ...(useEndTime && endTime != null ? { endTime } : { maxDuration }),
-    };
+    }),
+    [endTime, fadeIn, fadeOut, maxDuration, startTime, useEndTime]
+  );
+
+  const currentPreviewSignature = `${useEndTime}|${startTime}|${
+    useEndTime && endTime != null ? endTime : maxDuration
+  }|${fadeIn}|${fadeOut}`;
+
+  const handleTrim = async () => {
+    const trimSettings = buildTrimSettings();
 
     try {
       const { trimTrackAction } = await import("@/lib/actions/trackActions");
@@ -77,27 +87,45 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
     shouldAutoPlayRef.current = true;
   };
 
-  const createPreview = async () => {
+  const stopPreviewPlayback = useCallback(() => {
+    if (previewAudioRef.current) {
+      previewAudioRef.current.pause();
+    }
+    setIsPreviewPlaying(false);
+  }, []);
+
+  const createOrUpdatePreview = useCallback(async (shouldAutoplay = true) => {
+    const seq = ++requestSeq.current;
+    const trimSettings = buildTrimSettings();
+    const signature = currentPreviewSignature;
+
     setIsPreviewLoading(true);
     setPreviewStatus(t("trimmer.previewCreating"));
     setPreviewErrorStage(null);
-    try {
-      const trimSettings: TrimSettings = {
-        startTime,
-        fadeIn,
-        fadeOut,
-        ...(useEndTime && endTime != null ? { endTime } : { maxDuration }),
-      };
 
+    try {
       const { createPreviewAction } = await import(
         "@/lib/actions/trackActions"
       );
       const result = await createPreviewAction(track.id, trimSettings);
+      if (seq !== requestSeq.current) return;
+
       setPreviewId(result.previewId);
-      requestPreviewAutoplay();
+      setPreviewSignatureAtCreate(signature);
+      setIsPreviewStale(false);
+      setPreviewCurrentTime(0);
+      setPreviewDuration(0);
+      setIsPreviewPlaying(false);
+      if (shouldAutoplay) {
+        requestPreviewAutoplay();
+      } else {
+        shouldAutoPlayRef.current = false;
+      }
       setPreviewStatus(t("trimmer.previewReady"));
       console.warn("Preview created:", result.previewId);
     } catch (error) {
+      if (seq !== requestSeq.current) return;
+
       console.error("Error creating preview:", error);
       setPreviewErrorStage(extractPreviewStage(error));
       setPreviewStatus(t("trimmer.previewError"));
@@ -108,13 +136,19 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
         )}`
       );
     } finally {
-      setIsPreviewLoading(false);
+      if (seq === requestSeq.current) {
+        setIsPreviewLoading(false);
+      }
     }
-  };
+  }, [buildTrimSettings, currentPreviewSignature, t, track.id]);
+
+  const createPreview = useCallback(async () => {
+    await createOrUpdatePreview(true);
+  }, [createOrUpdatePreview]);
 
   const startPreviewPlayback = useCallback(async () => {
     const audio = previewAudioRef.current;
-    if (!audio) return false;
+    if (!audio || isPreviewStale) return false;
 
     try {
       audio.currentTime = 0;
@@ -126,7 +160,7 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
       console.warn("Preview playback start failed:", error);
       return false;
     }
-  }, [t]);
+  }, [isPreviewStale, t]);
 
   const handlePreviewCanPlay = () => {
     if (!shouldAutoPlayRef.current) return;
@@ -140,10 +174,11 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
       return;
     }
 
+    if (isPreviewStale) return;
+
     if (previewAudioRef.current) {
       if (isPreviewPlaying) {
-        previewAudioRef.current.pause();
-        setIsPreviewPlaying(false);
+        stopPreviewPlayback();
         setPreviewStatus(t("trimmer.previewPaused"));
       } else {
         await startPreviewPlayback();
@@ -177,57 +212,16 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
   };
 
   const handlePreviewRestart = () => {
-    if (!previewAudioRef.current) return;
+    if (!previewAudioRef.current || isPreviewStale) return;
     previewAudioRef.current.currentTime = 0;
     setPreviewCurrentTime(0);
     void startPreviewPlayback();
   };
 
-  // Автоматически обновляем предварительный просмотр при изменении настроек
   const updatePreview = useCallback(async () => {
-    if (previewId) {
-      const wasPlaying = isPreviewPlaying;
-      setIsPreviewLoading(true);
-      try {
-        const trimSettings: TrimSettings = {
-          startTime,
-          fadeIn,
-          fadeOut,
-          ...(useEndTime && endTime != null ? { endTime } : { maxDuration }),
-        };
-
-        const { createPreviewAction } = await import(
-          "@/lib/actions/trackActions"
-        );
-        const result = await createPreviewAction(track.id, trimSettings);
-        setPreviewId(result.previewId);
-        requestPreviewAutoplay();
-        setPreviewCurrentTime(0);
-        setIsPreviewPlaying(false);
-        setPreviewStatus(t("trimmer.previewReady"));
-        if (wasPlaying) requestPreviewAutoplay();
-        console.warn("Preview updated:", result.previewId);
-      } catch (error) {
-        console.error("Error updating preview:", error);
-        setPreviewErrorStage(extractPreviewStage(error));
-        setPreviewStatus(t("trimmer.previewError"));
-      } finally {
-        setIsPreviewLoading(false);
-      }
-    }
-  }, [
-    previewId,
-    isPreviewPlaying,
-    startTime,
-    fadeIn,
-    fadeOut,
-    useEndTime,
-    endTime,
-    maxDuration,
-    track.id,
-    t,
-  ]);
-
+    if (!previewId) return;
+    await createOrUpdatePreview(false);
+  }, [createOrUpdatePreview, previewId]);
 
   useEffect(() => {
     if (!startFocusedRef.current) setStartInput(formatTimeMs(startTime));
@@ -244,15 +238,16 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
     setEndTime((prev) => (prev != null ? prev : Math.min(d, 360)));
   };
 
-  // Автоматически обновляем предварительный просмотр при изменении настроек
   useEffect(() => {
-    if (previewId) {
-      const timeoutId = setTimeout(() => {
-        updatePreview();
-      }, 1000);
-      return () => clearTimeout(timeoutId);
+    if (!previewId || !previewSignatureAtCreate) return;
+    const stale = currentPreviewSignature !== previewSignatureAtCreate;
+    setIsPreviewStale(stale);
+
+    if (stale) {
+      shouldAutoPlayRef.current = false;
+      stopPreviewPlayback();
     }
-  }, [previewId, updatePreview]);
+  }, [currentPreviewSignature, previewId, previewSignatureAtCreate, stopPreviewPlayback]);
 
   useEffect(() => {
     if (!previewId || !shouldAutoPlayRef.current) return;
@@ -441,7 +436,7 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
               )}
               <button
                 onClick={handlePreviewPlayPause}
-                disabled={isPreviewLoading}
+                disabled={isPreviewLoading || isPreviewStale}
                 className="btn btn-primary py-2 text-sm flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isPreviewLoading ? (
@@ -456,6 +451,7 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
                   <div className="flex items-center gap-2">
                     <button
                       onClick={handlePreviewPlayPause}
+                      disabled={isPreviewLoading || isPreviewStale}
                       className="w-8 h-8 rounded-full bg-primary-600 text-white flex items-center justify-center hover:bg-primary-700 flex-shrink-0"
                       aria-label={isPreviewPlaying ? t("trimmer.previewStop") : t("trimmer.previewStart")}
                     >
