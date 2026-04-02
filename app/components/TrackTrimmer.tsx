@@ -26,15 +26,10 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
   const [useEndTime, setUseEndTime] = useState(false);
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
-  const [isPreviewPlaying, setIsPreviewPlaying] = useState(false);
   const [isPreviewStale, setIsPreviewStale] = useState(false);
   const [previewStatus, setPreviewStatus] = useState<string | null>(null);
-  const [previewCurrentTime, setPreviewCurrentTime] = useState(0);
-  const [previewDuration, setPreviewDuration] = useState(0);
   const [previewErrorStage, setPreviewErrorStage] = useState<string | null>(null);
   const [previewSignatureAtCreate, setPreviewSignatureAtCreate] = useState<string | null>(null);
-  const previewAudioRef = useRef<HTMLAudioElement>(null);
-  const shouldAutoPlayRef = useRef(false);
   const requestSeq = useRef(0);
 
   const [startInput, setStartInput] = useState(() => formatTimeMs(0));
@@ -83,18 +78,7 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
     }
   };
 
-  const requestPreviewAutoplay = () => {
-    shouldAutoPlayRef.current = true;
-  };
-
-  const stopPreviewPlayback = useCallback(() => {
-    if (previewAudioRef.current) {
-      previewAudioRef.current.pause();
-    }
-    setIsPreviewPlaying(false);
-  }, []);
-
-  const createOrUpdatePreview = useCallback(async (shouldAutoplay = true) => {
+  const createPreview = useCallback(async () => {
     const seq = ++requestSeq.current;
     const trimSettings = buildTrimSettings();
     const signature = currentPreviewSignature;
@@ -113,14 +97,6 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
       setPreviewId(result.previewId);
       setPreviewSignatureAtCreate(signature);
       setIsPreviewStale(false);
-      setPreviewCurrentTime(0);
-      setPreviewDuration(0);
-      setIsPreviewPlaying(false);
-      if (shouldAutoplay) {
-        requestPreviewAutoplay();
-      } else {
-        shouldAutoPlayRef.current = false;
-      }
       setPreviewStatus(t("trimmer.previewReady"));
       console.warn("Preview created:", result.previewId);
     } catch (error) {
@@ -142,87 +118,6 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
     }
   }, [buildTrimSettings, currentPreviewSignature, t, track.id]);
 
-  const createPreview = useCallback(async () => {
-    await createOrUpdatePreview(true);
-  }, [createOrUpdatePreview]);
-
-  const startPreviewPlayback = useCallback(async () => {
-    const audio = previewAudioRef.current;
-    if (!audio || isPreviewStale) return false;
-
-    try {
-      audio.currentTime = 0;
-      await audio.play();
-      setIsPreviewPlaying(true);
-      setPreviewStatus(t("trimmer.previewPlaying"));
-      return true;
-    } catch (error) {
-      console.warn("Preview playback start failed:", error);
-      return false;
-    }
-  }, [isPreviewStale, t]);
-
-  const handlePreviewCanPlay = () => {
-    if (!shouldAutoPlayRef.current) return;
-    shouldAutoPlayRef.current = false;
-    void startPreviewPlayback();
-  };
-
-  const handlePreviewPlayPause = async () => {
-    if (!previewId) {
-      await createPreview();
-      return;
-    }
-
-    if (isPreviewStale) return;
-
-    if (previewAudioRef.current) {
-      if (isPreviewPlaying) {
-        stopPreviewPlayback();
-        setPreviewStatus(t("trimmer.previewPaused"));
-      } else {
-        await startPreviewPlayback();
-      }
-    }
-  };
-
-  const handlePreviewEnded = () => {
-    setIsPreviewPlaying(false);
-    setPreviewStatus(t("trimmer.previewFinished"));
-  };
-
-  const handlePreviewTimeUpdate = () => {
-    if (previewAudioRef.current) {
-      setPreviewCurrentTime(previewAudioRef.current.currentTime);
-    }
-  };
-
-  const handlePreviewLoadedMetadata = () => {
-    if (previewAudioRef.current) {
-      setPreviewDuration(previewAudioRef.current.duration);
-    }
-  };
-
-  const handlePreviewSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const time = parseFloat(e.target.value);
-    if (previewAudioRef.current) {
-      previewAudioRef.current.currentTime = time;
-      setPreviewCurrentTime(time);
-    }
-  };
-
-  const handlePreviewRestart = () => {
-    if (!previewAudioRef.current || isPreviewStale) return;
-    previewAudioRef.current.currentTime = 0;
-    setPreviewCurrentTime(0);
-    void startPreviewPlayback();
-  };
-
-  const updatePreview = useCallback(async () => {
-    if (!previewId) return;
-    await createOrUpdatePreview(false);
-  }, [createOrUpdatePreview, previewId]);
-
   useEffect(() => {
     if (!startFocusedRef.current) setStartInput(formatTimeMs(startTime));
   }, [startTime]);
@@ -242,18 +137,7 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
     if (!previewId || !previewSignatureAtCreate) return;
     const stale = currentPreviewSignature !== previewSignatureAtCreate;
     setIsPreviewStale(stale);
-
-    if (stale) {
-      shouldAutoPlayRef.current = false;
-      stopPreviewPlayback();
-    }
-  }, [currentPreviewSignature, previewId, previewSignatureAtCreate, stopPreviewPlayback]);
-
-  useEffect(() => {
-    if (!previewId || !shouldAutoPlayRef.current) return;
-    shouldAutoPlayRef.current = false;
-    void startPreviewPlayback();
-  }, [previewId, startPreviewPlayback]);
+  }, [currentPreviewSignature, previewId, previewSignatureAtCreate]);
 
   const totalDuration =
     useEndTime && endTime != null ? endTime - startTime : maxDuration;
@@ -435,8 +319,8 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
                 </div>
               )}
               <button
-                onClick={handlePreviewPlayPause}
-                disabled={isPreviewLoading || isPreviewStale}
+                onClick={createPreview}
+                disabled={isPreviewLoading}
                 className="btn btn-primary py-2 text-sm flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isPreviewLoading ? (
@@ -444,33 +328,27 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
                     <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>
                     {t("trimmer.previewCreating")}
                   </span>
-                ) : isPreviewPlaying ? t("trimmer.previewStop") : t("trimmer.previewListen")}
+                ) : t("trimmer.previewListen")}
               </button>
               {previewId && (
-                <div className="flex flex-col gap-1.5 flex-shrink-0">
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={handlePreviewPlayPause}
-                      disabled={isPreviewLoading || isPreviewStale}
-                      className="w-8 h-8 rounded-full bg-primary-600 text-white flex items-center justify-center hover:bg-primary-700 flex-shrink-0"
-                      aria-label={isPreviewPlaying ? t("trimmer.previewStop") : t("trimmer.previewStart")}
-                    >
-                      {isPreviewPlaying ? <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" /></svg> : <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" /></svg>}
-                    </button>
-                    <input type="range" min="0" max={previewDuration || 0} step="any" value={previewCurrentTime} onChange={handlePreviewSeek} className="flex-1 h-1.5 accent-primary-600" />
-                    <span className="text-xs text-gray-500 dark:text-gray-400 font-mono tabular-nums w-14">{formatTimeMs(previewCurrentTime)} / {formatTimeMs(previewDuration)}</span>
-                    <button
-                      type="button"
-                      onClick={handlePreviewRestart}
-                      className="p-1.5 rounded text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600 hover:text-gray-700 dark:hover:text-gray-200 flex-shrink-0"
-                      title={t("trimmer.previewRestart")}
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
-                    </button>
-                  </div>
-                  <button type="button" onClick={updatePreview} disabled={isPreviewLoading} className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 disabled:opacity-50">
-                    {isPreviewLoading ? t("trimmer.previewUpdating") : t("trimmer.previewUpdate")}
-                  </button>
+                <div className="relative flex-shrink-0">
+                  <audio
+                    controls
+                    className="audio-light w-full"
+                    src={`/api/preview-audio/${previewId}`}
+                    preload="metadata"
+                    onError={(e) => {
+                      console.error("Preview audio error:", e);
+                      setPreviewStatus(t("trimmer.previewError"));
+                      setPreviewErrorStage("playback");
+                      alert(t("trimmer.errors.previewPlayback"));
+                    }}
+                  />
+                  {isPreviewStale && (
+                    <div className="absolute inset-0 rounded-md bg-white/80 dark:bg-gray-800/80 flex items-center justify-center text-xs text-gray-700 dark:text-gray-200 text-center px-3">
+                      {t("trimmer.previewNeedsUpdate")}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -488,24 +366,6 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
         </div>
       </div>
 
-      {previewId && (
-        <audio
-          ref={previewAudioRef}
-          src={`/api/preview-audio/${previewId}`}
-          preload="auto"
-          onTimeUpdate={handlePreviewTimeUpdate}
-          onLoadedMetadata={handlePreviewLoadedMetadata}
-          onCanPlay={handlePreviewCanPlay}
-          onEnded={handlePreviewEnded}
-          onError={(e) => {
-            console.error("Preview audio error:", e);
-            setPreviewStatus(t("trimmer.previewError"));
-            setPreviewErrorStage("playback");
-            alert(t("trimmer.errors.previewPlayback"));
-          }}
-          className="hidden"
-        />
-      )}
     </div>
   );
 }

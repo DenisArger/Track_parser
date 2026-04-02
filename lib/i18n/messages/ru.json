@@ -214,6 +214,9 @@
     "previewRestart": "С начала",
     "previewUpdating": "Обновление…",
     "previewUpdate": "Обновить превью",
+    "previewNeedsUpdate": "Нужно обновить превью",
+    "waveformLoading": "Загрузка волны…",
+    "waveformLoadError": "Не удалось загрузить волну трека",
     "trimAction": "Обрезать трек",
     "cancel": "Отмена",
     "errors": {

@@ -207,7 +207,7 @@ export default function TrackPlayer({
                         disabled={isAccepting || isRejecting}
                         className="btn btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        {t("player.configureTrim")}
+                        {t("trimmer.trimAction")}
                       </button>
                       <button
                         onClick={handleAccept}

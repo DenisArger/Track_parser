@@ -214,6 +214,9 @@
     "previewRestart": "From start",
     "previewUpdating": "Updating…",
     "previewUpdate": "Update preview",
+    "previewNeedsUpdate": "Preview needs updating",
+    "waveformLoading": "Loading waveform…",
+    "waveformLoadError": "Failed to load waveform",
     "trimAction": "Trim track",
     "cancel": "Cancel",
     "errors": {

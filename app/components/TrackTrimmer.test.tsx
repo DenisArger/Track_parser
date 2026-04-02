@@ -49,14 +49,6 @@ describe("TrackTrimmer", () => {
     vi.clearAllMocks();
     waveformProps = null;
     vi.stubGlobal("alert", mockAlert);
-    Object.defineProperty(HTMLMediaElement.prototype, "play", {
-      configurable: true,
-      value: vi.fn().mockResolvedValue(undefined),
-    });
-    Object.defineProperty(HTMLMediaElement.prototype, "pause", {
-      configurable: true,
-      value: vi.fn(),
-    });
 
     mockTrimTrackAction.mockResolvedValue({ ok: true });
     mockCreatePreviewAction.mockResolvedValue({ previewId: "p1" });
@@ -106,7 +98,7 @@ describe("TrackTrimmer", () => {
     expect(screen.getByDisplayValue(180)).toBeInTheDocument();
   });
 
-  it("creates preview, updates it and supports seek/restart", async () => {
+  it("creates preview without autoplay and renders native audio controls", async () => {
     renderTrimmer();
 
     const previewButton = screen.getByRole("button", { name: "Preview listen" });
@@ -121,35 +113,24 @@ describe("TrackTrimmer", () => {
 
     const audio = document.querySelector('audio[src="/api/preview-audio/p1"]') as HTMLAudioElement;
     expect(audio).not.toBeNull();
-
-    Object.defineProperty(audio, "duration", { configurable: true, value: 42 });
-    fireEvent.loadedMetadata(audio);
-    Object.defineProperty(audio, "currentTime", { configurable: true, writable: true, value: 5 });
-    fireEvent.timeUpdate(audio);
-
-    const slider = screen.getByRole("slider");
-    fireEvent.change(slider, { target: { value: "12" } });
-    expect(audio.currentTime).toBe(12);
-
-    fireEvent.click(screen.getByTitle("From start"));
-    expect(audio.currentTime).toBe(0);
+    expect(audio).toHaveAttribute("controls");
 
     fireEvent.click(screen.getByRole("button", { name: "Waveform change duration" }));
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Preview listen" })).toBeDisabled();
+      expect(screen.getByText("Preview needs updating")).toBeInTheDocument();
     });
     expect(mockCreatePreviewAction).toHaveBeenCalledTimes(1);
 
-    fireEvent.click(screen.getByRole("button", { name: "Update preview" }));
+    fireEvent.click(screen.getByRole("button", { name: "Preview listen" }));
     await waitFor(() => {
       expect(mockCreatePreviewAction).toHaveBeenCalledTimes(2);
     });
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Preview listen" })).not.toBeDisabled();
+      expect(screen.queryByText("Preview needs updating")).not.toBeInTheDocument();
     });
   });
 
-  it("does not auto-refresh preview after waveform changes and re-enables play after manual update", async () => {
+  it("does not auto-refresh preview after waveform changes and re-enables playback after manual refresh", async () => {
     renderTrimmer();
 
     fireEvent.click(screen.getByRole("button", { name: "Preview listen" }));
@@ -162,21 +143,21 @@ describe("TrackTrimmer", () => {
     fireEvent.click(screen.getByRole("button", { name: "Waveform change start" }));
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Preview listen" })).toBeDisabled();
+      expect(screen.getByText("Preview needs updating")).toBeInTheDocument();
     });
     expect(mockCreatePreviewAction).toHaveBeenCalledTimes(1);
 
-    fireEvent.click(screen.getByRole("button", { name: "Update preview" }));
+    fireEvent.click(screen.getByRole("button", { name: "Preview listen" }));
 
     await waitFor(() => {
       expect(mockCreatePreviewAction).toHaveBeenCalledTimes(2);
     });
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Preview listen" })).not.toBeDisabled();
+      expect(screen.queryByText("Preview needs updating")).not.toBeInTheDocument();
     });
   });
 
-  it("does not re-enter ready state on preview autoplay", async () => {
+  it("does not autoplay preview after generation", async () => {
     const playSpy = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(HTMLMediaElement.prototype, "play", {
       configurable: true,
@@ -190,22 +171,7 @@ describe("TrackTrimmer", () => {
     await waitFor(() => {
       expect(mockCreatePreviewAction).toHaveBeenCalledTimes(1);
     });
-
-    const audio = await waitFor(
-      () => document.querySelector('audio[src="/api/preview-audio/p1"]') as HTMLAudioElement
-    );
-
-    fireEvent(audio, new Event("canplay"));
-    fireEvent(audio, new Event("canplay"));
-
-    await waitFor(() => {
-      expect(playSpy).toHaveBeenCalledTimes(1);
-    });
-    await waitFor(() => {
-      expect(
-        screen.getByText((_, element) => element?.textContent === "Playing…")
-      ).toBeInTheDocument();
-    });
+    expect(playSpy).not.toHaveBeenCalled();
   });
 
   it("shows alerts for trim/preview/playback errors", async () => {

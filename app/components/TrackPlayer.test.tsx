@@ -102,6 +102,7 @@ describe("TrackPlayer", () => {
     renderPlayer(onTracksUpdate);
 
     fireEvent.click(screen.getByText("Downloaded song"));
+    expect(screen.getByRole("button", { name: "Trim track" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Accept Track" }));
 
     await waitFor(() => {

@@ -1,7 +1,9 @@
 /** @vitest-environment jsdom */
-import { render, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import WaveformTrimEditor from "./WaveformTrimEditor";
+import { I18nProvider } from "./I18nProvider";
+import { getMessages } from "@/lib/i18n/getMessages";
 
 type Region = {
   start: number;
@@ -19,12 +21,18 @@ const addRegionSpy = vi.fn();
 const enableDragSelectionSpy = vi.fn(() => vi.fn());
 const wsDestroySpy = vi.fn();
 const wsLoadSpy = vi.fn(async () => {});
+let rejectLoad = false;
 
 vi.mock("wavesurfer.js", () => ({
   default: {
     create: () => ({
       registerPlugin: vi.fn(),
-      load: wsLoadSpy,
+      load: async (...args: unknown[]) => {
+        wsLoadSpy(...args);
+        if (rejectLoad) {
+          throw new Error("load failed");
+        }
+      },
       getDuration: () => mockDuration,
       destroy: wsDestroySpy,
     }),
@@ -65,7 +73,15 @@ describe("WaveformTrimEditor", () => {
     handlers = {};
     currentRegion = null;
     mockDuration = 120;
+    rejectLoad = false;
   });
+
+  const renderEditor = (ui: React.ReactElement) =>
+    render(
+      <I18nProvider locale="en" messages={getMessages("en")}>
+        {ui}
+      </I18nProvider>
+    );
 
   it("initializes waveform and handles region updates in end-time mode", async () => {
     const onStartChange = vi.fn();
@@ -73,7 +89,7 @@ describe("WaveformTrimEditor", () => {
     const onMaxDurationChange = vi.fn();
     const onDurationLoaded = vi.fn();
 
-    render(
+    renderEditor(
       <WaveformTrimEditor
         audioUrl="/api/audio/t1"
         startTime={5}
@@ -87,8 +103,13 @@ describe("WaveformTrimEditor", () => {
       />
     );
 
+    expect(screen.getByText("Loading waveform…")).toBeInTheDocument();
+
     await waitFor(() => {
       expect(wsLoadSpy).toHaveBeenCalledWith("/api/audio/t1");
+    });
+    await waitFor(() => {
+      expect(screen.queryByText("Loading waveform…")).not.toBeInTheDocument();
     });
     expect(onDurationLoaded).toHaveBeenCalledWith(120);
 
@@ -108,7 +129,7 @@ describe("WaveformTrimEditor", () => {
     const onEndChange = vi.fn();
     const onMaxDurationChange = vi.fn();
 
-    const { rerender } = render(
+    const { rerender } = renderEditor(
       <WaveformTrimEditor
         audioUrl="/api/audio/t2"
         startTime={1}
@@ -135,16 +156,18 @@ describe("WaveformTrimEditor", () => {
     expect(onMaxDurationChange).toHaveBeenCalledWith(13);
 
     rerender(
-      <WaveformTrimEditor
-        audioUrl="/api/audio/t2"
-        startTime={20}
-        endTime={undefined}
-        maxDuration={15}
-        useEndTime={false}
-        onStartChange={onStartChange}
-        onEndChange={onEndChange}
-        onMaxDurationChange={onMaxDurationChange}
-      />
+      <I18nProvider locale="en" messages={getMessages("en")}>
+        <WaveformTrimEditor
+          audioUrl="/api/audio/t2"
+          startTime={20}
+          endTime={undefined}
+          maxDuration={15}
+          useEndTime={false}
+          onStartChange={onStartChange}
+          onEndChange={onEndChange}
+          onMaxDurationChange={onMaxDurationChange}
+        />
+      </I18nProvider>
     );
 
     await waitFor(() => {
@@ -159,7 +182,7 @@ describe("WaveformTrimEditor", () => {
     mockDuration = 0;
     const onDurationLoaded = vi.fn();
 
-    render(
+    renderEditor(
       <WaveformTrimEditor
         audioUrl="/api/audio/t3"
         durationFallback={215}
@@ -176,6 +199,27 @@ describe("WaveformTrimEditor", () => {
 
     await waitFor(() => {
       expect(onDurationLoaded).toHaveBeenCalledWith(215);
+    });
+  });
+
+  it("shows fallback text when waveform loading fails", async () => {
+    rejectLoad = true;
+
+    renderEditor(
+      <WaveformTrimEditor
+        audioUrl="/api/audio/t4"
+        startTime={0}
+        endTime={undefined}
+        maxDuration={60}
+        useEndTime={false}
+        onStartChange={vi.fn()}
+        onEndChange={vi.fn()}
+        onMaxDurationChange={vi.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Failed to load waveform")).toBeInTheDocument();
     });
   });
 });
