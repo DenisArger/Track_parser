@@ -43,18 +43,57 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
     return match?.[1] ?? null;
   };
 
+  const getResolvedTrimValues = useCallback(() => {
+    const resolvedStartTime = startFocusedRef.current
+      ? parseTimeMs(startInput, startTime)
+      : startTime;
+
+    if (useEndTime) {
+      const fallbackEnd = endTime ?? resolvedStartTime + maxDuration;
+      const resolvedEndTime = endFocusedRef.current
+        ? parseTimeMs(endInput, fallbackEnd)
+        : fallbackEnd;
+
+      return {
+        startTime: resolvedStartTime,
+        endTime: resolvedEndTime,
+        maxDuration,
+      };
+    }
+
+    const fallbackDurationEnd = resolvedStartTime + maxDuration;
+    const resolvedEndPoint = endFocusedRef.current
+      ? parseTimeMs(endInput, fallbackDurationEnd)
+      : fallbackDurationEnd;
+    const resolvedMaxDuration = Math.max(1, resolvedEndPoint - resolvedStartTime);
+
+    return {
+      startTime: resolvedStartTime,
+      endTime: undefined,
+      maxDuration: resolvedMaxDuration,
+    };
+  }, [endInput, endTime, maxDuration, startInput, startTime, useEndTime]);
+
   const buildTrimSettings = useCallback(
-    (): TrimSettings => ({
-      startTime,
+    (): TrimSettings => {
+      const resolved = getResolvedTrimValues();
+      return {
+      startTime: resolved.startTime,
       fadeIn,
       fadeOut,
-      ...(useEndTime && endTime != null ? { endTime } : { maxDuration }),
-    }),
-    [endTime, fadeIn, fadeOut, maxDuration, startTime, useEndTime]
+      ...(useEndTime && resolved.endTime != null
+        ? { endTime: resolved.endTime }
+        : { maxDuration: resolved.maxDuration }),
+    };
+    },
+    [fadeIn, fadeOut, getResolvedTrimValues, useEndTime]
   );
 
-  const currentPreviewSignature = `${useEndTime}|${startTime}|${
-    useEndTime && endTime != null ? endTime : maxDuration
+  const resolvedTrimValues = getResolvedTrimValues();
+  const currentPreviewSignature = `${useEndTime}|${resolvedTrimValues.startTime}|${
+    useEndTime && resolvedTrimValues.endTime != null
+      ? resolvedTrimValues.endTime
+      : resolvedTrimValues.maxDuration
   }|${fadeIn}|${fadeOut}`;
 
   const handleTrim = async () => {
@@ -140,7 +179,9 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
   }, [currentPreviewSignature, previewId, previewSignatureAtCreate]);
 
   const totalDuration =
-    useEndTime && endTime != null ? endTime - startTime : maxDuration;
+    useEndTime && resolvedTrimValues.endTime != null
+      ? resolvedTrimValues.endTime - resolvedTrimValues.startTime
+      : resolvedTrimValues.maxDuration;
 
   const commitStartInput = () => {
     const sec = parseTimeMs(startInput, startTime);
@@ -298,10 +339,14 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
               </h4>
               <div className="text-xs text-gray-600 dark:text-gray-400 grid grid-cols-2 gap-x-3 gap-y-0.5 flex-shrink-0">
                 <span>{t("trimmer.previewStart")}:</span>
-                <span className="font-mono">{formatTimeMs(startTime)}</span>
+                <span className="font-mono">{formatTimeMs(resolvedTrimValues.startTime)}</span>
                 <span>{t("trimmer.previewEnd")}:</span>
                 <span className="font-mono">
-                  {formatTimeMs(useEndTime && endTime != null ? endTime : startTime + maxDuration)}
+                  {formatTimeMs(
+                    useEndTime && resolvedTrimValues.endTime != null
+                      ? resolvedTrimValues.endTime
+                      : resolvedTrimValues.startTime + resolvedTrimValues.maxDuration
+                  )}
                 </span>
                 <span>{t("trimmer.previewDuration")}:</span>
                 <span className="font-mono">{formatTimeMs(totalDuration)}</span>

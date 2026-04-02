@@ -98,6 +98,26 @@ describe("TrackTrimmer", () => {
     expect(screen.getByDisplayValue(180)).toBeInTheDocument();
   });
 
+  it("uses in-focus trim inputs for preview regeneration", async () => {
+    renderTrimmer();
+
+    const startInput = screen.getByPlaceholderText("M:SS.ms");
+    fireEvent.focus(startInput);
+    fireEvent.change(startInput, { target: { value: "0:03.0" } });
+
+    const fadeInInput = screen.getAllByDisplayValue("0")[0];
+    fireEvent.change(fadeInInput, { target: { value: "1.5" } });
+
+    fireEvent.click(screen.getByRole("button", { name: "Preview listen" }));
+
+    await waitFor(() => {
+      expect(mockCreatePreviewAction).toHaveBeenCalledWith(
+        "t1",
+        expect.objectContaining({ startTime: 3, fadeIn: 1.5, maxDuration: 180 })
+      );
+    });
+  });
+
   it("creates preview without autoplay and renders native audio controls", async () => {
     renderTrimmer();
 
