@@ -131,9 +131,10 @@ describe("TrackTrimmer", () => {
       );
     });
 
-    const audio = document.querySelector('audio[src="/api/preview-audio/p1"]') as HTMLAudioElement;
+    const audio = document.querySelector('audio[src*="/api/preview-audio/p1"]') as HTMLAudioElement;
     expect(audio).not.toBeNull();
     expect(audio).toHaveAttribute("controls");
+    expect(audio.getAttribute("src")).toContain("?v=");
 
     fireEvent.click(screen.getByRole("button", { name: "Waveform change duration" }));
     await waitFor(() => {
@@ -145,6 +146,8 @@ describe("TrackTrimmer", () => {
     await waitFor(() => {
       expect(mockCreatePreviewAction).toHaveBeenCalledTimes(2);
     });
+    const refreshedAudio = document.querySelector('audio[src*="/api/preview-audio/p1"]') as HTMLAudioElement;
+    expect(refreshedAudio).not.toBeNull();
     await waitFor(() => {
       expect(screen.queryByText("Preview needs updating")).not.toBeInTheDocument();
     });
@@ -172,6 +175,43 @@ describe("TrackTrimmer", () => {
     await waitFor(() => {
       expect(mockCreatePreviewAction).toHaveBeenCalledTimes(2);
     });
+    await waitFor(() => {
+      expect(screen.queryByText("Preview needs updating")).not.toBeInTheDocument();
+    });
+  });
+
+  it("renders a fresh audio element for a new preview id after stale regeneration", async () => {
+    mockCreatePreviewAction
+      .mockResolvedValueOnce({ previewId: "preview-1" })
+      .mockResolvedValueOnce({ previewId: "preview-2" });
+
+    renderTrimmer();
+
+    fireEvent.click(screen.getByRole("button", { name: "Preview listen" }));
+
+    const firstAudio = await waitFor(() => {
+      const audio = document.querySelector("audio");
+      expect(audio).not.toBeNull();
+      return audio as HTMLAudioElement;
+    });
+    expect(firstAudio.getAttribute("src")).toContain("/api/preview-audio/preview-1");
+
+    fireEvent.click(screen.getByRole("button", { name: "Waveform change start" }));
+    await waitFor(() => {
+      expect(screen.getByText("Preview needs updating")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Preview listen" }));
+
+    const secondAudio = await waitFor(() => {
+      const audio = document.querySelector(
+        'audio[src*="/api/preview-audio/preview-2"]'
+      );
+      expect(audio).not.toBeNull();
+      return audio as HTMLAudioElement;
+    });
+    expect(secondAudio.getAttribute("src")).toContain("/api/preview-audio/preview-2");
+    expect(secondAudio.getAttribute("src")).not.toContain("preview-1");
     await waitFor(() => {
       expect(screen.queryByText("Preview needs updating")).not.toBeInTheDocument();
     });
@@ -213,10 +253,10 @@ describe("TrackTrimmer", () => {
     mockCreatePreviewAction.mockResolvedValueOnce({ previewId: "p2" });
     fireEvent.click(screen.getByRole("button", { name: "Preview listen" }));
     await waitFor(() => {
-      expect(document.querySelector('audio[src="/api/preview-audio/p2"]')).not.toBeNull();
+      expect(document.querySelector('audio[src*="/api/preview-audio/p2"]')).not.toBeNull();
     });
 
-    const audio = document.querySelector('audio[src="/api/preview-audio/p2"]') as HTMLAudioElement;
+    const audio = document.querySelector('audio[src*="/api/preview-audio/p2"]') as HTMLAudioElement;
     fireEvent.error(audio);
     expect(mockAlert).toHaveBeenCalledWith("Preview playback error");
   });

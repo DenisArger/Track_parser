@@ -24,6 +24,9 @@ export async function GET(
         "Content-Type": "audio/mpeg",
         "Content-Disposition": `inline; filename="${encodedFileName}"; filename*=UTF-8''${encodedFileName}`,
         "Content-Length": fileBuffer.length.toString(),
+        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+        Pragma: "no-cache",
+        Expires: "0",
       },
     });
   } catch (error) {

@@ -378,9 +378,10 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
               {previewId && (
                 <div className="relative flex-shrink-0">
                   <audio
+                    key={previewId}
                     controls
                     className="audio-light w-full"
-                    src={`/api/preview-audio/${previewId}`}
+                    src={`/api/preview-audio/${previewId}?v=${encodeURIComponent(previewSignatureAtCreate ?? "")}`}
                     preload="metadata"
                     onError={(e) => {
                       console.error("Preview audio error:", e);

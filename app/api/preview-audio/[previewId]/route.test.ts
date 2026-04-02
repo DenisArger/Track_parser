@@ -42,6 +42,9 @@ describe("GET /api/preview-audio/[previewId]", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe("audio/mpeg");
     expect(res.headers.get("content-length")).toBe("3");
+    expect(res.headers.get("cache-control")).toBe("no-store, no-cache, must-revalidate, proxy-revalidate");
+    expect(res.headers.get("pragma")).toBe("no-cache");
+    expect(res.headers.get("expires")).toBe("0");
     expect(mockDownloadFileFromStorage).toHaveBeenCalledWith(
       "previews-bucket",
       "preview-1.mp3"
