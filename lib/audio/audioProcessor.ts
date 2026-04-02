@@ -49,7 +49,7 @@ export async function processAudioFile(
     trimSettings != null ||
     (requestedDuration != null && requestedDuration > 0);
 
-  // In serverless, try FFmpeg.wasm first
+  // In serverless, try FFmpeg.wasm first, then fall back to bundled/native FFmpeg.
   if (isServerlessEnvironment()) {
     try {
       console.log(
@@ -65,34 +65,30 @@ export async function processAudioFile(
       return;
     } catch (error) {
       console.warn(
-        "FFmpeg.wasm failed in serverless environment:",
+        "FFmpeg.wasm failed in serverless environment, trying native FFmpeg:",
         error instanceof Error ? error.message : String(error)
       );
-      if (requiresProcessing) {
-        throw error;
-      }
-
-      await fs.copy(inputPath, outputPath);
-      return;
     }
   }
 
-  // Try FFmpeg.wasm first (works everywhere, including when native FFmpeg is not available)
-  try {
-    console.log("Trying FFmpeg.wasm for audio processing...");
-    const { processAudioFileWasm } = await import("./audioProcessorWasm");
-    await processAudioFileWasm(
-      inputPath,
-      outputPath,
-      trimSettings,
-      maxDuration
-    );
-    return;
-  } catch (wasmError) {
-    console.warn(
-      "FFmpeg.wasm failed, trying native FFmpeg:",
-      wasmError instanceof Error ? wasmError.message : String(wasmError)
-    );
+  if (!isServerlessEnvironment()) {
+    // Try FFmpeg.wasm first (works everywhere, including when native FFmpeg is not available)
+    try {
+      console.log("Trying FFmpeg.wasm for audio processing...");
+      const { processAudioFileWasm } = await import("./audioProcessorWasm");
+      await processAudioFileWasm(
+        inputPath,
+        outputPath,
+        trimSettings,
+        maxDuration
+      );
+      return;
+    } catch (wasmError) {
+      console.warn(
+        "FFmpeg.wasm failed, trying native FFmpeg:",
+        wasmError instanceof Error ? wasmError.message : String(wasmError)
+      );
+    }
   }
 
   // Try to use native FFmpeg if available

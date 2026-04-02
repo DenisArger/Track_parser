@@ -80,18 +80,23 @@ describe("audioProcessor", () => {
     expect(mockCopy).not.toHaveBeenCalled();
   });
 
-  it("falls back to copy in serverless when wasm fails", async () => {
+  it("falls back to native processing in serverless when wasm fails", async () => {
     mockIsServerlessEnvironment.mockReturnValue(true);
     mockProcessAudioFileWasm.mockRejectedValue(new Error("wasm fail"));
+    mockFindFfmpegPath.mockResolvedValue("/usr/local/bin");
+    const cmd = createFfmpegCommand("end");
+    mockFfmpegFactory.mockReturnValue(cmd);
 
     await processAudioFile("/tmp/in.mp3", "/tmp/out.mp3");
 
-    expect(mockCopy).toHaveBeenCalledWith("/tmp/in.mp3", "/tmp/out.mp3");
+    expect(mockFfmpegFactory).toHaveBeenCalledWith("/tmp/in.mp3");
+    expect(mockCopy).not.toHaveBeenCalled();
   });
 
-  it("throws in serverless when preview processing fails", async () => {
+  it("throws in serverless when preview processing fails and native ffmpeg is unavailable", async () => {
     mockIsServerlessEnvironment.mockReturnValue(true);
     mockProcessAudioFileWasm.mockRejectedValue(new Error("wasm fail"));
+    mockFindFfmpegPath.mockResolvedValue("");
 
     await expect(
       processAudioFile("/tmp/in.mp3", "/tmp/out.mp3", {
@@ -100,7 +105,7 @@ describe("audioProcessor", () => {
         fadeOut: 1,
         maxDuration: 30,
       })
-    ).rejects.toThrow("wasm fail");
+    ).rejects.toThrow("Native FFmpeg not found for requested audio processing");
 
     expect(mockCopy).not.toHaveBeenCalled();
   });

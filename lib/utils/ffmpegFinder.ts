@@ -33,13 +33,6 @@ export async function findFfmpegPath(): Promise<string | null> {
   const path = await import("path");
   const fs = await import("fs-extra");
 
-  // In serverless environments, exec/spawn may not be available
-  // Skip FFmpeg search in serverless to avoid errors
-  const { isServerlessEnvironment } = await import("./environment");
-  if (isServerlessEnvironment()) {
-    return null;
-  }
-
   // Check local bin directory first (highest priority for bundled binaries)
   try {
     // Safe process.cwd() call - use /tmp if it fails
@@ -67,6 +60,13 @@ export async function findFfmpegPath(): Promise<string | null> {
     }
   } catch (_error) {
     // Ignore - local bin might not exist
+  }
+
+  // In serverless environments we can't rely on PATH probing,
+  // but bundled local binaries above are still valid and preferred.
+  const { isServerlessEnvironment } = await import("./environment");
+  if (isServerlessEnvironment()) {
+    return null;
   }
 
   // Check environment variable (second priority)

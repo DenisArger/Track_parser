@@ -79,7 +79,20 @@ describe("findFfmpegPath", () => {
     vi.resetModules();
   });
 
-  it("returns null in serverless environment", async () => {
+  it("returns local bin directory in serverless when bundled binaries exist", async () => {
+    const binDir = "/project/bin";
+    const ffmpeg = exePath(binDir, "ffmpeg");
+    const ffprobe = exePath(binDir, "ffprobe");
+
+    const { findFfmpegPath } = await loadFinder({
+      serverless: true,
+      pathExistsImpl: (filePath) => filePath === ffmpeg || filePath === ffprobe,
+    });
+
+    await expect(findFfmpegPath()).resolves.toBe(binDir);
+  });
+
+  it("returns null in serverless when bundled binaries are missing", async () => {
     const { findFfmpegPath } = await loadFinder({ serverless: true });
     await expect(findFfmpegPath()).resolves.toBeNull();
   });
