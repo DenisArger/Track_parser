@@ -1,7 +1,3 @@
-// Dynamic imports to avoid issues during static generation
-// import fs from "fs-extra";
-// import path from "path";
-
 export interface TrimSettings {
   startTime: number;
   endTime?: number;
@@ -9,6 +5,19 @@ export interface TrimSettings {
   fadeOut: number;
   maxDuration?: number;
 }
+
+type NativeFfmpegSelection = {
+  ffmpegPath: string;
+  ffprobePath: string;
+  source:
+    | "installer"
+    | "local-bin"
+    | "env"
+    | "config"
+    | "path"
+    | "common-path"
+    | "which";
+};
 
 function resolveRequestedDuration(
   trimSettings?: TrimSettings,
@@ -29,10 +38,47 @@ function resolveRequestedDuration(
   return maxDuration;
 }
 
+async function resolveNativeFfmpeg(): Promise<NativeFfmpegSelection | null> {
+  const fs = await import("fs-extra");
+
+  const ensureExecutable = async (filePath: string) => {
+    try {
+      await fs.chmod(filePath, 0o755);
+    } catch (_error) {
+      // Ignore chmod failures; the subsequent execution will surface real issues.
+    }
+  };
+
+  try {
+    const ffmpegInstallerModule = await import("@ffmpeg-installer/ffmpeg");
+    const ffprobeInstallerModule = await import("@ffprobe-installer/ffprobe");
+    const ffmpegInstaller = ffmpegInstallerModule.default ?? ffmpegInstallerModule;
+    const ffprobeInstaller = ffprobeInstallerModule.default ?? ffprobeInstallerModule;
+
+    if (ffmpegInstaller?.path && ffprobeInstaller?.path) {
+      await ensureExecutable(ffmpegInstaller.path);
+      await ensureExecutable(ffprobeInstaller.path);
+      return {
+        ffmpegPath: ffmpegInstaller.path,
+        ffprobePath: ffprobeInstaller.path,
+        source: "installer",
+      };
+    }
+  } catch (error) {
+    console.warn(
+      "FFmpeg installer packages unavailable, trying finder fallback:",
+      error instanceof Error ? error.message : String(error)
+    );
+  }
+
+  const { findFfmpegBinaryPaths } = await import("@/lib/utils/ffmpegFinder");
+  return findFfmpegBinaryPaths();
+}
+
 /**
- * Processes audio file (trimming, fading)
- * Tries FFmpeg.wasm first (works in serverless), then native FFmpeg.
- * If processing was requested, failures are surfaced instead of silently copying the source file.
+ * Processes audio file (trimming, fading).
+ * In Node runtimes we always use native FFmpeg binaries.
+ * FFmpeg.wasm is intentionally not used from server actions/serverless Node.
  */
 export async function processAudioFile(
   inputPath: string,
@@ -40,63 +86,49 @@ export async function processAudioFile(
   trimSettings?: TrimSettings,
   maxDuration?: number
 ): Promise<void> {
-  // Dynamic imports to avoid issues during static generation
   const fs = await import("fs-extra");
-  const path = await import("path");
-  const { isServerlessEnvironment } = await import("@/lib/utils/environment");
   const requestedDuration = resolveRequestedDuration(trimSettings, maxDuration);
   const requiresProcessing =
     trimSettings != null ||
     (requestedDuration != null && requestedDuration > 0);
+  const isNodeRuntime =
+    typeof process !== "undefined" && Boolean(process.versions?.node);
 
-  // In serverless, try FFmpeg.wasm first, then fall back to bundled/native FFmpeg.
-  if (isServerlessEnvironment()) {
+  if (!isNodeRuntime) {
     try {
-      console.log(
-        "Using FFmpeg.wasm for audio processing in serverless environment"
-      );
+      console.log("Audio processing strategy: ffmpeg.wasm (non-Node runtime)");
       const { processAudioFileWasm } = await import("./audioProcessorWasm");
-      await processAudioFileWasm(
-        inputPath,
-        outputPath,
-        trimSettings,
-        maxDuration
-      );
+      await processAudioFileWasm(inputPath, outputPath, trimSettings, maxDuration);
       return;
     } catch (error) {
-      console.warn(
-        "FFmpeg.wasm failed in serverless environment, trying native FFmpeg:",
-        error instanceof Error ? error.message : String(error)
-      );
-    }
-  }
+      if (requiresProcessing) {
+        throw new Error(
+          `Audio processing failed in non-Node runtime via ffmpeg.wasm: ${
+            error instanceof Error ? error.message : String(error)
+          }`
+        );
+      }
 
-  if (!isServerlessEnvironment()) {
-    // Try FFmpeg.wasm first (works everywhere, including when native FFmpeg is not available)
-    try {
-      console.log("Trying FFmpeg.wasm for audio processing...");
-      const { processAudioFileWasm } = await import("./audioProcessorWasm");
-      await processAudioFileWasm(
-        inputPath,
-        outputPath,
-        trimSettings,
-        maxDuration
-      );
+      console.warn("Non-Node ffmpeg.wasm failed, copying original file:", error);
+      await fs.copy(inputPath, outputPath);
       return;
-    } catch (wasmError) {
-      console.warn(
-        "FFmpeg.wasm failed, trying native FFmpeg:",
-        wasmError instanceof Error ? wasmError.message : String(wasmError)
-      );
     }
   }
 
-  // Try to use native FFmpeg if available
-  try {
-    const { findFfmpegPath } = await import("@/lib/utils/ffmpegFinder");
-    const ffmpegPath = await findFfmpegPath();
+  const { isServerlessEnvironment } = await import("@/lib/utils/environment");
+  const nativeFfmpeg = await resolveNativeFfmpeg();
 
-    if (!ffmpegPath) {
+  console.log("Audio processing runtime:", {
+    runtime: "node",
+    serverless: isServerlessEnvironment(),
+    strategy: "native-ffmpeg",
+    ffmpegSource: nativeFfmpeg?.source ?? "unavailable",
+    ffmpegPath: nativeFfmpeg?.ffmpegPath ?? null,
+    ffprobePath: nativeFfmpeg?.ffprobePath ?? null,
+  });
+
+  try {
+    if (!nativeFfmpeg) {
       if (requiresProcessing) {
         throw new Error("Native FFmpeg not found for requested audio processing");
       }
@@ -106,16 +138,11 @@ export async function processAudioFile(
       return;
     }
 
-    // Use FFmpeg for processing
-    // Dynamic import to avoid issues during static generation
     const ffmpeg = (await import("fluent-ffmpeg")).default;
     const ffmpegInstance = ffmpeg(inputPath);
 
-    // Set FFmpeg path if found (with platform-specific extension)
-    const ffmpegExe = process.platform === "win32" ? "ffmpeg.exe" : "ffmpeg";
-    const ffprobeExe = process.platform === "win32" ? "ffprobe.exe" : "ffprobe";
-    ffmpegInstance.setFfmpegPath(path.join(ffmpegPath, ffmpegExe));
-    ffmpegInstance.setFfprobePath(path.join(ffmpegPath, ffprobeExe));
+    ffmpegInstance.setFfmpegPath(nativeFfmpeg.ffmpegPath);
+    ffmpegInstance.setFfprobePath(nativeFfmpeg.ffprobePath);
 
     await new Promise<void>((resolve, reject) => {
       let command = ffmpegInstance;
@@ -123,10 +150,8 @@ export async function processAudioFile(
       if (trimSettings) {
         const duration = resolveRequestedDuration(trimSettings, maxDuration);
 
-        // Set start time
         command = command.setStartTime(trimSettings.startTime);
 
-        // Set duration
         if (trimSettings.endTime != null && duration != null) {
           command = command.duration(duration);
         } else if (trimSettings.maxDuration != null) {
@@ -149,7 +174,7 @@ export async function processAudioFile(
         if (audioFilters.length > 0) {
           command = command.audioFilters(audioFilters);
         }
-      } else if (maxDuration) {
+      } else if (maxDuration != null) {
         command = command.setStartTime(0).duration(maxDuration);
       }
 
@@ -159,10 +184,21 @@ export async function processAudioFile(
           console.log("Audio processing completed");
           resolve();
         })
-        .on("error", (error: any) => {
-          console.error("FFmpeg processing error:", error);
+        .on("error", (error: unknown) => {
+          const message = error instanceof Error ? error.message : String(error);
+          console.error("FFmpeg processing error:", {
+            message,
+            ffmpegSource: nativeFfmpeg.source,
+            ffmpegPath: nativeFfmpeg.ffmpegPath,
+            ffprobePath: nativeFfmpeg.ffprobePath,
+          });
+
           if (requiresProcessing) {
-            reject(error);
+            reject(
+              new Error(
+                `Native FFmpeg processing failed via ${nativeFfmpeg.source}: ${message}`
+              )
+            );
             return;
           }
 
@@ -172,7 +208,11 @@ export async function processAudioFile(
     });
   } catch (error) {
     if (requiresProcessing) {
-      throw error;
+      throw new Error(
+        `Native audio processing failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
     }
 
     console.warn("Error processing audio, copying original file:", error);

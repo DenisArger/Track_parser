@@ -3,6 +3,8 @@ const nextConfig = {
   // Exclude native modules from server-side bundling
   // These packages will be loaded using native require() at runtime
   serverExternalPackages: [
+    "@ffmpeg-installer/ffmpeg",
+    "@ffprobe-installer/ffprobe",
     "fluent-ffmpeg",
     "node-id3",
     "music-tempo",
@@ -30,6 +32,10 @@ const nextConfig = {
   outputFileTracingIncludes: {
     "/*": [
       "./bin/**/*",
+      "./node_modules/@ffmpeg-installer/ffmpeg/**/*",
+      "./node_modules/@ffprobe-installer/ffprobe/**/*",
+      "./node_modules/@ffmpeg-installer/linux-x64/**/*",
+      "./node_modules/@ffprobe-installer/linux-x64/**/*",
     ],
   },
 

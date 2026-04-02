@@ -2,13 +2,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { processAudioFile } from "./audioProcessor";
 
 const mockCopy = vi.fn();
+const mockChmod = vi.fn();
 const mockIsServerlessEnvironment = vi.fn();
 const mockProcessAudioFileWasm = vi.fn();
-const mockFindFfmpegPath = vi.fn();
+const mockFindFfmpegBinaryPaths = vi.fn();
 const mockFfmpegFactory = vi.fn();
+
+let mockInstallerPaths: { ffmpegPath: string; ffprobePath: string } | null = null;
 
 vi.mock("fs-extra", () => ({
   copy: (...args: unknown[]) => mockCopy(...args),
+  chmod: (...args: unknown[]) => mockChmod(...args),
 }));
 
 vi.mock("@/lib/utils/environment", () => ({
@@ -21,7 +25,25 @@ vi.mock("./audioProcessorWasm", () => ({
 }));
 
 vi.mock("@/lib/utils/ffmpegFinder", () => ({
-  findFfmpegPath: (...args: unknown[]) => mockFindFfmpegPath(...args),
+  findFfmpegBinaryPaths: (...args: unknown[]) => mockFindFfmpegBinaryPaths(...args),
+}));
+
+vi.mock("@ffmpeg-installer/ffmpeg", () => ({
+  get default() {
+    if (!mockInstallerPaths) {
+      throw new Error("ffmpeg installer unavailable");
+    }
+    return { path: mockInstallerPaths.ffmpegPath };
+  },
+}));
+
+vi.mock("@ffprobe-installer/ffprobe", () => ({
+  get default() {
+    if (!mockInstallerPaths) {
+      throw new Error("ffprobe installer unavailable");
+    }
+    return { path: mockInstallerPaths.ffprobePath };
+  },
 }));
 
 vi.mock("fluent-ffmpeg", () => ({
@@ -59,99 +81,39 @@ describe("audioProcessor", () => {
     vi.spyOn(console, "warn").mockImplementation(() => {});
     vi.spyOn(console, "error").mockImplementation(() => {});
 
+    mockInstallerPaths = {
+      ffmpegPath: "/installer/ffmpeg",
+      ffprobePath: "/installer/ffprobe",
+    };
     mockCopy.mockResolvedValue(undefined);
+    mockChmod.mockResolvedValue(undefined);
     mockIsServerlessEnvironment.mockReturnValue(false);
     mockProcessAudioFileWasm.mockResolvedValue(undefined);
-    mockFindFfmpegPath.mockResolvedValue("/usr/bin");
+    mockFindFfmpegBinaryPaths.mockResolvedValue({
+      ffmpegPath: "/finder/ffmpeg",
+      ffprobePath: "/finder/ffprobe",
+      source: "local-bin",
+    });
   });
 
-  it("uses wasm in serverless environment and returns", async () => {
+  it("does not call wasm in serverless node runtime", async () => {
     mockIsServerlessEnvironment.mockReturnValue(true);
-    mockProcessAudioFileWasm.mockResolvedValue(undefined);
-
-    await processAudioFile("/tmp/in.mp3", "/tmp/out.mp3");
-
-    expect(mockProcessAudioFileWasm).toHaveBeenCalledWith(
-      "/tmp/in.mp3",
-      "/tmp/out.mp3",
-      undefined,
-      undefined
-    );
-    expect(mockCopy).not.toHaveBeenCalled();
-  });
-
-  it("falls back to native processing in serverless when wasm fails", async () => {
-    mockIsServerlessEnvironment.mockReturnValue(true);
-    mockProcessAudioFileWasm.mockRejectedValue(new Error("wasm fail"));
-    mockFindFfmpegPath.mockResolvedValue("/usr/local/bin");
     const cmd = createFfmpegCommand("end");
     mockFfmpegFactory.mockReturnValue(cmd);
 
-    await processAudioFile("/tmp/in.mp3", "/tmp/out.mp3");
+    await processAudioFile("/tmp/in.mp3", "/tmp/out.mp3", {
+      startTime: 0,
+      fadeIn: 0,
+      fadeOut: 0,
+      maxDuration: 30,
+    });
 
-    expect(mockFfmpegFactory).toHaveBeenCalledWith("/tmp/in.mp3");
-    expect(mockCopy).not.toHaveBeenCalled();
+    expect(mockProcessAudioFileWasm).not.toHaveBeenCalled();
+    expect(cmd.setFfmpegPath).toHaveBeenCalledWith("/installer/ffmpeg");
+    expect(cmd.setFfprobePath).toHaveBeenCalledWith("/installer/ffprobe");
   });
 
-  it("throws in serverless when preview processing fails and native ffmpeg is unavailable", async () => {
-    mockIsServerlessEnvironment.mockReturnValue(true);
-    mockProcessAudioFileWasm.mockRejectedValue(new Error("wasm fail"));
-    mockFindFfmpegPath.mockResolvedValue("");
-
-    await expect(
-      processAudioFile("/tmp/in.mp3", "/tmp/out.mp3", {
-        startTime: 5,
-        fadeIn: 1,
-        fadeOut: 1,
-        maxDuration: 30,
-      })
-    ).rejects.toThrow("Native FFmpeg not found for requested audio processing");
-
-    expect(mockCopy).not.toHaveBeenCalled();
-  });
-
-  it("uses wasm first in non-serverless and returns on success", async () => {
-    mockIsServerlessEnvironment.mockReturnValue(false);
-    mockProcessAudioFileWasm.mockResolvedValue(undefined);
-
-    await processAudioFile("/tmp/in.mp3", "/tmp/out.mp3", { startTime: 0, fadeIn: 0, fadeOut: 0 });
-
-    expect(mockProcessAudioFileWasm).toHaveBeenCalled();
-    expect(mockFindFfmpegPath).not.toHaveBeenCalled();
-  });
-
-  it("falls back to copy when native ffmpeg path is missing and no processing was requested", async () => {
-    mockIsServerlessEnvironment.mockReturnValue(false);
-    mockProcessAudioFileWasm.mockRejectedValue(new Error("wasm fail"));
-    mockFindFfmpegPath.mockResolvedValue("");
-
-    await processAudioFile("/tmp/in.mp3", "/tmp/out.mp3");
-
-    expect(mockCopy).toHaveBeenCalledWith("/tmp/in.mp3", "/tmp/out.mp3");
-  });
-
-  it("throws when native ffmpeg path is missing for preview processing", async () => {
-    mockIsServerlessEnvironment.mockReturnValue(false);
-    mockProcessAudioFileWasm.mockRejectedValue(new Error("wasm fail"));
-    mockFindFfmpegPath.mockResolvedValue("");
-
-    await expect(
-      processAudioFile("/tmp/in.mp3", "/tmp/out.mp3", {
-        startTime: 10,
-        fadeIn: 2,
-        fadeOut: 3,
-        maxDuration: 30,
-      })
-    ).rejects.toThrow("Native FFmpeg not found for requested audio processing");
-
-    expect(mockCopy).not.toHaveBeenCalled();
-  });
-
-  it("processes with native ffmpeg using trim settings", async () => {
-    mockIsServerlessEnvironment.mockReturnValue(false);
-    mockProcessAudioFileWasm.mockRejectedValue(new Error("wasm fail"));
-    mockFindFfmpegPath.mockResolvedValue("/usr/local/bin");
-
+  it("prefers installer paths when available", async () => {
     const cmd = createFfmpegCommand("end");
     mockFfmpegFactory.mockReturnValue(cmd);
 
@@ -162,22 +124,56 @@ describe("audioProcessor", () => {
       fadeOut: 3,
     });
 
-    expect(mockFfmpegFactory).toHaveBeenCalledWith("/tmp/in.mp3");
-    expect(cmd.setStartTime).toHaveBeenCalledWith(10);
-    expect(cmd.duration).toHaveBeenCalledWith(30);
+    expect(mockFindFfmpegBinaryPaths).not.toHaveBeenCalled();
+    expect(cmd.setFfmpegPath).toHaveBeenCalledWith("/installer/ffmpeg");
+    expect(cmd.setFfprobePath).toHaveBeenCalledWith("/installer/ffprobe");
     expect(cmd.audioFilters).toHaveBeenCalledWith([
       "afade=t=in:st=0:d=2",
       "afade=t=out:st=27:d=3",
     ]);
-    expect(cmd.output).toHaveBeenCalledWith("/tmp/out.mp3");
-    expect(mockCopy).not.toHaveBeenCalled();
+  });
+
+  it("falls back to finder when installer is unavailable", async () => {
+    mockInstallerPaths = null;
+    const cmd = createFfmpegCommand("end");
+    mockFfmpegFactory.mockReturnValue(cmd);
+
+    await processAudioFile("/tmp/in.mp3", "/tmp/out.mp3", {
+      startTime: 0,
+      fadeIn: 0,
+      fadeOut: 0,
+      maxDuration: 30,
+    });
+
+    expect(mockFindFfmpegBinaryPaths).toHaveBeenCalled();
+    expect(cmd.setFfmpegPath).toHaveBeenCalledWith("/finder/ffmpeg");
+    expect(cmd.setFfprobePath).toHaveBeenCalledWith("/finder/ffprobe");
+  });
+
+  it("copies original when no processing was requested and native ffmpeg is unavailable", async () => {
+    mockInstallerPaths = null;
+    mockFindFfmpegBinaryPaths.mockResolvedValue(null);
+
+    await processAudioFile("/tmp/in.mp3", "/tmp/out.mp3");
+
+    expect(mockCopy).toHaveBeenCalledWith("/tmp/in.mp3", "/tmp/out.mp3");
+  });
+
+  it("throws when native ffmpeg is unavailable for preview processing", async () => {
+    mockInstallerPaths = null;
+    mockFindFfmpegBinaryPaths.mockResolvedValue(null);
+
+    await expect(
+      processAudioFile("/tmp/in.mp3", "/tmp/out.mp3", {
+        startTime: 10,
+        fadeIn: 2,
+        fadeOut: 3,
+        maxDuration: 30,
+      })
+    ).rejects.toThrow("Native audio processing failed: Native FFmpeg not found for requested audio processing");
   });
 
   it("copies original when ffmpeg processing emits error and no processing was requested", async () => {
-    mockIsServerlessEnvironment.mockReturnValue(false);
-    mockProcessAudioFileWasm.mockRejectedValue(new Error("wasm fail"));
-    mockFindFfmpegPath.mockResolvedValue("/usr/local/bin");
-
     const cmd = createFfmpegCommand("error");
     mockFfmpegFactory.mockReturnValue(cmd);
 
@@ -186,21 +182,13 @@ describe("audioProcessor", () => {
     expect(mockCopy).toHaveBeenCalledWith("/tmp/in.mp3", "/tmp/out.mp3");
   });
 
-  it("copies original when native ffmpeg setup throws", async () => {
-    mockIsServerlessEnvironment.mockReturnValue(false);
-    mockProcessAudioFileWasm.mockRejectedValue(new Error("wasm fail"));
-    mockFindFfmpegPath.mockRejectedValue(new Error("finder fail"));
-
-    await processAudioFile("/tmp/in.mp3", "/tmp/out.mp3");
-
-    expect(mockCopy).toHaveBeenCalledWith("/tmp/in.mp3", "/tmp/out.mp3");
-  });
-
-  it("throws when ffmpeg processing emits error for preview processing", async () => {
-    mockIsServerlessEnvironment.mockReturnValue(false);
-    mockProcessAudioFileWasm.mockRejectedValue(new Error("wasm fail"));
-    mockFindFfmpegPath.mockResolvedValue("/usr/local/bin");
-
+  it("throws contextual error when ffmpeg processing fails for preview generation", async () => {
+    mockInstallerPaths = null;
+    mockFindFfmpegBinaryPaths.mockResolvedValue({
+      ffmpegPath: "/finder/ffmpeg",
+      ffprobePath: "/finder/ffprobe",
+      source: "config",
+    });
     const cmd = createFfmpegCommand("error");
     mockFfmpegFactory.mockReturnValue(cmd);
 
@@ -211,8 +199,8 @@ describe("audioProcessor", () => {
         fadeOut: 3,
         maxDuration: 30,
       })
-    ).rejects.toThrow("ffmpeg failed");
-
-    expect(mockCopy).not.toHaveBeenCalled();
+    ).rejects.toThrow(
+      "Native audio processing failed: Native FFmpeg processing failed via config: ffmpeg failed"
+    );
   });
 });

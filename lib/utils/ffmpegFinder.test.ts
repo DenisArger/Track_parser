@@ -19,8 +19,6 @@ function exePath(dir: string, base: string) {
   return path.join(dir, exeName(base));
 }
 
-const normalizePath = (value: string) => value.replace(/\\/g, "/");
-
 async function loadFinder(options: FinderOptions = {}) {
   vi.resetModules();
 
@@ -70,49 +68,36 @@ async function loadFinder(options: FinderOptions = {}) {
     vi.spyOn(process, "cwd").mockReturnValue(cwd);
   }
 
-  const mod = await import("./ffmpegFinder");
-  return { findFfmpegPath: mod.findFfmpegPath, pathExists, chmod };
+  return import("./ffmpegFinder");
 }
 
-describe("findFfmpegPath", () => {
+describe("ffmpegFinder", () => {
   afterEach(() => {
     delete process.env.FFMPEG_PATH;
     vi.restoreAllMocks();
     vi.resetModules();
   });
 
-  it("returns local bin directory in serverless when bundled binaries exist", async () => {
+  it("returns local bundled paths in serverless when binaries exist", async () => {
     const binDir = "/project/bin";
     const ffmpeg = exePath(binDir, "ffmpeg");
     const ffprobe = exePath(binDir, "ffprobe");
 
-    const { findFfmpegPath, chmod } = await loadFinder({
+    const mod = await loadFinder({
       serverless: true,
       pathExistsImpl: (filePath) => filePath === ffmpeg || filePath === ffprobe,
     });
 
-    await expect(findFfmpegPath()).resolves.toBe(binDir);
-    expect(chmod).toHaveBeenCalledWith(ffmpeg, 0o755);
-    expect(chmod).toHaveBeenCalledWith(ffprobe, 0o755);
+    await expect(mod.findFfmpegBinaryPaths()).resolves.toEqual({
+      ffmpegPath: ffmpeg,
+      ffprobePath: ffprobe,
+      source: "local-bin",
+    });
   });
 
   it("returns null in serverless when bundled binaries are missing", async () => {
-    const { findFfmpegPath } = await loadFinder({ serverless: true });
-    await expect(findFfmpegPath()).resolves.toBeNull();
-  });
-
-  it("returns local bin directory when ffmpeg and ffprobe exist", async () => {
-    const binDir = "/project/bin";
-    const ffmpeg = exePath(binDir, "ffmpeg");
-    const ffprobe = exePath(binDir, "ffprobe");
-
-    const { findFfmpegPath, chmod } = await loadFinder({
-      pathExistsImpl: (filePath) => filePath === ffmpeg || filePath === ffprobe,
-    });
-
-    expect(normalizePath(String(await findFfmpegPath()))).toBe(binDir);
-    expect(chmod).toHaveBeenCalledWith(ffmpeg, 0o755);
-    expect(chmod).toHaveBeenCalledWith(ffprobe, 0o755);
+    const mod = await loadFinder({ serverless: true });
+    await expect(mod.findFfmpegBinaryPaths()).resolves.toBeNull();
   });
 
   it("uses FFMPEG_PATH environment variable when valid", async () => {
@@ -121,11 +106,16 @@ describe("findFfmpegPath", () => {
     const ffmpeg = exePath(envDir, "ffmpeg");
     const ffprobe = exePath(envDir, "ffprobe");
 
-    const { findFfmpegPath } = await loadFinder({
+    const mod = await loadFinder({
+      cwd: "/other-project",
       pathExistsImpl: (filePath) => filePath === ffmpeg || filePath === ffprobe,
     });
 
-    expect(normalizePath(String(await findFfmpegPath()))).toBe(envDir);
+    await expect(mod.findFfmpegBinaryPaths()).resolves.toEqual({
+      ffmpegPath: ffmpeg,
+      ffprobePath: ffprobe,
+      source: "env",
+    });
   });
 
   it("uses config ffmpeg.path when valid", async () => {
@@ -133,25 +123,34 @@ describe("findFfmpegPath", () => {
     const ffmpeg = exePath(configDir, "ffmpeg");
     const ffprobe = exePath(configDir, "ffprobe");
 
-    const { findFfmpegPath } = await loadFinder({
+    const mod = await loadFinder({
+      cwd: "/other-project",
       configValue: { ffmpeg: { path: configDir } },
       pathExistsImpl: (filePath) => filePath === ffmpeg || filePath === ffprobe,
     });
 
-    await expect(findFfmpegPath()).resolves.toBe(configDir);
+    await expect(mod.findFfmpegBinaryPaths()).resolves.toEqual({
+      ffmpegPath: ffmpeg,
+      ffprobePath: ffprobe,
+      source: "config",
+    });
   });
 
-  it("resolves directory from PATH lookup", async () => {
-    const executable = process.platform === "win32" ? "C:\\ffmpeg\\bin\\ffmpeg.exe" : "/usr/bin/ffmpeg";
-    const expectedDir = path.dirname(executable);
+  it("resolves binary pair from PATH lookup", async () => {
+    const ffmpeg = process.platform === "win32" ? "C:\\ffmpeg\\bin\\ffmpeg.exe" : "/usr/bin/ffmpeg";
+    const ffprobe = process.platform === "win32" ? "C:\\ffmpeg\\bin\\ffprobe.exe" : "/usr/bin/ffprobe";
 
-    const { findFfmpegPath } = await loadFinder({
-      configValue: {},
-      execAsyncImpl: async () => ({ stdout: `${executable}\n` }),
-      pathExistsImpl: (filePath) => filePath === executable,
+    const mod = await loadFinder({
+      cwd: "/other-project",
+      execAsyncImpl: async () => ({ stdout: `${ffmpeg}\n` }),
+      pathExistsImpl: (filePath) => filePath === ffmpeg || filePath === ffprobe,
     });
 
-    await expect(findFfmpegPath()).resolves.toBe(expectedDir);
+    await expect(mod.findFfmpegBinaryPaths()).resolves.toEqual({
+      ffmpegPath: ffmpeg,
+      ffprobePath: ffprobe,
+      source: "path",
+    });
   });
 
   it("falls back to common paths when PATH lookup fails", async () => {
@@ -159,32 +158,30 @@ describe("findFfmpegPath", () => {
     const ffmpeg = exePath(commonDir, "ffmpeg");
     const ffprobe = exePath(commonDir, "ffprobe");
 
-    const { findFfmpegPath } = await loadFinder({
+    const mod = await loadFinder({
+      cwd: "/other-project",
       execAsyncImpl: async () => {
         throw new Error("which failed");
       },
       pathExistsImpl: (filePath) => filePath === ffmpeg || filePath === ffprobe,
     });
 
-    await expect(findFfmpegPath()).resolves.toBe(commonDir);
+    await expect(mod.findFfmpegBinaryPaths()).resolves.toEqual({
+      ffmpegPath: ffmpeg,
+      ffprobePath: ffprobe,
+      source: "common-path",
+    });
   });
 
-  it("uses alternative PATH lookup when previous checks fail", async () => {
-    const altExecutable = process.platform === "win32" ? "C:\\opt\\ffmpeg\\ffmpeg.exe" : "/opt/bin/ffmpeg";
-    const altDir = path.dirname(altExecutable);
-    let callCount = 0;
+  it("findFfmpegPath returns the ffmpeg directory", async () => {
+    const binDir = "/project/bin";
+    const ffmpeg = exePath(binDir, "ffmpeg");
+    const ffprobe = exePath(binDir, "ffprobe");
 
-    const { findFfmpegPath } = await loadFinder({
-      execAsyncImpl: async () => {
-        callCount += 1;
-        if (callCount === 1) {
-          throw new Error("first lookup failed");
-        }
-        return { stdout: `${altExecutable}\n` };
-      },
-      pathExistsImpl: (filePath) => filePath === altDir,
+    const mod = await loadFinder({
+      pathExistsImpl: (filePath) => filePath === ffmpeg || filePath === ffprobe,
     });
 
-    await expect(findFfmpegPath()).resolves.toBe(altDir);
+    await expect(mod.findFfmpegPath()).resolves.toBe(binDir);
   });
 });

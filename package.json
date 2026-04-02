@@ -17,7 +17,9 @@
     "prepare": "husky"
   },
   "dependencies": {
+    "@ffmpeg-installer/ffmpeg": "^1.1.0",
     "@ffmpeg/ffmpeg": "^0.12.15",
+    "@ffprobe-installer/ffprobe": "^2.1.2",
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.39.0",
     "@types/node": "^20.0.0",
