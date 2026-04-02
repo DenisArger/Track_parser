@@ -37,6 +37,7 @@ async function loadFinder(options: FinderOptions = {}) {
   } = options;
 
   const pathExists = vi.fn(pathExistsImpl);
+  const chmod = vi.fn(async () => undefined);
   const loadConfig = configThrows
     ? vi.fn(async () => {
         throw new Error("config error");
@@ -49,6 +50,7 @@ async function loadFinder(options: FinderOptions = {}) {
   }));
   vi.doMock("fs-extra", () => ({
     pathExists,
+    chmod,
   }));
   vi.doMock("@/lib/config", () => ({
     loadConfig,
@@ -69,7 +71,7 @@ async function loadFinder(options: FinderOptions = {}) {
   }
 
   const mod = await import("./ffmpegFinder");
-  return { findFfmpegPath: mod.findFfmpegPath, pathExists };
+  return { findFfmpegPath: mod.findFfmpegPath, pathExists, chmod };
 }
 
 describe("findFfmpegPath", () => {
@@ -84,12 +86,14 @@ describe("findFfmpegPath", () => {
     const ffmpeg = exePath(binDir, "ffmpeg");
     const ffprobe = exePath(binDir, "ffprobe");
 
-    const { findFfmpegPath } = await loadFinder({
+    const { findFfmpegPath, chmod } = await loadFinder({
       serverless: true,
       pathExistsImpl: (filePath) => filePath === ffmpeg || filePath === ffprobe,
     });
 
     await expect(findFfmpegPath()).resolves.toBe(binDir);
+    expect(chmod).toHaveBeenCalledWith(ffmpeg, 0o755);
+    expect(chmod).toHaveBeenCalledWith(ffprobe, 0o755);
   });
 
   it("returns null in serverless when bundled binaries are missing", async () => {
@@ -102,11 +106,13 @@ describe("findFfmpegPath", () => {
     const ffmpeg = exePath(binDir, "ffmpeg");
     const ffprobe = exePath(binDir, "ffprobe");
 
-    const { findFfmpegPath } = await loadFinder({
+    const { findFfmpegPath, chmod } = await loadFinder({
       pathExistsImpl: (filePath) => filePath === ffmpeg || filePath === ffprobe,
     });
 
     expect(normalizePath(String(await findFfmpegPath()))).toBe(binDir);
+    expect(chmod).toHaveBeenCalledWith(ffmpeg, 0o755);
+    expect(chmod).toHaveBeenCalledWith(ffprobe, 0o755);
   });
 
   it("uses FFMPEG_PATH environment variable when valid", async () => {

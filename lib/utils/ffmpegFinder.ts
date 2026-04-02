@@ -33,6 +33,14 @@ export async function findFfmpegPath(): Promise<string | null> {
   const path = await import("path");
   const fs = await import("fs-extra");
 
+  const ensureExecutable = async (filePath: string) => {
+    try {
+      await fs.chmod(filePath, 0o755);
+    } catch (_error) {
+      // Ignore chmod failures; existence check below still decides usability.
+    }
+  };
+
   // Check local bin directory first (highest priority for bundled binaries)
   try {
     // Safe process.cwd() call - use /tmp if it fails
@@ -56,6 +64,8 @@ export async function findFfmpegPath(): Promise<string | null> {
       (await fs.pathExists(ffmpegExe)) &&
       (await fs.pathExists(ffprobeExe))
     ) {
+      await ensureExecutable(ffmpegExe);
+      await ensureExecutable(ffprobeExe);
       return localBinDir;
     }
   } catch (_error) {
@@ -86,6 +96,8 @@ export async function findFfmpegPath(): Promise<string | null> {
         (await fs.pathExists(ffmpegExe)) &&
         (await fs.pathExists(ffprobeExe))
       ) {
+        await ensureExecutable(ffmpegExe);
+        await ensureExecutable(ffprobeExe);
         return envPath;
       }
     } catch (error) {
@@ -112,6 +124,8 @@ export async function findFfmpegPath(): Promise<string | null> {
         (await fs.pathExists(ffmpegExe)) &&
         (await fs.pathExists(ffprobeExe))
       ) {
+        await ensureExecutable(ffmpegExe);
+        await ensureExecutable(ffprobeExe);
         return configPath;
       }
     }
@@ -138,6 +152,7 @@ export async function findFfmpegPath(): Promise<string | null> {
       if (ffmpegPath) {
         try {
           if (await fs.pathExists(ffmpegPath)) {
+            await ensureExecutable(ffmpegPath);
             // Extract directory path (remove executable name)
             const dirPath = path.dirname(ffmpegPath);
             return dirPath;
@@ -199,6 +214,8 @@ export async function findFfmpegPath(): Promise<string | null> {
             (await fs.pathExists(ffmpegExe)) &&
             (await fs.pathExists(ffprobeExe))
           ) {
+            await ensureExecutable(ffmpegExe);
+            await ensureExecutable(ffprobeExe);
             return ffmpegDir;
           }
         } catch (_pathError) {
