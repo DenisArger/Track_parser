@@ -27,9 +27,14 @@ const nextConfig = {
   },
 
   // Exclude unnecessary files from standalone output
+  outputFileTracingIncludes: {
+    "*": [
+      "./bin/**/*",
+    ],
+  },
+
   outputFileTracingExcludes: {
     "*": [
-      "bin/**/*",
       "downloads/**/*",
       "processed/**/*",
       "rejected/**/*",
