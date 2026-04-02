@@ -10,9 +10,29 @@ export interface TrimSettings {
   maxDuration?: number;
 }
 
+function resolveRequestedDuration(
+  trimSettings?: TrimSettings,
+  maxDuration?: number
+): number | undefined {
+  if (!trimSettings) {
+    return maxDuration;
+  }
+
+  if (trimSettings.endTime != null) {
+    return trimSettings.endTime - trimSettings.startTime;
+  }
+
+  if (trimSettings.maxDuration != null) {
+    return trimSettings.maxDuration;
+  }
+
+  return maxDuration;
+}
+
 /**
  * Processes audio file (trimming, fading)
- * Tries FFmpeg.wasm first (works in serverless), then native FFmpeg, then fallback to copy
+ * Tries FFmpeg.wasm first (works in serverless), then native FFmpeg.
+ * If processing was requested, failures are surfaced instead of silently copying the source file.
  */
 export async function processAudioFile(
   inputPath: string,
@@ -24,6 +44,10 @@ export async function processAudioFile(
   const fs = await import("fs-extra");
   const path = await import("path");
   const { isServerlessEnvironment } = await import("@/lib/utils/environment");
+  const requestedDuration = resolveRequestedDuration(trimSettings, maxDuration);
+  const requiresProcessing =
+    trimSettings != null ||
+    (requestedDuration != null && requestedDuration > 0);
 
   // In serverless, try FFmpeg.wasm first
   if (isServerlessEnvironment()) {
@@ -41,10 +65,13 @@ export async function processAudioFile(
       return;
     } catch (error) {
       console.warn(
-        "FFmpeg.wasm failed, copying original file:",
+        "FFmpeg.wasm failed in serverless environment:",
         error instanceof Error ? error.message : String(error)
       );
-      // Fallback: copy original file
+      if (requiresProcessing) {
+        throw error;
+      }
+
       await fs.copy(inputPath, outputPath);
       return;
     }
@@ -74,9 +101,11 @@ export async function processAudioFile(
     const ffmpegPath = await findFfmpegPath();
 
     if (!ffmpegPath) {
-      console.warn(
-        "Native FFmpeg not found. Copying original file without processing."
-      );
+      if (requiresProcessing) {
+        throw new Error("Native FFmpeg not found for requested audio processing");
+      }
+
+      console.warn("Native FFmpeg not found. Copying original file without processing.");
       await fs.copy(inputPath, outputPath);
       return;
     }
@@ -96,36 +125,33 @@ export async function processAudioFile(
       let command = ffmpegInstance;
 
       if (trimSettings) {
+        const duration = resolveRequestedDuration(trimSettings, maxDuration);
+
         // Set start time
         command = command.setStartTime(trimSettings.startTime);
 
         // Set duration
-        if (trimSettings.endTime) {
-          const duration = trimSettings.endTime - trimSettings.startTime;
+        if (trimSettings.endTime != null && duration != null) {
           command = command.duration(duration);
-        } else if (trimSettings.maxDuration) {
+        } else if (trimSettings.maxDuration != null) {
           command = command.duration(trimSettings.maxDuration);
-        } else if (maxDuration) {
+        } else if (maxDuration != null) {
           command = command.duration(maxDuration);
         }
 
-        // Apply fade in
+        const audioFilters: string[] = [];
+
         if (trimSettings.fadeIn > 0) {
-          command = command.audioFilters(
-            `afade=t=in:st=${trimSettings.startTime}:d=${trimSettings.fadeIn}`
-          );
+          audioFilters.push(`afade=t=in:st=0:d=${trimSettings.fadeIn}`);
         }
 
-        // Apply fade out
-        if (trimSettings.fadeOut > 0) {
-          const fadeOutStart = trimSettings.endTime
-            ? trimSettings.endTime - trimSettings.fadeOut
-            : trimSettings.startTime +
-              (trimSettings.maxDuration || maxDuration || 360) -
-              trimSettings.fadeOut;
-          command = command.audioFilters(
-            `afade=t=out:st=${fadeOutStart}:d=${trimSettings.fadeOut}`
-          );
+        if (trimSettings.fadeOut > 0 && duration != null) {
+          const fadeOutStart = Math.max(0, duration - trimSettings.fadeOut);
+          audioFilters.push(`afade=t=out:st=${fadeOutStart}:d=${trimSettings.fadeOut}`);
+        }
+
+        if (audioFilters.length > 0) {
+          command = command.audioFilters(audioFilters);
         }
       } else if (maxDuration) {
         command = command.setStartTime(0).duration(maxDuration);
@@ -138,17 +164,22 @@ export async function processAudioFile(
           resolve();
         })
         .on("error", (error: any) => {
-          console.error("FFmpeg error, falling back to copy:", error);
-          // Fallback: copy original file
-          fs.copy(inputPath, outputPath)
-            .then(() => resolve())
-            .catch(reject);
+          console.error("FFmpeg processing error:", error);
+          if (requiresProcessing) {
+            reject(error);
+            return;
+          }
+
+          fs.copy(inputPath, outputPath).then(() => resolve()).catch(reject);
         })
         .run();
     });
   } catch (error) {
+    if (requiresProcessing) {
+      throw error;
+    }
+
     console.warn("Error processing audio, copying original file:", error);
-    // Fallback: copy original file
     await fs.copy(inputPath, outputPath);
   }
 }

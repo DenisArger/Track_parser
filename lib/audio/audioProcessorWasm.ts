@@ -11,6 +11,25 @@ export interface TrimSettings {
   maxDuration?: number;
 }
 
+function resolveRequestedDuration(
+  trimSettings?: TrimSettings,
+  maxDuration?: number
+): number {
+  if (trimSettings?.endTime != null) {
+    return trimSettings.endTime - trimSettings.startTime;
+  }
+
+  if (trimSettings?.maxDuration != null) {
+    return trimSettings.maxDuration;
+  }
+
+  if (maxDuration != null) {
+    return maxDuration;
+  }
+
+  return 360;
+}
+
 /**
  * Processes audio file using FFmpeg.wasm (WebAssembly version)
  * Works in serverless environments like Netlify
@@ -62,16 +81,7 @@ export async function processAudioFileWasm(
       }
 
       // Calculate duration
-      let duration: number;
-      if (trimSettings.endTime) {
-        duration = trimSettings.endTime - trimSettings.startTime;
-      } else if (trimSettings.maxDuration) {
-        duration = trimSettings.maxDuration;
-      } else if (maxDuration) {
-        duration = maxDuration;
-      } else {
-        duration = 360; // Default 6 minutes
-      }
+      const duration = resolveRequestedDuration(trimSettings, maxDuration);
 
       args.push("-t", duration.toString());
 
@@ -80,16 +90,12 @@ export async function processAudioFileWasm(
 
       // Apply fade in
       if (trimSettings.fadeIn > 0) {
-        audioFilters.push(
-          `afade=t=in:st=${trimSettings.startTime}:d=${trimSettings.fadeIn}`
-        );
+        audioFilters.push(`afade=t=in:st=0:d=${trimSettings.fadeIn}`);
       }
 
       // Apply fade out
       if (trimSettings.fadeOut > 0) {
-        const fadeOutStart = trimSettings.endTime
-          ? trimSettings.endTime - trimSettings.fadeOut
-          : trimSettings.startTime + duration - trimSettings.fadeOut;
+        const fadeOutStart = Math.max(0, duration - trimSettings.fadeOut);
         audioFilters.push(
           `afade=t=out:st=${fadeOutStart}:d=${trimSettings.fadeOut}`
         );
@@ -123,9 +129,6 @@ export async function processAudioFileWasm(
     console.log("Audio processing completed with FFmpeg.wasm");
   } catch (error) {
     console.error("FFmpeg.wasm error:", error);
-    // Fallback: copy original file
-    console.warn("Falling back to copy original file");
-    await fs.copy(inputPath, outputPath);
     throw new Error(
       `FFmpeg.wasm processing failed: ${
         error instanceof Error ? error.message : String(error)

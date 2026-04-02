@@ -3,8 +3,6 @@ import { processAudioFileWasm } from "./audioProcessorWasm";
 
 const mockReadFile = vi.fn();
 const mockWriteFile = vi.fn();
-const mockCopy = vi.fn();
-
 const mockOn = vi.fn();
 const mockLoad = vi.fn();
 const mockWriteVirtualFile = vi.fn();
@@ -17,7 +15,6 @@ let ffmpegLoaded = false;
 vi.mock("fs-extra", () => ({
   readFile: (...args: unknown[]) => mockReadFile(...args),
   writeFile: (...args: unknown[]) => mockWriteFile(...args),
-  copy: (...args: unknown[]) => mockCopy(...args),
 }));
 
 vi.mock("@ffmpeg/ffmpeg", () => ({
@@ -54,7 +51,6 @@ describe("audioProcessorWasm", () => {
     ffmpegLoaded = false;
     mockReadFile.mockResolvedValue(Buffer.from([1, 2, 3]));
     mockWriteFile.mockResolvedValue(undefined);
-    mockCopy.mockResolvedValue(undefined);
     mockLoad.mockResolvedValue(undefined);
     mockWriteVirtualFile.mockResolvedValue(undefined);
     mockExec.mockResolvedValue(undefined);
@@ -82,8 +78,8 @@ describe("audioProcessorWasm", () => {
     expect(args).toContain("-t");
     expect(args).toContain("20");
     expect(args).toContain("-af");
-    expect(args.join(" ")).toContain("afade=t=in");
-    expect(args.join(" ")).toContain("afade=t=out");
+    expect(args.join(" ")).toContain("afade=t=in:st=0:d=2");
+    expect(args.join(" ")).toContain("afade=t=out:st=17:d=3");
     expect(args.slice(-3)).toEqual(["-ab", "192k", "output.mp3"]);
 
     expect(mockWriteFile).toHaveBeenCalledWith(
@@ -105,13 +101,11 @@ describe("audioProcessorWasm", () => {
     expect(args).toContain("120");
   });
 
-  it("falls back to copy and throws wrapped error on failure", async () => {
+  it("throws wrapped error on failure without copying the original audio", async () => {
     mockExec.mockRejectedValue(new Error("wasm failed"));
 
     await expect(
       processAudioFileWasm("/tmp/in.mp3", "/tmp/out.mp3")
     ).rejects.toThrow("FFmpeg.wasm processing failed: wasm failed");
-
-    expect(mockCopy).toHaveBeenCalledWith("/tmp/in.mp3", "/tmp/out.mp3");
   });
 });

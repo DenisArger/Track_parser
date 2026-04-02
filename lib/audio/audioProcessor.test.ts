@@ -89,6 +89,22 @@ describe("audioProcessor", () => {
     expect(mockCopy).toHaveBeenCalledWith("/tmp/in.mp3", "/tmp/out.mp3");
   });
 
+  it("throws in serverless when preview processing fails", async () => {
+    mockIsServerlessEnvironment.mockReturnValue(true);
+    mockProcessAudioFileWasm.mockRejectedValue(new Error("wasm fail"));
+
+    await expect(
+      processAudioFile("/tmp/in.mp3", "/tmp/out.mp3", {
+        startTime: 5,
+        fadeIn: 1,
+        fadeOut: 1,
+        maxDuration: 30,
+      })
+    ).rejects.toThrow("wasm fail");
+
+    expect(mockCopy).not.toHaveBeenCalled();
+  });
+
   it("uses wasm first in non-serverless and returns on success", async () => {
     mockIsServerlessEnvironment.mockReturnValue(false);
     mockProcessAudioFileWasm.mockResolvedValue(undefined);
@@ -99,7 +115,7 @@ describe("audioProcessor", () => {
     expect(mockFindFfmpegPath).not.toHaveBeenCalled();
   });
 
-  it("falls back to copy when native ffmpeg path is missing", async () => {
+  it("falls back to copy when native ffmpeg path is missing and no processing was requested", async () => {
     mockIsServerlessEnvironment.mockReturnValue(false);
     mockProcessAudioFileWasm.mockRejectedValue(new Error("wasm fail"));
     mockFindFfmpegPath.mockResolvedValue("");
@@ -107,6 +123,23 @@ describe("audioProcessor", () => {
     await processAudioFile("/tmp/in.mp3", "/tmp/out.mp3");
 
     expect(mockCopy).toHaveBeenCalledWith("/tmp/in.mp3", "/tmp/out.mp3");
+  });
+
+  it("throws when native ffmpeg path is missing for preview processing", async () => {
+    mockIsServerlessEnvironment.mockReturnValue(false);
+    mockProcessAudioFileWasm.mockRejectedValue(new Error("wasm fail"));
+    mockFindFfmpegPath.mockResolvedValue("");
+
+    await expect(
+      processAudioFile("/tmp/in.mp3", "/tmp/out.mp3", {
+        startTime: 10,
+        fadeIn: 2,
+        fadeOut: 3,
+        maxDuration: 30,
+      })
+    ).rejects.toThrow("Native FFmpeg not found for requested audio processing");
+
+    expect(mockCopy).not.toHaveBeenCalled();
   });
 
   it("processes with native ffmpeg using trim settings", async () => {
@@ -127,12 +160,15 @@ describe("audioProcessor", () => {
     expect(mockFfmpegFactory).toHaveBeenCalledWith("/tmp/in.mp3");
     expect(cmd.setStartTime).toHaveBeenCalledWith(10);
     expect(cmd.duration).toHaveBeenCalledWith(30);
-    expect(cmd.audioFilters).toHaveBeenCalled();
+    expect(cmd.audioFilters).toHaveBeenCalledWith([
+      "afade=t=in:st=0:d=2",
+      "afade=t=out:st=27:d=3",
+    ]);
     expect(cmd.output).toHaveBeenCalledWith("/tmp/out.mp3");
     expect(mockCopy).not.toHaveBeenCalled();
   });
 
-  it("copies original when ffmpeg processing emits error", async () => {
+  it("copies original when ffmpeg processing emits error and no processing was requested", async () => {
     mockIsServerlessEnvironment.mockReturnValue(false);
     mockProcessAudioFileWasm.mockRejectedValue(new Error("wasm fail"));
     mockFindFfmpegPath.mockResolvedValue("/usr/local/bin");
@@ -140,10 +176,8 @@ describe("audioProcessor", () => {
     const cmd = createFfmpegCommand("error");
     mockFfmpegFactory.mockReturnValue(cmd);
 
-    await processAudioFile("/tmp/in.mp3", "/tmp/out.mp3", undefined, 120);
+    await processAudioFile("/tmp/in.mp3", "/tmp/out.mp3");
 
-    expect(cmd.setStartTime).toHaveBeenCalledWith(0);
-    expect(cmd.duration).toHaveBeenCalledWith(120);
     expect(mockCopy).toHaveBeenCalledWith("/tmp/in.mp3", "/tmp/out.mp3");
   });
 
@@ -155,5 +189,25 @@ describe("audioProcessor", () => {
     await processAudioFile("/tmp/in.mp3", "/tmp/out.mp3");
 
     expect(mockCopy).toHaveBeenCalledWith("/tmp/in.mp3", "/tmp/out.mp3");
+  });
+
+  it("throws when ffmpeg processing emits error for preview processing", async () => {
+    mockIsServerlessEnvironment.mockReturnValue(false);
+    mockProcessAudioFileWasm.mockRejectedValue(new Error("wasm fail"));
+    mockFindFfmpegPath.mockResolvedValue("/usr/local/bin");
+
+    const cmd = createFfmpegCommand("error");
+    mockFfmpegFactory.mockReturnValue(cmd);
+
+    await expect(
+      processAudioFile("/tmp/in.mp3", "/tmp/out.mp3", {
+        startTime: 10,
+        fadeIn: 2,
+        fadeOut: 3,
+        maxDuration: 30,
+      })
+    ).rejects.toThrow("ffmpeg failed");
+
+    expect(mockCopy).not.toHaveBeenCalled();
   });
 });
