@@ -29,6 +29,7 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
   const [useEndTime, setUseEndTime] = useState(false);
   const [duration, setDuration] = useState(track.metadata.duration ?? initialMaxDuration);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [playbackStartTime, setPlaybackStartTime] = useState(0);
 
   const [startInput, setStartInput] = useState(() => formatTimeMs(0));
   const [endInput, setEndInput] = useState(() => formatTimeMs(initialMaxDuration));
@@ -102,10 +103,10 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
     const audio = audioRef.current;
     if (!audio) return;
 
-    if (audio.currentTime < resolvedTrimValues.startTime || audio.currentTime > effectiveEnd) {
-      audio.currentTime = resolvedTrimValues.startTime;
+    if (audio.currentTime < 0 || audio.currentTime > duration) {
+      audio.currentTime = playbackStartTime;
     }
-  }, [effectiveEnd, resolvedTrimValues.startTime]);
+  }, [duration, playbackStartTime]);
 
   const handleDurationLoaded = useCallback(
     (loadedDuration: number) => {
@@ -148,9 +149,9 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
       }
       audio.volume = Number.isFinite(volume) ? Math.max(0, Math.min(1, volume)) : 1;
 
-      if (audio.currentTime >= effectiveEnd - PLAYBACK_EPSILON) {
+      if (audio.currentTime >= duration - PLAYBACK_EPSILON) {
         audio.pause();
-        audio.currentTime = resolvedTrimValues.startTime;
+        audio.currentTime = playbackStartTime;
         audio.volume = 1;
         setIsPlaying(false);
       }
@@ -159,7 +160,7 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
     const handlePause = () => setIsPlaying(false);
     const handlePlay = () => setIsPlaying(true);
     const handleEnded = () => {
-      audio.currentTime = resolvedTrimValues.startTime;
+      audio.currentTime = playbackStartTime;
       setIsPlaying(false);
     };
 
@@ -174,25 +175,22 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
       audio.removeEventListener("play", handlePlay);
       audio.removeEventListener("ended", handleEnded);
     };
-  }, [effectiveEnd, fadeIn, fadeOut, resolvedTrimValues.startTime]);
+  }, [duration, fadeIn, fadeOut, playbackStartTime, resolvedTrimValues.startTime]);
 
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
 
     if (isPlaying) {
-      if (
-        audio.currentTime < resolvedTrimValues.startTime ||
-        audio.currentTime > effectiveEnd - PLAYBACK_EPSILON
-      ) {
+      if (audio.currentTime < 0 || audio.currentTime > duration - PLAYBACK_EPSILON) {
         stopPlayback();
-        audio.currentTime = resolvedTrimValues.startTime;
+        audio.currentTime = playbackStartTime;
       }
       return;
     }
 
     syncPlaybackToRange();
-  }, [effectiveEnd, isPlaying, resolvedTrimValues.startTime, syncPlaybackToRange, stopPlayback]);
+  }, [duration, isPlaying, playbackStartTime, syncPlaybackToRange, stopPlayback]);
 
   const handlePlayPause = async () => {
     const audio = audioRef.current;
@@ -203,12 +201,7 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
       return;
     }
 
-    if (
-      audio.currentTime < resolvedTrimValues.startTime ||
-      audio.currentTime > effectiveEnd - PLAYBACK_EPSILON
-    ) {
-      audio.currentTime = resolvedTrimValues.startTime;
-    }
+    audio.currentTime = playbackStartTime;
 
     try {
       audio.volume = fadeIn > 0 ? 0 : 1;
@@ -228,6 +221,7 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
     setMaxDuration(resetMaxDuration);
     setFadeIn(0);
     setFadeOut(0);
+    setPlaybackStartTime(0);
     setStartInput(formatTimeMs(0));
     setEndInput(formatTimeMs(resetMaxDuration));
     if (audioRef.current) {
@@ -322,11 +316,13 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
               endTime={endTime}
               maxDuration={maxDuration}
               useEndTime={useEndTime}
+              playbackStartTime={playbackStartTime}
               fadeIn={fadeIn}
               fadeOut={fadeOut}
               onStartChange={setStartTime}
               onEndChange={setEndTime}
               onMaxDurationChange={setMaxDuration}
+              onPlaybackStartChange={setPlaybackStartTime}
               onDurationLoaded={handleDurationLoaded}
             />
 

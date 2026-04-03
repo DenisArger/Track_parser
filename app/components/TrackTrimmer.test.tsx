@@ -37,6 +37,9 @@ vi.mock("./WaveformTrimEditor", () => ({
         <button type="button" onClick={() => props.onEndChange(45)}>
           Waveform change end
         </button>
+        <button type="button" onClick={() => props.onPlaybackStartChange?.(42)}>
+          Waveform change playback start
+        </button>
         <button type="button" onClick={() => props.onDurationLoaded?.(240)}>
           Waveform load duration
         </button>
@@ -125,21 +128,23 @@ describe("TrackTrimmer", () => {
     });
   });
 
-  it("plays the selected fragment locally from startTime", async () => {
+  it("plays the track locally from the playback start line", async () => {
     renderTrimmer();
     const playSpy = vi.mocked(HTMLMediaElement.prototype.play);
 
-    fireEvent.click(screen.getByRole("button", { name: "Waveform change start" }));
+    fireEvent.click(screen.getByRole("button", { name: "Waveform change playback start" }));
     fireEvent.click(screen.getByRole("button", { name: "Play" }));
 
     const audio = screen.getByTestId("trim-preview-audio") as HTMLAudioElement;
-    expect(audio.currentTime).toBe(15);
+    expect(audio.currentTime).toBe(42);
     expect(playSpy).toHaveBeenCalledTimes(1);
   });
 
-  it("stops playback when the selected fragment ends", async () => {
+  it("stops playback when the track reaches the end", async () => {
     renderTrimmer();
     const pauseSpy = vi.mocked(HTMLMediaElement.prototype.pause);
+
+    fireEvent.click(screen.getByRole("button", { name: "Waveform change playback start" }));
 
     fireEvent.click(screen.getByRole("button", { name: "Play" }));
 
@@ -152,10 +157,10 @@ describe("TrackTrimmer", () => {
     fireEvent(audio, new Event("timeupdate"));
 
     expect(pauseSpy).toHaveBeenCalled();
-    expect(audio.currentTime).toBe(0);
+    expect(audio.currentTime).toBe(42);
   });
 
-  it("stops playback when range changes beyond the current position", async () => {
+  it("keeps playback independent from trim range changes", async () => {
     renderTrimmer();
     const pauseSpy = vi.mocked(HTMLMediaElement.prototype.pause);
 
@@ -171,10 +176,8 @@ describe("TrackTrimmer", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Waveform change start" }));
 
-    await waitFor(() => {
-      expect(pauseSpy).toHaveBeenCalled();
-    });
-    expect(audio.currentTime).toBe(15);
+    expect(pauseSpy).not.toHaveBeenCalled();
+    expect(audio.currentTime).toBe(5);
   });
 
   it("resets trim range and fades", async () => {

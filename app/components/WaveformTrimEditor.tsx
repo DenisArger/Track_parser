@@ -12,11 +12,13 @@ export interface WaveformTrimEditorProps {
   endTime: number | undefined;
   maxDuration: number;
   useEndTime: boolean;
+  playbackStartTime?: number;
   fadeIn?: number;
   fadeOut?: number;
   onStartChange: (s: number) => void;
   onEndChange: (e: number) => void;
   onMaxDurationChange: (d: number) => void;
+  onPlaybackStartChange?: (value: number) => void;
   onDurationLoaded?: (d: number) => void;
 }
 
@@ -29,11 +31,13 @@ export default function WaveformTrimEditor({
   endTime,
   maxDuration,
   useEndTime,
+  playbackStartTime = 0,
   fadeIn = 0,
   fadeOut = 0,
   onStartChange,
   onEndChange,
   onMaxDurationChange,
+  onPlaybackStartChange,
   onDurationLoaded,
 }: WaveformTrimEditorProps) {
   const { t } = useI18n();
@@ -72,6 +76,7 @@ export default function WaveformTrimEditor({
   const fadeOutWidth = `${fadeOutPercent}%`;
   const fadeInEnd = Math.min(effectiveEnd, startTime + fadeIn);
   const fadeOutStart = Math.max(startTime, effectiveEnd - fadeOut);
+  const playbackLeft = `${(Math.max(0, Math.min(playbackStartTime, waveformDuration)) / waveformDuration) * 100}%`;
 
   const createRenderFunction = useCallback(
     (durationHint: number) =>
@@ -149,7 +154,8 @@ export default function WaveformTrimEditor({
           height: 170,
           waveColor: "#17efc4",
           progressColor: "#17efc4",
-          cursorColor: "#22d3ee",
+          cursorColor: "transparent",
+          cursorWidth: 0,
           barWidth: 2,
           barGap: 1,
           barRadius: 2,
@@ -190,11 +196,12 @@ export default function WaveformTrimEditor({
           end,
           drag: true,
           resize: true,
-          color: "rgba(13, 250, 184, 0.26)",
+          color: "rgba(13, 250, 184, 0.16)",
+          content: "",
         });
 
         disableDrag = regionsPlugin.enableDragSelection({
-          color: "rgba(13, 250, 184, 0.26)",
+          color: "rgba(13, 250, 184, 0.16)",
           drag: true,
           resize: true,
         });
@@ -210,7 +217,8 @@ export default function WaveformTrimEditor({
             end: e,
             drag: true,
             resize: true,
-            color: "rgba(13, 250, 184, 0.26)",
+            color: "rgba(13, 250, 184, 0.16)",
+            content: "",
           });
           onStartChange(s);
           if (useEndTimeRef.current) {
@@ -282,8 +290,55 @@ export default function WaveformTrimEditor({
     isInternalUpdateRef.current = false;
   }, [endTime, maxDuration, startTime, useEndTime]);
 
+  const updatePlaybackStart = useCallback(
+    (clientX: number) => {
+      if (!containerRef.current || !onPlaybackStartChange) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+      onPlaybackStartChange(ratio * waveformDuration);
+    },
+    [onPlaybackStartChange, waveformDuration]
+  );
+
+  useEffect(() => {
+    if (!onPlaybackStartChange) return;
+
+    let dragging = false;
+
+    const handlePointerMove = (event: PointerEvent) => {
+      if (!dragging) return;
+      updatePlaybackStart(event.clientX);
+    };
+
+    const handlePointerUp = () => {
+      dragging = false;
+    };
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (!target?.closest("[data-playback-handle='true']")) return;
+      dragging = true;
+      updatePlaybackStart(event.clientX);
+      event.preventDefault();
+    };
+
+    const root = containerRef.current?.parentElement;
+    root?.addEventListener("pointerdown", handlePointerDown);
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
+
+    return () => {
+      root?.removeEventListener("pointerdown", handlePointerDown);
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+    };
+  }, [onPlaybackStartChange, updatePlaybackStart]);
+
   return (
-    <div className="relative w-full overflow-hidden rounded-[24px] border border-cyan-300/10 bg-[#163865] px-4 py-5">
+    <div
+      className="relative w-full overflow-hidden rounded-[24px] border border-cyan-300/10 bg-[#163865] px-4 py-5"
+      onDoubleClick={(event) => updatePlaybackStart(event.clientX)}
+    >
       <div className="pointer-events-none absolute inset-y-0 left-0 w-28 bg-gradient-to-r from-white/10 to-transparent" />
       <div className="pointer-events-none absolute inset-y-0 right-0 w-28 bg-gradient-to-l from-white/10 to-transparent" />
       <div ref={containerRef} className="w-full min-h-[170px]" />
@@ -351,6 +406,23 @@ export default function WaveformTrimEditor({
       <div className="pointer-events-none absolute bottom-0 left-4 right-4 flex justify-between text-sm font-medium text-cyan-300">
         <span>{formatTimeMs(startTime)}</span>
         <span>{formatTimeMs(effectiveEnd)}</span>
+      </div>
+
+      <div
+        className="absolute bottom-6 top-6 z-10 w-4 -translate-x-1/2"
+        style={{ left: playbackLeft }}
+        data-playback-handle="true"
+        role="slider"
+        aria-label="Playback start"
+        aria-valuemin={0}
+        aria-valuemax={waveformDuration}
+        aria-valuenow={playbackStartTime}
+      >
+        <div className="absolute inset-y-0 left-1/2 w-2 -translate-x-1/2 rounded-full bg-[#22727f]" />
+        <div className="absolute inset-y-0 left-1/2 w-[3px] -translate-x-1/2 rounded-full bg-cyan-200" />
+        <div className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-7 rounded-full bg-white px-2 py-0.5 text-[11px] font-medium text-[#173f72]">
+          {formatTimeMs(playbackStartTime)}
+        </div>
       </div>
 
       {isWaveformLoading && (
