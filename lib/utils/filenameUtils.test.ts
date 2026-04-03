@@ -43,6 +43,8 @@ describe("filenameUtils", () => {
       "abba - dancing queen"
     );
     expect(normalizeForMatch("  Track  ")).toBe("track");
+    expect(normalizeForMatch("Track\u00A0\u200BName")).toBe("track name");
+    expect(normalizeForMatch("e\u0301.mp3")).toBe("é");
   });
 
   it("parseArtistTitleFromRawName parses Artist - Title", () => {

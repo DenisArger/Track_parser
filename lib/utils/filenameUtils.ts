@@ -56,7 +56,14 @@ export function generateSafeFilename(metadata: {
  * Нормализует имя для сопоставления: lowercase, trim, без .mp3
  */
 export function normalizeForMatch(s: string): string {
-  return (s || "").replace(/\.mp3$/i, "").toLowerCase().trim();
+  return (s || "")
+    .normalize("NFKC")
+    .replace(/\u00A0/g, " ")
+    .replace(/[\u200B-\u200D\uFEFF]/g, "")
+    .replace(/\.mp3$/i, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 /**
