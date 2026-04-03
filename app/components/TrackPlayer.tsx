@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Track } from "@/types/track";
 import TrackList from "./shared/TrackList";
 import { getUserFacingErrorMessage } from "@/lib/utils/errorMessage";
@@ -32,6 +32,16 @@ export default function TrackPlayer({
   const downloadedTracks = tracks.filter(
     (track) => track.status === "downloaded" || track.status === "trimmed"
   );
+
+  useEffect(() => {
+    if (!currentTrack) return;
+    const updatedTrack = tracks.find((track) => track.id === currentTrack.id);
+    if (!updatedTrack) {
+      setCurrentTrack(null);
+      return;
+    }
+    setCurrentTrack(updatedTrack);
+  }, [tracks, currentTrack]);
 
   const handleTrackSelect = (track: Track) => {
     setCurrentTrack(track);
