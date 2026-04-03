@@ -14,6 +14,13 @@ export async function getRadioTrackNamesSet(): Promise<Set<string>> {
     .select("normalized_name");
 
   let set = new Set<string>((data || []).map((r) => r.normalized_name));
+  const debugKey =
+    "ц.краеугольный камень (новосибирск) & наталья доценко - господь велик";
+  console.log("[radio tracks] set loaded", {
+    count: set.size,
+    debugKey,
+    hasDebugKey: set.has(debugKey),
+  });
 
   const apiUrl = process.env.STREAMING_CENTER_API_URL || "";
   const apiKey = process.env.STREAMING_CENTER_API_KEY || "";
