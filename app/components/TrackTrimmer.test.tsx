@@ -4,7 +4,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import TrackTrimmer from "./TrackTrimmer";
 import { I18nProvider } from "./I18nProvider";
 import { getMessages } from "@/lib/i18n/getMessages";
-import type { WaveformTrimEditorProps } from "./WaveformTrimEditor";
 
 const mockTrimTrackAction = vi.fn();
 const mockAlert = vi.fn();
@@ -21,11 +20,14 @@ vi.mock("@/lib/actions/trackActions", () => ({
   trimTrackAction: (...args: unknown[]) => mockTrimTrackAction(...args),
 }));
 
-let waveformProps: WaveformTrimEditorProps | null = null;
-
 vi.mock("./WaveformTrimEditor", () => ({
-  default: (props: WaveformTrimEditorProps) => {
-    waveformProps = props;
+  default: (props: {
+    onStartChange: (value: number) => void;
+    onMaxDurationChange: (value: number) => void;
+    onEndChange: (value: number) => void;
+    onPlaybackStartChange?: (value: number) => void;
+    onDurationLoaded?: (value: number) => void;
+  }) => {
     return (
       <div>
         <button type="button" onClick={() => props.onStartChange(15)}>
@@ -51,7 +53,6 @@ vi.mock("./WaveformTrimEditor", () => ({
 describe("TrackTrimmer", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    waveformProps = null;
     vi.stubGlobal("alert", mockAlert);
     mockTrimTrackAction.mockResolvedValue({ ok: true });
 

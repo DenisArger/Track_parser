@@ -175,7 +175,7 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
       audio.removeEventListener("play", handlePlay);
       audio.removeEventListener("ended", handleEnded);
     };
-  }, [duration, fadeIn, fadeOut, playbackStartTime, resolvedTrimValues.startTime]);
+  }, [duration, effectiveEnd, fadeIn, fadeOut, playbackStartTime, resolvedTrimValues.startTime]);
 
   useEffect(() => {
     const audio = audioRef.current;

@@ -196,6 +196,14 @@ describe("streamingCenterClient", () => {
     );
   });
 
+  it("syncFromApi wraps network failures with URL context", async () => {
+    mockFetch.mockRejectedValue(new Error("fetch failed"));
+
+    await expect(syncFromApi("https://api.example.com", "key", 1)).rejects.toThrow(
+      "Не удалось выполнить запрос к Streaming.Center (https://api.example.com/api/v2/playlists/1/tracks/?limit=1000&offset=0)."
+    );
+  });
+
   it("syncFromApi supports pagination and increments offset", async () => {
     const firstPage = Array.from({ length: 1000 }, (_, i) => ({
       filename: `Page1_${i + 1}.mp3`,

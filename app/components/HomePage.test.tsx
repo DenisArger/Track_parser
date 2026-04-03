@@ -168,6 +168,14 @@ describe("HomePage", () => {
     await waitFor(() => {
       expect(screen.getByText("Loaded 2 tracks into the database.")).toBeInTheDocument();
     });
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      "/api/radio/check-batch",
+      expect.objectContaining({
+        method: "POST",
+        credentials: "include",
+      })
+    );
   });
 
   it("shows sync error and handles clear error action", async () => {

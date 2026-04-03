@@ -25,6 +25,57 @@ function normalizeApiBase(apiUrl: string): string {
   return trimmed;
 }
 
+function describeFetchError(error: unknown, url: string): string {
+  if (error instanceof Error) {
+    const message = error.message || "Unknown fetch error";
+    const lower = message.toLowerCase();
+    if (lower.includes("fetch failed")) {
+      return `Не удалось выполнить запрос к Streaming.Center (${url}). Проверьте доступность сервера, DNS и TLS. Детали: ${message}`;
+    }
+    return `Не удалось выполнить запрос к Streaming.Center (${url}). Детали: ${message}`;
+  }
+  return `Не удалось выполнить запрос к Streaming.Center (${url}). Детали: ${String(error)}`;
+}
+
+async function readStreamingCenterResponse(res: Response, url: string) {
+  const contentType = res.headers.get("content-type") || "";
+  const text = await res.text();
+  let data: unknown = text;
+
+  if (text) {
+    try {
+      if (
+        contentType.includes("application/json") ||
+        text.startsWith("{") ||
+        text.startsWith("[")
+      ) {
+        data = JSON.parse(text);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(
+        `Streaming.Center вернул невалидный JSON (${url}): ${message}. Тело: ${text.slice(0, 500)}`
+      );
+    }
+  }
+
+  if (!res.ok) {
+    const bodyMessage =
+      typeof data === "string" && data.trim()
+        ? data.trim()
+        : (data as { detail?: string; error?: string })?.detail ||
+          (data as { detail?: string; error?: string })?.error ||
+          "";
+    throw new Error(
+      bodyMessage === "bad"
+        ? `Streaming.Center API error: ${res.status} ${res.statusText}`
+        : bodyMessage || `Streaming.Center API error: ${res.status} ${res.statusText}`
+    );
+  }
+
+  return { data, text, contentType };
+}
+
 function getBasename(p: string): string {
   const s = (p || "").trim();
   if (!s) return "";
@@ -94,17 +145,16 @@ export async function getAllPlaylistTrackNames(
 
   while (true) {
     const url = `${base}/api/v2/playlists/${playlistId}/tracks/?limit=${PAGE_SIZE}&offset=${offset}`;
-    const res = await fetch(url, {
-      headers: { "SC-API-KEY": apiKey },
-    });
-
-    if (!res.ok) {
-      throw new Error(
-        `Streaming.Center API error: ${res.status} ${res.statusText}`,
-      );
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        headers: { "SC-API-KEY": apiKey },
+      });
+    } catch (error) {
+      throw new Error(describeFetchError(error, url));
     }
 
-    const data: unknown = await res.json();
+    const { data } = await readStreamingCenterResponse(res, url);
     let rows: PlaylistTrackRow[] = [];
 
     if (Array.isArray(data)) {
@@ -375,17 +425,16 @@ export async function syncFromApi(
 
   while (true) {
     const url = `${base}/api/v2/playlists/${playlistId}/tracks/?limit=${PAGE_SIZE}&offset=${offset}`;
-    const res = await fetch(url, {
-      headers: { "SC-API-KEY": apiKey },
-    });
-
-    if (!res.ok) {
-      throw new Error(
-        `Streaming.Center API error: ${res.status} ${res.statusText}`,
-      );
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        headers: { "SC-API-KEY": apiKey },
+      });
+    } catch (error) {
+      throw new Error(describeFetchError(error, url));
     }
 
-    const data: unknown = await res.json();
+    const { data } = await readStreamingCenterResponse(res, url);
     let rows: PlaylistTrackRow[] = [];
 
     if (Array.isArray(data)) {

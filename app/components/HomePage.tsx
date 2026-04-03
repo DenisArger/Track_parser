@@ -70,6 +70,7 @@ export default function HomePage() {
     try {
       const r = await fetch("/api/radio/check-batch", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           tracks: tracks.map((t) => ({
@@ -185,6 +186,7 @@ export default function HomePage() {
     }
     fetch("/api/radio/check-batch", {
       method: "POST",
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         tracks: tracks.map((t) => ({
