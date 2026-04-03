@@ -28,6 +28,12 @@ const OVERVIEW_STATUS_FILTERS = [
   "uploaded_radio",
 ] as const;
 
+const FTP_READY_STATUSES: Track["status"][] = [
+  "reviewed_approved",
+  "trimmed",
+  "ready_for_upload",
+];
+
 const OVERVIEW_STATUS_TRANSITIONS: Partial<
   Record<
     Track["status"],
@@ -249,7 +255,9 @@ export default function HomePage() {
   const overviewTracks =
     overviewFilter === "all"
       ? tracks
-      : tracks.filter((track) => track.status === overviewFilter);
+      : overviewFilter === "ready_for_upload"
+        ? tracks.filter((track) => FTP_READY_STATUSES.includes(track.status))
+        : tracks.filter((track) => track.status === overviewFilter);
 
   const updateTrackStatus = async (
     trackId: string,

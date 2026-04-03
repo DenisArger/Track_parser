@@ -247,6 +247,18 @@ describe("HomePage", () => {
         status: "downloaded",
         metadata: { title: "Fresh", artist: "Artist", genre: "Средний", year: 2026, rating: 5 },
       },
+      {
+        id: "t5",
+        filename: "Approved.mp3",
+        status: "reviewed_approved",
+        metadata: { title: "Approved", artist: "Artist", genre: "Средний", year: 2026, rating: 5 },
+      },
+      {
+        id: "t6",
+        filename: "Trimmed.mp3",
+        status: "trimmed",
+        metadata: { title: "Trimmed", artist: "Artist", genre: "Средний", year: 2026, rating: 5 },
+      },
     ]);
 
     renderPage();
@@ -255,8 +267,8 @@ describe("HomePage", () => {
       expect(screen.getByText(/Error: broken state/)).toBeInTheDocument();
     });
     expect(
-      screen.getByRole("button", { name: "Return to downloaded" })
-    ).toBeInTheDocument();
+      screen.getAllByRole("button", { name: "Return to downloaded" })
+    ).toHaveLength(3);
     expect(screen.queryByRole("button", { name: "Return to loading" })).not.toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: "Uploaded via FTP" })).toHaveLength(1);
     expect(screen.getAllByText("status:uploaded_ftp").length).toBeGreaterThan(0);
