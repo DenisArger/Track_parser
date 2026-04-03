@@ -3,6 +3,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useI18n } from "./I18nProvider";
+import { formatTimeMs } from "@/lib/utils/timeFormatter";
 
 export interface WaveformTrimEditorProps {
   audioUrl: string;
@@ -34,14 +35,22 @@ export default function WaveformTrimEditor({
   const { t } = useI18n();
   const containerRef = useRef<HTMLDivElement>(null);
   const wsRef = useRef<{ destroy: () => void } | null>(null);
-  const regionsPluginRef = useRef<{ getRegions: () => Array<{ start: number; end: number; setOptions: (o: { start?: number; end?: number }) => void }> } | null>(null);
+  const regionsPluginRef = useRef<{
+    getRegions: () => Array<{
+      start: number;
+      end: number;
+      setOptions: (o: { start?: number; end?: number }) => void;
+    }>;
+  } | null>(null);
   const isInternalUpdateRef = useRef(false);
   const useEndTimeRef = useRef(useEndTime);
   const [isWaveformLoading, setIsWaveformLoading] = useState(true);
   const [waveformError, setWaveformError] = useState<string | null>(null);
+  const [loadedDuration, setLoadedDuration] = useState(durationFallback ?? 0);
   useEndTimeRef.current = useEndTime;
 
-  // Init wavesurfer, load audio, create region, enable drag selection
+  const effectiveEnd = useEndTime && endTime != null ? endTime : startTime + maxDuration;
+
   useEffect(() => {
     const el = containerRef.current;
     if (!el || typeof window === "undefined") return;
@@ -64,13 +73,13 @@ export default function WaveformTrimEditor({
 
         const ws = WaveSurfer.create({
           container: el,
-          height: 90,
-          waveColor: "#94a3b8",
-          progressColor: "#3b82f6",
-          cursorColor: "#334155",
-          barWidth: 1,
+          height: 170,
+          waveColor: "#1C5876",
+          progressColor: "#1C5876",
+          cursorColor: "#22d3ee",
+          barWidth: 2,
           barGap: 1,
-          barRadius: 0,
+          barRadius: 2,
           normalize: true,
         });
         wsRef.current = ws;
@@ -83,20 +92,21 @@ export default function WaveformTrimEditor({
         if (!mounted) return;
         setIsWaveformLoading(false);
 
-        const loadedDuration = ws.getDuration();
+        const wsDuration = ws.getDuration();
         const dur =
-          loadedDuration > 0
-            ? loadedDuration
+          wsDuration > 0
+            ? wsDuration
             : durationFallback != null && durationFallback > 0
               ? durationFallback
               : 0;
+        setLoadedDuration(dur);
         if (dur > 0 && onDurationLoaded) onDurationLoaded(dur);
 
         const start = Math.max(0, Math.min(startTime, dur - 0.01));
-        const endVal = useEndTime
+        const endValue = useEndTime
           ? Math.min(endTime ?? start + maxDuration, dur)
           : Math.min(start + maxDuration, dur);
-        const end = Math.max(start + 0.01, endVal);
+        const end = Math.max(start + 0.01, endValue);
 
         regionsPlugin.clearRegions();
         regionsPlugin.addRegion({
@@ -104,11 +114,11 @@ export default function WaveformTrimEditor({
           end,
           drag: true,
           resize: true,
-          color: "rgba(59, 130, 246, 0.35)",
+          color: "rgba(13, 250, 184, 0.26)",
         });
 
         disableDrag = regionsPlugin.enableDragSelection({
-          color: "rgba(59, 130, 246, 0.35)",
+          color: "rgba(13, 250, 184, 0.26)",
           drag: true,
           resize: true,
         });
@@ -124,7 +134,7 @@ export default function WaveformTrimEditor({
             end: e,
             drag: true,
             resize: true,
-            color: "rgba(59, 130, 246, 0.35)",
+            color: "rgba(13, 250, 184, 0.26)",
           });
           onStartChange(s);
           if (useEndTimeRef.current) {
@@ -165,7 +175,6 @@ export default function WaveformTrimEditor({
     };
   }, [audioUrl]);
 
-  // Sync from parent (MM:SS.ms inputs) into the region
   useEffect(() => {
     const rp = regionsPluginRef.current;
     const region = rp?.getRegions?.()?.[0];
@@ -174,24 +183,48 @@ export default function WaveformTrimEditor({
     const desiredEnd = useEndTime && endTime != null ? endTime : startTime + maxDuration;
     const desiredStart = startTime;
 
-    if (Math.abs(region.start - desiredStart) < THRESH && Math.abs(region.end - desiredEnd) < THRESH) {
+    if (
+      Math.abs(region.start - desiredStart) < THRESH &&
+      Math.abs(region.end - desiredEnd) < THRESH
+    ) {
       return;
     }
+
     isInternalUpdateRef.current = true;
     region.setOptions({ start: desiredStart, end: desiredEnd });
     isInternalUpdateRef.current = false;
-  }, [startTime, endTime, maxDuration, useEndTime]);
+  }, [endTime, maxDuration, startTime, useEndTime]);
 
   return (
-    <div className="relative w-full min-h-[90px] rounded-lg overflow-hidden bg-gray-100">
-      <div ref={containerRef} className="w-full min-h-[90px]" />
+    <div className="relative w-full overflow-hidden rounded-[24px] border border-cyan-300/10 bg-[#163865] px-4 py-6">
+      <div className="pointer-events-none absolute inset-y-0 left-0 w-28 bg-gradient-to-r from-white/10 to-transparent" />
+      <div className="pointer-events-none absolute inset-y-0 right-0 w-28 bg-gradient-to-l from-white/10 to-transparent" />
+      <div ref={containerRef} className="w-full min-h-[170px]" />
+
+      <div className="pointer-events-none absolute left-4 right-4 top-4 flex justify-between text-[11px] font-medium text-cyan-100/65">
+        <span>{formatTimeMs(startTime)}</span>
+        <span>
+          {loadedDuration > 0 ? formatTimeMs(loadedDuration) : formatTimeMs(effectiveEnd)}
+        </span>
+      </div>
+
+      <div className="pointer-events-none absolute inset-x-0 bottom-6 flex justify-center text-sm font-medium text-cyan-200/75">
+        {formatTimeMs(Math.max(0, effectiveEnd - startTime))}
+      </div>
+
+      <div className="pointer-events-none absolute bottom-0 left-4 right-4 flex justify-between text-sm font-medium text-cyan-300">
+        <span>{formatTimeMs(startTime)}</span>
+        <span>{formatTimeMs(effectiveEnd)}</span>
+      </div>
+
       {isWaveformLoading && (
-        <div className="absolute inset-0 animate-pulse bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-sm text-gray-500 dark:text-gray-300">
+        <div className="absolute inset-0 flex animate-pulse items-center justify-center bg-[#163865] text-sm text-cyan-100/70">
           {t("trimmer.waveformLoading")}
         </div>
       )}
+
       {waveformError && (
-        <div className="absolute inset-0 bg-gray-100/95 dark:bg-gray-800/95 flex items-center justify-center text-sm text-amber-700 dark:text-amber-300 text-center px-4">
+        <div className="absolute inset-0 flex items-center justify-center bg-[#163865]/95 px-4 text-center text-sm text-amber-300">
           {waveformError}
         </div>
       )}

@@ -1,6 +1,6 @@
-﻿"use client";
+"use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Track, TrimSettings } from "@/types/track";
 import { getUserFacingErrorMessage } from "@/lib/utils/errorMessage";
 import { formatTimeMs, parseTimeMs } from "@/lib/utils/timeFormatter";
@@ -12,36 +12,29 @@ interface TrackTrimmerProps {
   onCancel: () => void;
 }
 
+const PLAYBACK_EPSILON = 0.02;
+
 export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
   const { t } = useI18n();
   const initialMaxDuration =
     track.metadata.duration && track.metadata.duration > 0
       ? Math.min(track.metadata.duration, 360)
       : 360;
+
   const [startTime, setStartTime] = useState(0);
   const [endTime, setEndTime] = useState<number | undefined>(undefined);
   const [fadeIn, setFadeIn] = useState(0);
   const [fadeOut, setFadeOut] = useState(0);
   const [maxDuration, setMaxDuration] = useState(initialMaxDuration);
   const [useEndTime, setUseEndTime] = useState(false);
-  const [previewId, setPreviewId] = useState<string | null>(null);
-  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
-  const [isPreviewStale, setIsPreviewStale] = useState(false);
-  const [previewStatus, setPreviewStatus] = useState<string | null>(null);
-  const [previewErrorStage, setPreviewErrorStage] = useState<string | null>(null);
-  const [previewSignatureAtCreate, setPreviewSignatureAtCreate] = useState<string | null>(null);
-  const requestSeq = useRef(0);
+  const [duration, setDuration] = useState(track.metadata.duration ?? initialMaxDuration);
+  const [isPlaying, setIsPlaying] = useState(false);
 
   const [startInput, setStartInput] = useState(() => formatTimeMs(0));
   const [endInput, setEndInput] = useState(() => formatTimeMs(initialMaxDuration));
   const startFocusedRef = useRef(false);
   const endFocusedRef = useRef(false);
-
-  const extractPreviewStage = (error: unknown): string | null => {
-    const message = error instanceof Error ? error.message : String(error);
-    const match = message.match(/Preview failed at ([^:]+):/i);
-    return match?.[1] ?? null;
-  };
+  const audioRef = useRef<HTMLAudioElement>(null);
 
   const getResolvedTrimValues = useCallback(() => {
     const resolvedStartTime = startFocusedRef.current
@@ -57,7 +50,7 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
       return {
         startTime: resolvedStartTime,
         endTime: resolvedEndTime,
-        maxDuration,
+        maxDuration: Math.max(1, resolvedEndTime - resolvedStartTime),
       };
     }
 
@@ -74,37 +67,165 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
     };
   }, [endInput, endTime, maxDuration, startInput, startTime, useEndTime]);
 
+  const resolvedTrimValues = getResolvedTrimValues();
+
+  const effectiveEnd = useMemo(() => {
+    if (useEndTime && resolvedTrimValues.endTime != null) {
+      return resolvedTrimValues.endTime;
+    }
+    return resolvedTrimValues.startTime + resolvedTrimValues.maxDuration;
+  }, [resolvedTrimValues.endTime, resolvedTrimValues.maxDuration, resolvedTrimValues.startTime, useEndTime]);
+
+  const totalDuration = Math.max(0.01, effectiveEnd - resolvedTrimValues.startTime);
+
   const buildTrimSettings = useCallback(
-    (): TrimSettings => {
-      const resolved = getResolvedTrimValues();
-      return {
-      startTime: resolved.startTime,
+    (): TrimSettings => ({
+      startTime: resolvedTrimValues.startTime,
       fadeIn,
       fadeOut,
-      ...(useEndTime && resolved.endTime != null
-        ? { endTime: resolved.endTime }
-        : { maxDuration: resolved.maxDuration }),
-    };
-    },
-    [fadeIn, fadeOut, getResolvedTrimValues, useEndTime]
+      ...(useEndTime && resolvedTrimValues.endTime != null
+        ? { endTime: resolvedTrimValues.endTime }
+        : { maxDuration: resolvedTrimValues.maxDuration }),
+    }),
+    [fadeIn, fadeOut, resolvedTrimValues.endTime, resolvedTrimValues.maxDuration, resolvedTrimValues.startTime, useEndTime]
   );
 
-  const resolvedTrimValues = getResolvedTrimValues();
-  const currentPreviewSignature = `${useEndTime}|${resolvedTrimValues.startTime}|${
-    useEndTime && resolvedTrimValues.endTime != null
-      ? resolvedTrimValues.endTime
-      : resolvedTrimValues.maxDuration
-  }|${fadeIn}|${fadeOut}`;
+  const stopPlayback = useCallback(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.pause();
+    setIsPlaying(false);
+  }, []);
+
+  const syncPlaybackToRange = useCallback(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    if (audio.currentTime < resolvedTrimValues.startTime || audio.currentTime > effectiveEnd) {
+      audio.currentTime = resolvedTrimValues.startTime;
+    }
+  }, [effectiveEnd, resolvedTrimValues.startTime]);
+
+  const handleDurationLoaded = useCallback(
+    (loadedDuration: number) => {
+      setDuration(loadedDuration);
+      setMaxDuration((prev) =>
+        prev === 360 ? Math.min(loadedDuration, 360) : Math.min(prev, loadedDuration)
+      );
+      setEndTime((prev) => (prev != null ? prev : Math.min(loadedDuration, 360)));
+    },
+    []
+  );
+
+  useEffect(() => {
+    if (!startFocusedRef.current) {
+      setStartInput(formatTimeMs(startTime));
+    }
+  }, [startTime]);
+
+  useEffect(() => {
+    if (!endFocusedRef.current) {
+      const endValue = useEndTime && endTime != null ? endTime : startTime + maxDuration;
+      setEndInput(formatTimeMs(endValue));
+    }
+  }, [endTime, maxDuration, startTime, useEndTime]);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const handleTimeUpdate = () => {
+      if (audio.currentTime >= effectiveEnd - PLAYBACK_EPSILON) {
+        audio.pause();
+        audio.currentTime = resolvedTrimValues.startTime;
+        setIsPlaying(false);
+      }
+    };
+
+    const handlePause = () => setIsPlaying(false);
+    const handlePlay = () => setIsPlaying(true);
+    const handleEnded = () => {
+      audio.currentTime = resolvedTrimValues.startTime;
+      setIsPlaying(false);
+    };
+
+    audio.addEventListener("timeupdate", handleTimeUpdate);
+    audio.addEventListener("pause", handlePause);
+    audio.addEventListener("play", handlePlay);
+    audio.addEventListener("ended", handleEnded);
+
+    return () => {
+      audio.removeEventListener("timeupdate", handleTimeUpdate);
+      audio.removeEventListener("pause", handlePause);
+      audio.removeEventListener("play", handlePlay);
+      audio.removeEventListener("ended", handleEnded);
+    };
+  }, [effectiveEnd, resolvedTrimValues.startTime]);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    if (isPlaying) {
+      if (
+        audio.currentTime < resolvedTrimValues.startTime ||
+        audio.currentTime > effectiveEnd - PLAYBACK_EPSILON
+      ) {
+        stopPlayback();
+        audio.currentTime = resolvedTrimValues.startTime;
+      }
+      return;
+    }
+
+    syncPlaybackToRange();
+  }, [effectiveEnd, isPlaying, resolvedTrimValues.startTime, syncPlaybackToRange, stopPlayback]);
+
+  const handlePlayPause = async () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    if (isPlaying) {
+      stopPlayback();
+      return;
+    }
+
+    if (
+      audio.currentTime < resolvedTrimValues.startTime ||
+      audio.currentTime > effectiveEnd - PLAYBACK_EPSILON
+    ) {
+      audio.currentTime = resolvedTrimValues.startTime;
+    }
+
+    try {
+      await audio.play();
+    } catch (error) {
+      console.error("Trim playback error:", error);
+      alert(t("trimmer.errors.previewPlayback"));
+    }
+  };
+
+  const resetTrimRange = () => {
+    stopPlayback();
+    const resetMaxDuration = duration && duration > 0 ? Math.min(duration, 360) : 360;
+    setStartTime(0);
+    setUseEndTime(false);
+    setEndTime(undefined);
+    setMaxDuration(resetMaxDuration);
+    setFadeIn(0);
+    setFadeOut(0);
+    setStartInput(formatTimeMs(0));
+    setEndInput(formatTimeMs(resetMaxDuration));
+    if (audioRef.current) {
+      audioRef.current.currentTime = 0;
+    }
+  };
 
   const handleTrim = async () => {
     const trimSettings = buildTrimSettings();
 
     try {
       const { trimTrackAction } = await import("@/lib/actions/trackActions");
-      const result = await trimTrackAction(track.id, trimSettings);
-      console.warn("Track trimmed successfully:", result);
-
-      // Закрываем окно обрезки
+      await trimTrackAction(track.id, trimSettings);
       onCancel();
     } catch (error) {
       console.error("Error trimming track:", error);
@@ -117,107 +238,68 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
     }
   };
 
-  const createPreview = useCallback(async () => {
-    const seq = ++requestSeq.current;
-    const trimSettings = buildTrimSettings();
-    const signature = currentPreviewSignature;
-
-    setIsPreviewLoading(true);
-    setPreviewStatus(t("trimmer.previewCreating"));
-    setPreviewErrorStage(null);
-
-    try {
-      const { createPreviewAction } = await import(
-        "@/lib/actions/trackActions"
-      );
-      const result = await createPreviewAction(track.id, trimSettings);
-      if (seq !== requestSeq.current) return;
-
-      setPreviewId(result.previewId);
-      setPreviewSignatureAtCreate(signature);
-      setIsPreviewStale(false);
-      setPreviewStatus(t("trimmer.previewReady"));
-      console.warn("Preview created:", result.previewId);
-    } catch (error) {
-      if (seq !== requestSeq.current) return;
-
-      console.error("Error creating preview:", error);
-      setPreviewErrorStage(extractPreviewStage(error));
-      setPreviewStatus(t("trimmer.previewError"));
-      alert(
-        `${t("trimmer.errors.preview")}: ${getUserFacingErrorMessage(
-          error,
-          t("trimmer.errors.unknown")
-        )}`
-      );
-    } finally {
-      if (seq === requestSeq.current) {
-        setIsPreviewLoading(false);
-      }
-    }
-  }, [buildTrimSettings, currentPreviewSignature, t, track.id]);
-
-  useEffect(() => {
-    if (!startFocusedRef.current) setStartInput(formatTimeMs(startTime));
-  }, [startTime]);
-  useEffect(() => {
-    if (!endFocusedRef.current) {
-      const e = useEndTime && endTime != null ? endTime : startTime + maxDuration;
-      setEndInput(formatTimeMs(e));
-    }
-  }, [endTime, useEndTime, startTime, maxDuration]);
-
-  const handleDurationLoaded = (d: number) => {
-    setMaxDuration((prev) => (prev === 360 ? Math.min(d, 360) : Math.min(prev, d)));
-    setEndTime((prev) => (prev != null ? prev : Math.min(d, 360)));
-  };
-
-  useEffect(() => {
-    if (!previewId || !previewSignatureAtCreate) return;
-    const stale = currentPreviewSignature !== previewSignatureAtCreate;
-    setIsPreviewStale(stale);
-  }, [currentPreviewSignature, previewId, previewSignatureAtCreate]);
-
-  const totalDuration =
-    useEndTime && resolvedTrimValues.endTime != null
-      ? resolvedTrimValues.endTime - resolvedTrimValues.startTime
-      : resolvedTrimValues.maxDuration;
-
   const commitStartInput = () => {
-    const sec = parseTimeMs(startInput, startTime);
-    setStartTime(sec);
-    setStartInput(formatTimeMs(sec));
+    const nextStart = parseTimeMs(startInput, startTime);
+    setStartTime(nextStart);
+    setStartInput(formatTimeMs(nextStart));
   };
+
   const commitEndInput = () => {
     const fallback = useEndTime && endTime != null ? endTime : startTime + maxDuration;
-    const sec = parseTimeMs(endInput, fallback);
+    const nextValue = parseTimeMs(endInput, fallback);
+
     if (useEndTime) {
-      setEndTime(sec);
-      setEndInput(formatTimeMs(sec));
-    } else {
-      const d = Math.max(1, sec - startTime);
-      setMaxDuration(d);
-      setEndInput(formatTimeMs(startTime + d));
+      setEndTime(nextValue);
+      setEndInput(formatTimeMs(nextValue));
+      return;
     }
+
+    const nextDuration = Math.max(1, nextValue - startTime);
+    setMaxDuration(nextDuration);
+    setEndInput(formatTimeMs(startTime + nextDuration));
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl dark:shadow-gray-900/50 w-full max-w-6xl max-h-[95vh] flex flex-col overflow-hidden">
-        {/* Header */}
-        <div className="flex-shrink-0 px-6 py-3 border-b border-gray-200 dark:border-gray-700 flex items-baseline justify-between gap-4">
+    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm p-3">
+      <div className="mx-auto flex h-full max-w-7xl flex-col overflow-hidden rounded-[28px] border border-cyan-400/10 bg-[#173f72] text-white shadow-2xl">
+        <audio
+          ref={audioRef}
+          src={`/api/audio/${track.id}`}
+          preload="metadata"
+          className="hidden"
+          data-testid="trim-preview-audio"
+          onLoadedMetadata={(event) => {
+            const loadedDuration = event.currentTarget.duration;
+            if (Number.isFinite(loadedDuration) && loadedDuration > 0) {
+              setDuration(loadedDuration);
+            }
+            syncPlaybackToRange();
+          }}
+          onError={(event) => {
+            console.error("Trim audio error:", event);
+            alert(t("player.audioError"));
+          }}
+        />
+
+        <div className="flex items-center justify-between border-b border-white/10 px-6 py-5">
           <div className="min-w-0">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 truncate">
-              {t("trimmer.title")}
-            </h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{track.metadata.title}</p>
+            <div className="mb-1 text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300/75">
+              {t("trimmer.trimMode")}
+            </div>
+            <h3 className="truncate text-2xl font-semibold">{t("trimmer.title")}</h3>
+            <p className="truncate text-sm text-cyan-100/70">{track.metadata.title}</p>
           </div>
+          <button
+            type="button"
+            onClick={resetTrimRange}
+            className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-cyan-50 transition hover:bg-white/10"
+          >
+            {t("trimmer.reset")}
+          </button>
         </div>
 
-        {/* Main content */}
-        <div className="flex-1 min-h-0 flex px-6 py-4 gap-6">
-          {/* Left column */}
-          <div className="flex-1 min-w-0 flex flex-col gap-3">
+        <div className="flex-1 overflow-auto px-6 py-6">
+          <div className="rounded-[24px] border border-white/8 bg-[#102f5b] p-5 shadow-inner shadow-black/20">
             <WaveformTrimEditor
               audioUrl={`/api/audio/${track.id}`}
               durationFallback={track.metadata.duration}
@@ -231,187 +313,192 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
               onDurationLoaded={handleDurationLoaded}
             />
 
-            {/* Row: start | end type | end/max duration */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                  {t("trimmer.startTime")}
-                </label>
-                <input
-                  type="text"
-                  value={startInput}
-                  onChange={(e) => setStartInput(e.target.value)}
-                  onFocus={() => { startFocusedRef.current = true; }}
-                  onBlur={() => { startFocusedRef.current = false; commitStartInput(); }}
-                  onKeyDown={(e) => { if (e.key === "Enter") { startFocusedRef.current = false; commitStartInput(); (e.target as HTMLInputElement).blur(); } }}
-                  placeholder="M:SS.ms"
-                  className="input font-mono py-1.5 text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                  {t("trimmer.endType")}
-                </label>
-                <div className="flex flex-wrap gap-3 pt-1.5">
-                  <label className="flex items-center gap-1.5 text-sm cursor-pointer dark:text-gray-300">
-                    <input type="radio" checked={!useEndTime} onChange={() => setUseEndTime(false)} className="w-3.5 h-3.5" />
-                    <span>{t("trimmer.maxDuration")}</span>
+            <div className="mt-6 grid gap-4 lg:grid-cols-[auto_auto_minmax(0,1fr)_auto] lg:items-end">
+              <button
+                type="button"
+                onClick={handlePlayPause}
+                className="flex h-14 w-24 items-center justify-center rounded-2xl bg-[#13294f] text-white transition hover:bg-[#163564]"
+                aria-label={isPlaying ? t("trimmer.pause") : t("trimmer.play")}
+              >
+                {isPlaying ? (
+                  <span className="flex gap-1.5">
+                    <span className="h-5 w-1.5 rounded bg-white" />
+                    <span className="h-5 w-1.5 rounded bg-white" />
+                  </span>
+                ) : (
+                  <span className="ml-1 border-y-[10px] border-y-transparent border-l-[16px] border-l-white" />
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={resetTrimRange}
+                className="flex h-14 w-24 items-center justify-center rounded-2xl bg-[#13294f] px-3 text-sm font-medium text-cyan-100 transition hover:bg-[#163564]"
+              >
+                {t("trimmer.reset")}
+              </button>
+
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                <div className="rounded-2xl bg-[#13294f] p-3">
+                  <label className="mb-1 block text-[11px] uppercase tracking-[0.18em] text-cyan-200/60">
+                    {t("trimmer.startTime")}
                   </label>
-                  <label className="flex items-center gap-1.5 text-sm cursor-pointer dark:text-gray-300">
-                    <input
-                      type="radio"
-                      checked={useEndTime}
-                      onChange={() => { setUseEndTime(true); setEndTime((prev) => (prev != null ? prev : startTime + maxDuration)); }}
-                      className="w-3.5 h-3.5"
-                    />
-                    <span>{t("trimmer.specificTime")}</span>
-                  </label>
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                  {useEndTime ? t("trimmer.endTime") : t("trimmer.maxDurationSeconds")}
-                </label>
-                {useEndTime ? (
                   <input
                     type="text"
-                    value={endInput}
-                    onChange={(e) => setEndInput(e.target.value)}
-                    onFocus={() => { endFocusedRef.current = true; }}
-                    onBlur={() => { endFocusedRef.current = false; commitEndInput(); }}
-                    onKeyDown={(e) => { if (e.key === "Enter") { endFocusedRef.current = false; commitEndInput(); (e.target as HTMLInputElement).blur(); } }}
+                    value={startInput}
+                    onChange={(event) => setStartInput(event.target.value)}
+                    onFocus={() => {
+                      startFocusedRef.current = true;
+                    }}
+                    onBlur={() => {
+                      startFocusedRef.current = false;
+                      commitStartInput();
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        startFocusedRef.current = false;
+                        commitStartInput();
+                        (event.target as HTMLInputElement).blur();
+                      }
+                    }}
                     placeholder="M:SS.ms"
-                    className="input font-mono py-1.5 text-sm"
+                    className="w-full border-none bg-transparent p-0 font-mono text-lg font-semibold text-white outline-none placeholder:text-cyan-100/35"
                   />
-                ) : (
+                </div>
+
+                <div className="rounded-2xl bg-[#13294f] p-3">
+                  <label className="mb-1 block text-[11px] uppercase tracking-[0.18em] text-cyan-200/60">
+                    {useEndTime ? t("trimmer.endTime") : t("trimmer.maxDuration")}
+                  </label>
+                  {useEndTime ? (
+                    <input
+                      type="text"
+                      value={endInput}
+                      onChange={(event) => setEndInput(event.target.value)}
+                      onFocus={() => {
+                        endFocusedRef.current = true;
+                      }}
+                      onBlur={() => {
+                        endFocusedRef.current = false;
+                        commitEndInput();
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          endFocusedRef.current = false;
+                          commitEndInput();
+                          (event.target as HTMLInputElement).blur();
+                        }
+                      }}
+                      placeholder="M:SS.ms"
+                      className="w-full border-none bg-transparent p-0 font-mono text-lg font-semibold text-white outline-none placeholder:text-cyan-100/35"
+                    />
+                  ) : (
+                    <input
+                      type="number"
+                      min="1"
+                      max="600"
+                      value={Math.round(maxDuration * 100) / 100}
+                      onChange={(event) => setMaxDuration(parseFloat(event.target.value) || 1)}
+                      className="w-full border-none bg-transparent p-0 font-mono text-lg font-semibold text-white outline-none"
+                    />
+                  )}
+                </div>
+
+                <div className="rounded-2xl bg-[#13294f] p-3">
+                  <label className="mb-2 block text-[11px] uppercase tracking-[0.18em] text-cyan-200/60">
+                    {t("trimmer.endType")}
+                  </label>
+                  <div className="flex flex-col gap-2 text-sm text-cyan-50">
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        checked={!useEndTime}
+                        onChange={() => setUseEndTime(false)}
+                        className="h-4 w-4 accent-cyan-400"
+                      />
+                      <span>{t("trimmer.maxDuration")}</span>
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        checked={useEndTime}
+                        onChange={() => {
+                          setUseEndTime(true);
+                          setEndTime((prev) => (prev != null ? prev : startTime + maxDuration));
+                        }}
+                        className="h-4 w-4 accent-cyan-400"
+                      />
+                      <span>{t("trimmer.specificTime")}</span>
+                    </label>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl bg-[#13294f] p-3">
+                  <label className="mb-2 block text-[11px] uppercase tracking-[0.18em] text-cyan-200/60">
+                    {t("trimmer.previewDuration")}
+                  </label>
+                  <div className="font-mono text-lg font-semibold text-white">
+                    {formatTimeMs(totalDuration)}
+                  </div>
+                  <div className="mt-2 text-xs text-cyan-100/65">
+                    {formatTimeMs(resolvedTrimValues.startTime)} - {formatTimeMs(effectiveEnd)}
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-2xl bg-[#13294f] p-3">
+                  <label className="mb-1 block text-[11px] uppercase tracking-[0.18em] text-cyan-200/60">
+                    {t("trimmer.fadeIn")}
+                  </label>
                   <input
                     type="number"
-                    min="1"
-                    max="600"
-                    value={maxDuration}
-                    onChange={(e) => setMaxDuration(parseInt(e.target.value) || 1)}
-                    className="input py-1.5 text-sm"
+                    min="0"
+                    max="10"
+                    step="0.1"
+                    value={fadeIn}
+                    onChange={(event) => setFadeIn(parseFloat(event.target.value) || 0)}
+                    title={t("trimmer.noFadeTitle")}
+                    className="w-full border-none bg-transparent p-0 font-mono text-lg font-semibold text-white outline-none"
                   />
-                )}
-              </div>
-            </div>
-
-            {/* Fades */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                  {t("trimmer.fadeIn")}
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  max="10"
-                  step="0.1"
-                  value={fadeIn}
-                  onChange={(e) => setFadeIn(parseFloat(e.target.value) || 0)}
-                  className="input py-1.5 text-sm"
-                  title={t("trimmer.noFadeTitle")}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                  {t("trimmer.fadeOut")}
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  max="10"
-                  step="0.1"
-                  value={fadeOut}
-                  onChange={(e) => setFadeOut(parseFloat(e.target.value) || 0)}
-                  className="input py-1.5 text-sm"
-                  title={t("trimmer.noFadeTitle")}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Right column */}
-          <div className="w-80 flex-shrink-0 flex flex-col gap-3">
-            <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 flex flex-col gap-2 flex-1 min-h-0">
-              <h4 className="font-medium text-gray-900 dark:text-gray-100 text-sm flex-shrink-0">
-                {t("trimmer.previewTitle")}
-              </h4>
-              <div className="text-xs text-gray-600 dark:text-gray-400 grid grid-cols-2 gap-x-3 gap-y-0.5 flex-shrink-0">
-                <span>{t("trimmer.previewStart")}:</span>
-                <span className="font-mono">{formatTimeMs(resolvedTrimValues.startTime)}</span>
-                <span>{t("trimmer.previewEnd")}:</span>
-                <span className="font-mono">
-                  {formatTimeMs(
-                    useEndTime && resolvedTrimValues.endTime != null
-                      ? resolvedTrimValues.endTime
-                      : resolvedTrimValues.startTime + resolvedTrimValues.maxDuration
-                  )}
-                </span>
-                <span>{t("trimmer.previewDuration")}:</span>
-                <span className="font-mono">{formatTimeMs(totalDuration)}</span>
-                <span>{t("trimmer.previewFadeIn")}:</span><span>{fadeIn}s</span>
-                <span>{t("trimmer.previewFadeOut")}:</span><span>{fadeOut}s</span>
-              </div>
-              {previewStatus && (
-                <div className="text-xs text-gray-500 dark:text-gray-400">
-                  {previewStatus}
                 </div>
-              )}
-              {previewErrorStage && (
-                <div className="text-xs text-amber-600 dark:text-amber-400">
-                  {t("trimmer.previewError")} {previewErrorStage}
-                </div>
-              )}
-              <button
-                onClick={createPreview}
-                disabled={isPreviewLoading}
-                className="btn btn-primary py-2 text-sm flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isPreviewLoading ? (
-                  <span className="inline-flex items-center gap-2">
-                    <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>
-                    {t("trimmer.previewCreating")}
-                  </span>
-                ) : t("trimmer.previewListen")}
-              </button>
-              {previewId && (
-                <div className="relative flex-shrink-0">
-                  <audio
-                    key={previewId}
-                    controls
-                    className="audio-light w-full"
-                    src={`/api/preview-audio/${previewId}?v=${encodeURIComponent(previewSignatureAtCreate ?? "")}`}
-                    preload="metadata"
-                    onError={(e) => {
-                      console.error("Preview audio error:", e);
-                      setPreviewStatus(t("trimmer.previewError"));
-                      setPreviewErrorStage("playback");
-                      alert(t("trimmer.errors.previewPlayback"));
-                    }}
+                <div className="rounded-2xl bg-[#13294f] p-3">
+                  <label className="mb-1 block text-[11px] uppercase tracking-[0.18em] text-cyan-200/60">
+                    {t("trimmer.fadeOut")}
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="10"
+                    step="0.1"
+                    value={fadeOut}
+                    onChange={(event) => setFadeOut(parseFloat(event.target.value) || 0)}
+                    title={t("trimmer.noFadeTitle")}
+                    className="w-full border-none bg-transparent p-0 font-mono text-lg font-semibold text-white outline-none"
                   />
-                  {isPreviewStale && (
-                    <div className="absolute inset-0 rounded-md bg-white/80 dark:bg-gray-800/80 flex items-center justify-center text-xs text-gray-700 dark:text-gray-200 text-center px-3">
-                      {t("trimmer.previewNeedsUpdate")}
-                    </div>
-                  )}
                 </div>
-              )}
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="flex-shrink-0 px-6 py-3 border-t border-gray-200 dark:border-gray-700 flex gap-3">
-          <button onClick={handleTrim} className="btn btn-primary flex-1">
+        <div className="grid flex-shrink-0 gap-3 border-t border-white/10 px-6 py-5 sm:grid-cols-2">
+          <button
+            type="button"
+            onClick={handleTrim}
+            className="rounded-2xl bg-white px-6 py-4 text-base font-semibold text-[#173f72] transition hover:bg-cyan-50"
+          >
             {t("trimmer.trimAction")}
           </button>
-          <button onClick={onCancel} className="btn btn-secondary flex-1">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="rounded-2xl bg-white/8 px-6 py-4 text-base font-semibold text-white transition hover:bg-white/12"
+          >
             {t("trimmer.cancel")}
           </button>
         </div>
       </div>
-
     </div>
   );
 }

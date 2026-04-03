@@ -7,7 +7,6 @@ import { getMessages } from "@/lib/i18n/getMessages";
 import type { WaveformTrimEditorProps } from "./WaveformTrimEditor";
 
 const mockTrimTrackAction = vi.fn();
-const mockCreatePreviewAction = vi.fn();
 const mockAlert = vi.fn();
 
 type TrimmerTrack = {
@@ -20,7 +19,6 @@ type TrimmerTrack = {
 
 vi.mock("@/lib/actions/trackActions", () => ({
   trimTrackAction: (...args: unknown[]) => mockTrimTrackAction(...args),
-  createPreviewAction: (...args: unknown[]) => mockCreatePreviewAction(...args),
 }));
 
 let waveformProps: WaveformTrimEditorProps | null = null;
@@ -39,6 +37,9 @@ vi.mock("./WaveformTrimEditor", () => ({
         <button type="button" onClick={() => props.onEndChange(45)}>
           Waveform change end
         </button>
+        <button type="button" onClick={() => props.onDurationLoaded?.(240)}>
+          Waveform load duration
+        </button>
       </div>
     );
   },
@@ -49,9 +50,16 @@ describe("TrackTrimmer", () => {
     vi.clearAllMocks();
     waveformProps = null;
     vi.stubGlobal("alert", mockAlert);
-
     mockTrimTrackAction.mockResolvedValue({ ok: true });
-    mockCreatePreviewAction.mockResolvedValue({ previewId: "p1" });
+
+    Object.defineProperty(HTMLMediaElement.prototype, "play", {
+      configurable: true,
+      value: vi.fn().mockResolvedValue(undefined),
+    });
+    Object.defineProperty(HTMLMediaElement.prototype, "pause", {
+      configurable: true,
+      value: vi.fn(),
+    });
   });
 
   const track = {
@@ -94,155 +102,111 @@ describe("TrackTrimmer", () => {
 
   it("uses track metadata duration as the initial trim length", async () => {
     renderTrimmer();
-
-    expect(screen.getByDisplayValue(180)).toBeInTheDocument();
+    expect(screen.getByDisplayValue("180")).toBeInTheDocument();
   });
 
-  it("uses in-focus trim inputs for preview regeneration", async () => {
+  it("uses in-focus trim inputs for trim save", async () => {
     renderTrimmer();
 
     const startInput = screen.getByPlaceholderText("M:SS.ms");
     fireEvent.focus(startInput);
     fireEvent.change(startInput, { target: { value: "0:03.0" } });
 
-    const fadeInInput = screen.getAllByDisplayValue("0")[0];
+    const fadeInInput = screen.getAllByRole("spinbutton")[1];
     fireEvent.change(fadeInInput, { target: { value: "1.5" } });
 
-    fireEvent.click(screen.getByRole("button", { name: "Preview listen" }));
+    fireEvent.click(screen.getByRole("button", { name: "Trim track" }));
 
     await waitFor(() => {
-      expect(mockCreatePreviewAction).toHaveBeenCalledWith(
+      expect(mockTrimTrackAction).toHaveBeenCalledWith(
         "t1",
         expect.objectContaining({ startTime: 3, fadeIn: 1.5, maxDuration: 180 })
       );
     });
   });
 
-  it("creates preview without autoplay and renders native audio controls", async () => {
+  it("plays the selected fragment locally from startTime", async () => {
     renderTrimmer();
+    const playSpy = vi.mocked(HTMLMediaElement.prototype.play);
 
-    const previewButton = screen.getByRole("button", { name: "Preview listen" });
-    fireEvent.click(previewButton);
+    fireEvent.click(screen.getByRole("button", { name: "Waveform change start" }));
+    fireEvent.click(screen.getByRole("button", { name: "Play" }));
+
+    const audio = screen.getByTestId("trim-preview-audio") as HTMLAudioElement;
+    expect(audio.currentTime).toBe(15);
+    expect(playSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("stops playback when the selected fragment ends", async () => {
+    renderTrimmer();
+    const pauseSpy = vi.mocked(HTMLMediaElement.prototype.pause);
+
+    fireEvent.click(screen.getByRole("button", { name: "Play" }));
+
+    const audio = screen.getByTestId("trim-preview-audio") as HTMLAudioElement;
+    Object.defineProperty(audio, "currentTime", {
+      configurable: true,
+      writable: true,
+      value: 179.99,
+    });
+    fireEvent(audio, new Event("timeupdate"));
+
+    expect(pauseSpy).toHaveBeenCalled();
+    expect(audio.currentTime).toBe(0);
+  });
+
+  it("stops playback when range changes beyond the current position", async () => {
+    renderTrimmer();
+    const pauseSpy = vi.mocked(HTMLMediaElement.prototype.pause);
+
+    fireEvent.click(screen.getByRole("button", { name: "Play" }));
+
+    const audio = screen.getByTestId("trim-preview-audio") as HTMLAudioElement;
+    Object.defineProperty(audio, "currentTime", {
+      configurable: true,
+      writable: true,
+      value: 5,
+    });
+    fireEvent(audio, new Event("play"));
+
+    fireEvent.click(screen.getByRole("button", { name: "Waveform change start" }));
 
     await waitFor(() => {
-      expect(mockCreatePreviewAction).toHaveBeenCalledWith(
-        "t1",
-        expect.objectContaining({ startTime: 0, maxDuration: 180 })
-      );
+      expect(pauseSpy).toHaveBeenCalled();
     });
+    expect(audio.currentTime).toBe(15);
+  });
 
-    const audio = document.querySelector('audio[src*="/api/preview-audio/p1"]') as HTMLAudioElement;
-    expect(audio).not.toBeNull();
-    expect(audio).toHaveAttribute("controls");
-    expect(audio.getAttribute("src")).toContain("?v=");
+  it("resets trim range and fades", async () => {
+    renderTrimmer();
 
+    fireEvent.click(screen.getByRole("button", { name: "Waveform change start" }));
     fireEvent.click(screen.getByRole("button", { name: "Waveform change duration" }));
-    await waitFor(() => {
-      expect(screen.getByText("Preview needs updating")).toBeInTheDocument();
-    });
-    expect(mockCreatePreviewAction).toHaveBeenCalledTimes(1);
 
-    fireEvent.click(screen.getByRole("button", { name: "Preview listen" }));
-    await waitFor(() => {
-      expect(mockCreatePreviewAction).toHaveBeenCalledTimes(2);
-    });
-    const refreshedAudio = document.querySelector('audio[src*="/api/preview-audio/p1"]') as HTMLAudioElement;
-    expect(refreshedAudio).not.toBeNull();
-    await waitFor(() => {
-      expect(screen.queryByText("Preview needs updating")).not.toBeInTheDocument();
-    });
+    const fadeInputs = screen.getAllByRole("spinbutton");
+    fireEvent.change(fadeInputs[1], { target: { value: "2" } });
+    fireEvent.change(fadeInputs[2], { target: { value: "3" } });
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Reset" })[0]);
+
+    expect(screen.getByPlaceholderText("M:SS.ms")).toHaveValue("0:00.00");
+    expect(screen.getByDisplayValue("180")).toBeInTheDocument();
+    expect(screen.getAllByRole("spinbutton")[1]).toHaveValue(0);
+    expect(screen.getAllByRole("spinbutton")[2]).toHaveValue(0);
   });
 
-  it("does not auto-refresh preview after waveform changes and re-enables playback after manual refresh", async () => {
-    renderTrimmer();
-
-    fireEvent.click(screen.getByRole("button", { name: "Preview listen" }));
-
-    await waitFor(() => {
-      expect(mockCreatePreviewAction).toHaveBeenCalledTimes(1);
-    });
-    expect(waveformProps).not.toBeNull();
-
-    fireEvent.click(screen.getByRole("button", { name: "Waveform change start" }));
-
-    await waitFor(() => {
-      expect(screen.getByText("Preview needs updating")).toBeInTheDocument();
-    });
-    expect(mockCreatePreviewAction).toHaveBeenCalledTimes(1);
-
-    fireEvent.click(screen.getByRole("button", { name: "Preview listen" }));
-
-    await waitFor(() => {
-      expect(mockCreatePreviewAction).toHaveBeenCalledTimes(2);
-    });
-    await waitFor(() => {
-      expect(screen.queryByText("Preview needs updating")).not.toBeInTheDocument();
-    });
-  });
-
-  it("renders a fresh audio element for a new preview id after stale regeneration", async () => {
-    mockCreatePreviewAction
-      .mockResolvedValueOnce({ previewId: "preview-1" })
-      .mockResolvedValueOnce({ previewId: "preview-2" });
-
-    renderTrimmer();
-
-    fireEvent.click(screen.getByRole("button", { name: "Preview listen" }));
-
-    const firstAudio = await waitFor(() => {
-      const audio = document.querySelector("audio");
-      expect(audio).not.toBeNull();
-      return audio as HTMLAudioElement;
-    });
-    expect(firstAudio.getAttribute("src")).toContain("/api/preview-audio/preview-1");
-
-    fireEvent.click(screen.getByRole("button", { name: "Waveform change start" }));
-    await waitFor(() => {
-      expect(screen.getByText("Preview needs updating")).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByRole("button", { name: "Preview listen" }));
-
-    const secondAudio = await waitFor(() => {
-      const audio = document.querySelector(
-        'audio[src*="/api/preview-audio/preview-2"]'
-      );
-      expect(audio).not.toBeNull();
-      return audio as HTMLAudioElement;
-    });
-    expect(secondAudio.getAttribute("src")).toContain("/api/preview-audio/preview-2");
-    expect(secondAudio.getAttribute("src")).not.toContain("preview-1");
-    await waitFor(() => {
-      expect(screen.queryByText("Preview needs updating")).not.toBeInTheDocument();
-    });
-  });
-
-  it("does not autoplay preview after generation", async () => {
-    const playSpy = vi.fn().mockResolvedValue(undefined);
+  it("shows alerts for trim and playback errors", async () => {
+    mockTrimTrackAction.mockRejectedValueOnce(new Error("trim fail"));
     Object.defineProperty(HTMLMediaElement.prototype, "play", {
       configurable: true,
-      value: playSpy,
+      value: vi.fn().mockRejectedValue(new Error("play fail")),
     });
 
     renderTrimmer();
 
-    fireEvent.click(screen.getByRole("button", { name: "Preview listen" }));
-
+    fireEvent.click(screen.getByRole("button", { name: "Play" }));
     await waitFor(() => {
-      expect(mockCreatePreviewAction).toHaveBeenCalledTimes(1);
-    });
-    expect(playSpy).not.toHaveBeenCalled();
-  });
-
-  it("shows alerts for trim/preview/playback errors", async () => {
-    mockTrimTrackAction.mockRejectedValueOnce(new Error("trim fail"));
-    mockCreatePreviewAction.mockRejectedValueOnce(new Error("preview fail"));
-
-    renderTrimmer();
-
-    fireEvent.click(screen.getByRole("button", { name: "Preview listen" }));
-    await waitFor(() => {
-      expect(mockAlert).toHaveBeenCalledWith("Preview error: preview fail");
+      expect(mockAlert).toHaveBeenCalledWith("Preview playback error");
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Trim track" }));
@@ -250,14 +214,10 @@ describe("TrackTrimmer", () => {
       expect(mockAlert).toHaveBeenCalledWith("Trim error: trim fail");
     });
 
-    mockCreatePreviewAction.mockResolvedValueOnce({ previewId: "p2" });
-    fireEvent.click(screen.getByRole("button", { name: "Preview listen" }));
-    await waitFor(() => {
-      expect(document.querySelector('audio[src*="/api/preview-audio/p2"]')).not.toBeNull();
-    });
-
-    const audio = document.querySelector('audio[src*="/api/preview-audio/p2"]') as HTMLAudioElement;
+    const audio = screen.getByTestId("trim-preview-audio");
     fireEvent.error(audio);
-    expect(mockAlert).toHaveBeenCalledWith("Preview playback error");
+    expect(mockAlert).toHaveBeenCalledWith(
+      "Error loading audio file. Please check the console for details."
+    );
   });
 });
