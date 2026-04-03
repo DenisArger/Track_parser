@@ -12,6 +12,8 @@ export interface WaveformTrimEditorProps {
   endTime: number | undefined;
   maxDuration: number;
   useEndTime: boolean;
+  fadeIn?: number;
+  fadeOut?: number;
   onStartChange: (s: number) => void;
   onEndChange: (e: number) => void;
   onMaxDurationChange: (d: number) => void;
@@ -27,6 +29,8 @@ export default function WaveformTrimEditor({
   endTime,
   maxDuration,
   useEndTime,
+  fadeIn = 0,
+  fadeOut = 0,
   onStartChange,
   onEndChange,
   onMaxDurationChange,
@@ -50,6 +54,12 @@ export default function WaveformTrimEditor({
   useEndTimeRef.current = useEndTime;
 
   const effectiveEnd = useEndTime && endTime != null ? endTime : startTime + maxDuration;
+  const effectiveDuration = Math.max(0.01, effectiveEnd - startTime);
+  const waveformDuration = loadedDuration > 0 ? loadedDuration : Math.max(effectiveEnd, durationFallback ?? 0, 0.01);
+  const selectionLeft = `${(Math.max(0, startTime) / waveformDuration) * 100}%`;
+  const selectionWidth = `${(effectiveDuration / waveformDuration) * 100}%`;
+  const fadeInWidth = `${Math.min(100, (Math.max(0, fadeIn) / effectiveDuration) * 100)}%`;
+  const fadeOutWidth = `${Math.min(100, (Math.max(0, fadeOut) / effectiveDuration) * 100)}%`;
 
   useEffect(() => {
     const el = containerRef.current;
@@ -196,10 +206,27 @@ export default function WaveformTrimEditor({
   }, [endTime, maxDuration, startTime, useEndTime]);
 
   return (
-    <div className="relative w-full overflow-hidden rounded-[24px] border border-cyan-300/10 bg-[#163865] px-4 py-6">
+    <div className="relative w-full overflow-hidden rounded-[24px] border border-cyan-300/10 bg-[#163865] px-4 py-5">
       <div className="pointer-events-none absolute inset-y-0 left-0 w-28 bg-gradient-to-r from-white/10 to-transparent" />
       <div className="pointer-events-none absolute inset-y-0 right-0 w-28 bg-gradient-to-l from-white/10 to-transparent" />
       <div ref={containerRef} className="w-full min-h-[170px]" />
+      <div
+        className="pointer-events-none absolute bottom-6 top-6 overflow-hidden rounded-[18px]"
+        style={{ left: selectionLeft, width: selectionWidth }}
+      >
+        {fadeIn > 0 && (
+          <div
+            className="absolute inset-y-0 left-0 bg-gradient-to-r from-[#163865] via-[#163865]/65 to-transparent"
+            style={{ width: fadeInWidth }}
+          />
+        )}
+        {fadeOut > 0 && (
+          <div
+            className="absolute inset-y-0 right-0 bg-gradient-to-l from-[#163865] via-[#163865]/65 to-transparent"
+            style={{ width: fadeOutWidth }}
+          />
+        )}
+      </div>
 
       <div className="pointer-events-none absolute left-4 right-4 top-4 flex justify-between text-[11px] font-medium text-cyan-100/65">
         <span>{formatTimeMs(startTime)}</span>

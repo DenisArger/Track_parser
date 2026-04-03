@@ -94,6 +94,7 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
     const audio = audioRef.current;
     if (!audio) return;
     audio.pause();
+    audio.volume = 1;
     setIsPlaying(false);
   }, []);
 
@@ -135,9 +136,22 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
     if (!audio) return;
 
     const handleTimeUpdate = () => {
+      const elapsed = Math.max(0, audio.currentTime - resolvedTrimValues.startTime);
+      const remaining = Math.max(0, effectiveEnd - audio.currentTime);
+      let volume = 1;
+
+      if (fadeIn > 0 && elapsed < fadeIn) {
+        volume = Math.min(volume, elapsed / fadeIn);
+      }
+      if (fadeOut > 0 && remaining < fadeOut) {
+        volume = Math.min(volume, remaining / fadeOut);
+      }
+      audio.volume = Number.isFinite(volume) ? Math.max(0, Math.min(1, volume)) : 1;
+
       if (audio.currentTime >= effectiveEnd - PLAYBACK_EPSILON) {
         audio.pause();
         audio.currentTime = resolvedTrimValues.startTime;
+        audio.volume = 1;
         setIsPlaying(false);
       }
     };
@@ -160,7 +174,7 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
       audio.removeEventListener("play", handlePlay);
       audio.removeEventListener("ended", handleEnded);
     };
-  }, [effectiveEnd, resolvedTrimValues.startTime]);
+  }, [effectiveEnd, fadeIn, fadeOut, resolvedTrimValues.startTime]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -197,6 +211,7 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
     }
 
     try {
+      audio.volume = fadeIn > 0 ? 0 : 1;
       await audio.play();
     } catch (error) {
       console.error("Trim playback error:", error);
@@ -281,7 +296,7 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
           }}
         />
 
-        <div className="flex items-center justify-between border-b border-white/10 px-6 py-5">
+        <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
           <div className="min-w-0">
             <div className="mb-1 text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300/75">
               {t("trimmer.trimMode")}
@@ -298,8 +313,8 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
           </button>
         </div>
 
-        <div className="flex-1 overflow-auto px-6 py-6">
-          <div className="rounded-[24px] border border-white/8 bg-[#102f5b] p-5 shadow-inner shadow-black/20">
+        <div className="flex-1 overflow-auto px-6 py-4">
+          <div className="rounded-[24px] border border-white/8 bg-[#102f5b] p-4 shadow-inner shadow-black/20">
             <WaveformTrimEditor
               audioUrl={`/api/audio/${track.id}`}
               durationFallback={track.metadata.duration}
@@ -307,13 +322,15 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
               endTime={endTime}
               maxDuration={maxDuration}
               useEndTime={useEndTime}
+              fadeIn={fadeIn}
+              fadeOut={fadeOut}
               onStartChange={setStartTime}
               onEndChange={setEndTime}
               onMaxDurationChange={setMaxDuration}
               onDurationLoaded={handleDurationLoaded}
             />
 
-            <div className="mt-6 grid gap-4 lg:grid-cols-[auto_auto_minmax(0,1fr)_auto] lg:items-end">
+            <div className="mt-4 grid gap-3 lg:grid-cols-[auto_auto_minmax(0,1fr)_auto] lg:items-end">
               <button
                 type="button"
                 onClick={handlePlayPause}
@@ -482,7 +499,7 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
           </div>
         </div>
 
-        <div className="grid flex-shrink-0 gap-3 border-t border-white/10 px-6 py-5 sm:grid-cols-2">
+        <div className="grid flex-shrink-0 gap-3 border-t border-white/10 px-6 py-4 sm:grid-cols-2">
           <button
             type="button"
             onClick={handleTrim}
