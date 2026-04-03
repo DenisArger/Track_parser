@@ -9,7 +9,7 @@ const mockCreateSupabaseServerClient = vi.fn();
 const mockSyncFromApi = vi.fn();
 const mockParseArtistTitleFromRawName = vi.fn();
 const mockFrom = vi.fn();
-const mockSelect = vi.fn();
+const mockRange = vi.fn();
 const mockUpsert = vi.fn();
 
 vi.mock("@/lib/supabase/server", () => ({
@@ -39,10 +39,12 @@ describe("radioTracks", () => {
     process.env.STREAMING_CENTER_PLAYLIST_ID = "5";
     process.env.NEXT_PUBLIC_SUPABASE_URL = "https://supabase.example.com";
 
-    mockSelect.mockResolvedValue({ data: [{ normalized_name: "abba-track" }] });
+    mockRange
+      .mockResolvedValueOnce({ data: new Array(1000).fill(null).map((_, i) => ({ normalized_name: `track-${i}` })) })
+      .mockResolvedValueOnce({ data: [{ normalized_name: "abba-track" }] });
     mockUpsert.mockResolvedValue({ error: null });
     mockFrom.mockReturnValue({
-      select: (...args: unknown[]) => mockSelect(...args),
+      select: () => ({ range: (...args: unknown[]) => mockRange(...args) }),
       upsert: (...args: unknown[]) => mockUpsert(...args),
     });
     mockCreateSupabaseServerClient.mockReturnValue({
@@ -57,12 +59,21 @@ describe("radioTracks", () => {
   it("getRadioTrackNamesSet returns data from DB when it is not empty", async () => {
     const set = await getRadioTrackNamesSet();
 
-    expect(set).toEqual(new Set(["abba-track"]));
+    expect(set).toContain("abba-track");
+    expect(set).toContain("track-0");
     expect(mockSyncFromApi).not.toHaveBeenCalled();
   });
 
+  it("getRadioTrackNamesSet paginates through large tables", async () => {
+    const set = await getRadioTrackNamesSet();
+
+    expect(mockRange).toHaveBeenCalledTimes(2);
+    expect(set).toContain("abba-track");
+  });
+
   it("getRadioTrackNamesSet syncs from API when DB set is empty", async () => {
-    mockSelect.mockResolvedValue({ data: [] });
+    mockRange.mockReset();
+    mockRange.mockResolvedValueOnce({ data: [] });
     mockSyncFromApi.mockResolvedValue([
       {
         normalizedName: "n1",

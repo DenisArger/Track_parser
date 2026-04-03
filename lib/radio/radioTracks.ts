@@ -2,6 +2,8 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { syncFromApi } from "./streamingCenterClient";
 import { parseArtistTitleFromRawName } from "@/lib/utils/filenameUtils";
 
+const PAGE_SIZE = 1000;
+
 /**
  * Возвращает Set нормализованных имён треков на радио из БД.
  * Если таблица пуста и заданы STREAMING_CENTER_API_URL и STREAMING_CENTER_API_KEY —
@@ -9,11 +11,33 @@ import { parseArtistTitleFromRawName } from "@/lib/utils/filenameUtils";
  */
 export async function getRadioTrackNamesSet(): Promise<Set<string>> {
   const supabase = createSupabaseServerClient();
-  const { data } = await supabase
-    .from("radio_tracks")
-    .select("normalized_name");
+  const set = new Set<string>();
+  let offset = 0;
 
-  let set = new Set<string>((data || []).map((r) => r.normalized_name));
+  while (true) {
+    const { data, error } = await supabase
+      .from("radio_tracks")
+      .select("normalized_name")
+      .range(offset, offset + PAGE_SIZE - 1);
+
+    if (error) {
+      throw error;
+    }
+
+    const rows = data || [];
+    for (const row of rows) {
+      if (row?.normalized_name) {
+        set.add(row.normalized_name);
+      }
+    }
+
+    if (rows.length < PAGE_SIZE) {
+      break;
+    }
+
+    offset += PAGE_SIZE;
+  }
+
   const debugKey =
     "ц.краеугольный камень (новосибирск) & наталья доценко - господь велик";
   console.log("[radio tracks] set loaded", {
@@ -49,7 +73,9 @@ export async function getRadioTrackNamesSet(): Promise<Set<string>> {
         { onConflict: "normalized_name" }
       );
     }
-    set = new Set(entries.map((e) => e.normalizedName));
+    for (const entry of entries) {
+      set.add(entry.normalizedName);
+    }
   }
 
   return set;
