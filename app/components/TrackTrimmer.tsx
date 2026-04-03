@@ -6,6 +6,7 @@ import { getUserFacingErrorMessage } from "@/lib/utils/errorMessage";
 import { formatTimeMs, parseTimeMs } from "@/lib/utils/timeFormatter";
 import WaveformTrimEditor from "./WaveformTrimEditor";
 import { useI18n } from "./I18nProvider";
+import Spinner from "./Spinner";
 
 interface TrackTrimmerProps {
   track: Track;
@@ -30,6 +31,7 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
   const [duration, setDuration] = useState(track.metadata.duration ?? initialMaxDuration);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackStartTime, setPlaybackStartTime] = useState(0);
+  const [isTrimming, setIsTrimming] = useState(false);
 
   const [startInput, setStartInput] = useState(() => formatTimeMs(0));
   const [endInput, setEndInput] = useState(() => formatTimeMs(initialMaxDuration));
@@ -233,6 +235,7 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
     const trimSettings = buildTrimSettings();
 
     try {
+      setIsTrimming(true);
       const { trimTrackAction } = await import("@/lib/actions/trackActions");
       await trimTrackAction(track.id, trimSettings);
       onCancel();
@@ -244,6 +247,8 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
           t("trimmer.errors.unknown")
         )}`
       );
+    } finally {
+      setIsTrimming(false);
     }
   };
 
@@ -491,9 +496,17 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
           <button
             type="button"
             onClick={handleTrim}
+            disabled={isTrimming}
             className="rounded-2xl bg-white px-6 py-4 text-base font-semibold text-[#173f72] transition hover:bg-cyan-50"
           >
-            {t("trimmer.trimAction")}
+            {isTrimming ? (
+              <span className="inline-flex items-center justify-center gap-2">
+                <Spinner label={t("trimmer.trimAction")} />
+                <span>{t("trimmer.trimAction")}</span>
+              </span>
+            ) : (
+              t("trimmer.trimAction")
+            )}
           </button>
           <button
             type="button"

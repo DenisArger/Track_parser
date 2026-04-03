@@ -9,6 +9,7 @@ import {
 import { getUserFacingErrorMessage } from "@/lib/utils/errorMessage";
 import { downloadTrackAction } from "@/lib/actions/trackActions";
 import { useI18n } from "./I18nProvider";
+import Spinner from "./Spinner";
 
 interface DownloadTrackProps {
   onTracksUpdate: () => void;
@@ -526,10 +527,10 @@ ${errorDiagnostics.stack || "-"}`}
           className="btn btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isDownloading ? (
-            <div className="flex items-center space-x-2">
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+            <span className="inline-flex items-center justify-center gap-2">
+              <Spinner label={t("download.downloading")} />
               <span>{t("download.downloading")}</span>
-            </div>
+            </span>
           ) : (
             t("download.downloadAction")
           )}

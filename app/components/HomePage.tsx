@@ -8,6 +8,7 @@ import FtpUploader from "./FtpUploader";
 import TrackStatusBadge from "./shared/TrackStatusBadge";
 import TrackManager from "./TrackManager";
 import PlayList from "./PlayList";
+import Spinner from "./Spinner";
 import { Track } from "@/types/track";
 import { getAllTracks, changeTrackStatusAction } from "@/lib/actions/trackActions";
 import { useTracksRealtime } from "@/lib/hooks/useTracksRealtime";
@@ -67,6 +68,7 @@ export default function HomePage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [user, setUser] = useState<Partial<Pick<User, "id" | "email">> | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
 
   const checkTracksOnRadio = async () => {
     if (tracks.length === 0) {
@@ -153,6 +155,8 @@ export default function HomePage() {
     } catch (error) {
       console.error("Error fetching tracks:", error);
       setLoadError(getUserFacingErrorMessage(error, t("errors.loadTracks")));
+    } finally {
+      setIsInitialLoading(false);
     }
   }, [t]);
 
@@ -269,6 +273,21 @@ export default function HomePage() {
 
   return (
     <div className="space-y-6">
+      {isInitialLoading ? (
+        <div className="space-y-4">
+          <div className="h-8 w-64 rounded-lg bg-gray-200 dark:bg-gray-700 animate-pulse" />
+          <div className="grid gap-4 lg:grid-cols-[1fr_2fr]">
+            <div className="h-72 rounded-xl bg-white dark:bg-gray-800 shadow-md animate-pulse" />
+            <div className="h-72 rounded-xl bg-white dark:bg-gray-800 shadow-md animate-pulse" />
+          </div>
+          <div className="h-96 rounded-xl bg-white dark:bg-gray-800 shadow-md animate-pulse" />
+          <div className="flex items-center gap-2 text-sm text-gray-500">
+            <Spinner label="Loading…" />
+            <span>Loading…</span>
+          </div>
+        </div>
+      ) : (
+        <>
       {loadError && (
         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 text-red-800 dark:text-red-300 text-sm">
           {loadError}
@@ -432,6 +451,8 @@ export default function HomePage() {
             </table>
           </div>
         </div>
+      )}
+        </>
       )}
     </div>
   );

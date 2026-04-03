@@ -109,6 +109,9 @@ describe("FtpUploader", () => {
 
     renderWithI18n(<FtpUploader onTracksUpdate={vi.fn()} tracks={tracks} />);
 
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Test Connection" })).toBeInTheDocument();
+    });
     fireEvent.click(screen.getByRole("button", { name: "Test Connection" }));
     await waitFor(() => {
       expect(mockAlert).toHaveBeenCalledWith("FTP connection successful!");
@@ -139,6 +142,9 @@ describe("FtpUploader", () => {
 
     renderWithI18n(<FtpUploader onTracksUpdate={onTracksUpdate} tracks={tracks} />);
 
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Upload" })).toBeInTheDocument();
+    });
     fireEvent.click(screen.getAllByRole("button", { name: "Upload" })[0]);
     await waitFor(() => {
       expect(onTracksUpdate).toHaveBeenCalledTimes(1);
@@ -200,7 +206,7 @@ describe("FtpUploader", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Upload All Tracks (2)" }));
     await waitFor(() => {
-      expect(screen.getByText(/Failed to upload/)).toBeInTheDocument();
+      expect(screen.getByText(/disk full/)).toBeInTheDocument();
     });
   });
 });

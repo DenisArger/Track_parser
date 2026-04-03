@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useI18n } from "./I18nProvider";
+import Spinner from "./Spinner";
 
 interface TrackStats {
   total: number;
@@ -113,7 +114,14 @@ export default function TrackManager({
             disabled={isLoading}
             className="btn btn-primary mt-4 w-full disabled:opacity-50"
           >
-            {isLoading ? t("manager.loading") : t("manager.loadStats")}
+            {isLoading ? (
+              <span className="inline-flex items-center justify-center gap-2">
+                <Spinner label={t("manager.loading")} />
+                {t("manager.loading")}
+              </span>
+            ) : (
+              t("manager.loadStats")
+            )}
           </button>
         </div>
 
@@ -129,7 +137,14 @@ export default function TrackManager({
             disabled={isLoading}
             className="btn btn-secondary w-full disabled:opacity-50"
           >
-            {isLoading ? t("manager.cleaning") : t("manager.cleanupAction")}
+            {isLoading ? (
+              <span className="inline-flex items-center justify-center gap-2">
+                <Spinner label={t("manager.cleaning")} />
+                {t("manager.cleaning")}
+              </span>
+            ) : (
+              t("manager.cleanupAction")
+            )}
           </button>
         </div>
 
@@ -185,7 +200,14 @@ export default function TrackManager({
             disabled={isLoading}
             className="btn w-full disabled:opacity-50 bg-amber-600 hover:bg-amber-700 text-white"
           >
-            {isLoading ? t("manager.resetting") : t("manager.resetAction")}
+            {isLoading ? (
+              <span className="inline-flex items-center justify-center gap-2">
+                <Spinner label={t("manager.resetting")} />
+                {t("manager.resetting")}
+              </span>
+            ) : (
+              t("manager.resetAction")
+            )}
           </button>
         </div>
       </div>
@@ -205,4 +227,3 @@ export default function TrackManager({
     </div>
   );
 }
-

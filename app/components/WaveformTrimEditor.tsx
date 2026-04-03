@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useI18n } from "./I18nProvider";
 import { formatTimeMs } from "@/lib/utils/timeFormatter";
+import Spinner from "./Spinner";
 
 export interface WaveformTrimEditorProps {
   audioUrl: string;
@@ -427,7 +428,10 @@ export default function WaveformTrimEditor({
 
       {isWaveformLoading && (
         <div className="absolute inset-0 flex animate-pulse items-center justify-center bg-[#163865] text-sm text-cyan-100/70">
-          {t("trimmer.waveformLoading")}
+          <div className="flex items-center gap-2">
+            <Spinner label={t("trimmer.waveformLoading")} />
+            <span>{t("trimmer.waveformLoading")}</span>
+          </div>
         </div>
       )}
 

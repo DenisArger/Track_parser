@@ -103,13 +103,13 @@ describe("WaveformTrimEditor", () => {
       />
     );
 
-    expect(screen.getByText("Loading waveform…")).toBeInTheDocument();
+    expect(screen.getAllByText("Loading waveform…").length).toBeGreaterThan(0);
 
     await waitFor(() => {
       expect(wsLoadSpy).toHaveBeenCalledWith("/api/audio/t1");
     });
     await waitFor(() => {
-      expect(screen.queryByText("Loading waveform…")).not.toBeInTheDocument();
+      expect(screen.queryAllByText("Loading waveform…")).toHaveLength(0);
     });
     expect(onDurationLoaded).toHaveBeenCalledWith(120);
 

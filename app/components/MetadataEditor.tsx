@@ -7,6 +7,7 @@ import { getProcessedTracks } from "@/lib/utils/trackFilters";
 import { formatTime } from "@/lib/utils/timeFormatter";
 import { getUserFacingErrorMessage } from "@/lib/utils/errorMessage";
 import { useI18n } from "./I18nProvider";
+import Spinner from "./Spinner";
 
 interface MetadataEditorProps {
   onTracksUpdate: () => void;
@@ -309,7 +310,14 @@ export default function MetadataEditor({
                     disabled={isSaving}
                     className="btn btn-primary w-full disabled:opacity-50"
                   >
-                    {isSaving ? t("metadata.saving") : t("metadata.save")}
+                    {isSaving ? (
+                      <span className="inline-flex items-center justify-center gap-2">
+                        <Spinner label={t("metadata.saving")} />
+                        <span>{t("metadata.saving")}</span>
+                      </span>
+                    ) : (
+                      t("metadata.save")
+                    )}
                   </button>
                 </div>
               </div>

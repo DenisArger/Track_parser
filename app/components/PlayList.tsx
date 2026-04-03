@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useI18n } from "./I18nProvider";
+import Spinner from "./Spinner";
 
 type PlayListProps = {
   onTracksUpdate: () => void;
@@ -693,8 +694,15 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
             disabled={isLoading}
             className="btn btn-secondary text-sm disabled:opacity-50"
           >
-          {isLoading ? t("playlist.loading") : t("playlist.refreshTracks")}
-        </button>
+            {isLoading ? (
+              <span className="inline-flex items-center justify-center gap-2">
+                <Spinner label={t("playlist.loading")} />
+                <span>{t("playlist.loading")}</span>
+              </span>
+            ) : (
+              t("playlist.refreshTracks")
+            )}
+          </button>
           <button
             type="button"
             onClick={onTracksUpdate}
@@ -735,7 +743,14 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
               disabled={relatedSaving}
               className="btn btn-primary text-sm disabled:opacity-50"
             >
-              {relatedSaving ? t("playlist.saving") : t("playlist.save")}
+              {relatedSaving ? (
+                <span className="inline-flex items-center justify-center gap-2">
+                  <Spinner label={t("playlist.saving")} />
+                  <span>{t("playlist.saving")}</span>
+                </span>
+              ) : (
+                t("playlist.save")
+              )}
             </button>
           </div>
         </div>
@@ -930,7 +945,14 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
               disabled={templateSaving}
               className="btn btn-primary text-sm disabled:opacity-50"
             >
-              {templateSaving ? t("playlist.saving") : t("playlist.saveTemplate")}
+              {templateSaving ? (
+                <span className="inline-flex items-center justify-center gap-2">
+                  <Spinner label={t("playlist.saving")} />
+                  <span>{t("playlist.saving")}</span>
+                </span>
+              ) : (
+                t("playlist.saveTemplate")
+              )}
             </button>
             <button
               type="button"
@@ -1192,7 +1214,14 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
             disabled={uploading || generated.length === 0}
             className="btn btn-primary text-sm disabled:opacity-50"
           >
-            {uploading ? t("playlist.loading") : t("playlist.uploadToRadio")}
+            {uploading ? (
+              <span className="inline-flex items-center justify-center gap-2">
+                <Spinner label={t("playlist.loading")} />
+                <span>{t("playlist.loading")}</span>
+              </span>
+            ) : (
+              t("playlist.uploadToRadio")
+            )}
           </button>
         </div>
 
@@ -1257,5 +1286,3 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
     </div>
   );
 }
-
-
