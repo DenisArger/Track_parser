@@ -535,6 +535,10 @@ function buildTrackMatchKeys(track: TrackForCheck): string[] {
   return keys;
 }
 
+export function debugTrackMatchKeys(track: TrackForCheck): string[] {
+  return buildTrackMatchKeys(track);
+}
+
 /**
  * Проверяет, какие треки уже есть в плейлисте (на радио).
  * radioSet — Set нормализованных имён из БД (или API).

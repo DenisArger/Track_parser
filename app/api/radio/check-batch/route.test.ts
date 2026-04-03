@@ -17,6 +17,18 @@ vi.mock("@/lib/radio/radioTracks", () => ({
 
 vi.mock("@/lib/radio/streamingCenterClient", () => ({
   checkTracksOnRadio: (...args: unknown[]) => mockCheckTracksOnRadio(...args),
+  debugTrackMatchKeys: (track: { metadata?: { title?: string; artist?: string } }) => {
+    const artist = track.metadata?.artist || "";
+    const title = track.metadata?.title || "";
+    const keys: string[] = [];
+    if (artist && title) {
+      keys.push(`${artist} - ${title}`.toLowerCase().trim());
+      keys.push(`${title} - ${artist}`.toLowerCase().trim());
+    }
+    if (title) keys.push(title.toLowerCase().trim());
+    if (artist) keys.push(artist.toLowerCase().trim());
+    return keys;
+  },
 }));
 
 beforeEach(() => {

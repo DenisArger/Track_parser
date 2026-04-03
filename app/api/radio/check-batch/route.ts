@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/supabase/server";
 import { getRadioTrackNamesSet } from "@/lib/radio/radioTracks";
-import { checkTracksOnRadio } from "@/lib/radio/streamingCenterClient";
+import { checkTracksOnRadio, debugTrackMatchKeys } from "@/lib/radio/streamingCenterClient";
 import { getTrack as getStoredTrack, setTrack } from "@/lib/storage/trackStorage";
 
 export async function POST(request: NextRequest) {
@@ -34,8 +34,34 @@ export async function POST(request: NextRequest) {
       trackCount: items.length,
       trackIds: items.map((item) => item.id),
     });
-
+    console.log(
+      "[radio check-batch] keys",
+      items.map((item) => ({
+        trackId: item.id,
+        artist: item.metadata.artist,
+        title: item.metadata.title,
+        keys: debugTrackMatchKeys(item),
+      }))
+    );
     const radioSet = await getRadioTrackNamesSet();
+    console.log("[radio check-batch] radioSet size", radioSet.size);
+    console.log(
+      "[radio check-batch] radioSet preview",
+      Array.from(radioSet).slice(0, 10)
+    );
+    console.log(
+      "[radio check-batch] key matches",
+      items.map((item) => {
+        const keys = debugTrackMatchKeys(item);
+        return {
+          trackId: item.id,
+          checks: keys.map((key) => ({
+            key,
+            inRadioSet: radioSet.has(key),
+          })),
+        };
+      })
+    );
     const onRadio = checkTracksOnRadio(items, radioSet);
     console.log("[radio check-batch] matched", onRadio);
 
