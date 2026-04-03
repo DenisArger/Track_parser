@@ -185,6 +185,11 @@ export async function getTrack(trackId: string): Promise<Track | undefined> {
  */
 export async function setTrack(trackId: string, track: Track): Promise<void> {
   try {
+    console.log("setTrack start:", {
+      trackId,
+      status: track.status,
+      filename: track.filename,
+    });
     const supabase = createSupabaseServerClient();
     const row = trackToRow(track);
 
@@ -206,6 +211,7 @@ export async function setTrack(trackId: string, track: Track): Promise<void> {
         console.error("Error updating track in Supabase:", error);
         throw error;
       }
+      console.log("setTrack update done:", { trackId, status: track.status });
     } else {
       // Вставляем новый трек
       const { error } = await supabase.from("tracks").insert(row);
@@ -214,6 +220,7 @@ export async function setTrack(trackId: string, track: Track): Promise<void> {
         console.error("Error inserting track in Supabase:", error);
         throw error;
       }
+      console.log("setTrack insert done:", { trackId, status: track.status });
     }
   } catch (error) {
     console.error("Error in setTrack:", error);
