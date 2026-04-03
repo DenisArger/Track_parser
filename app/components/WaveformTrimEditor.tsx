@@ -1,7 +1,7 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useI18n } from "./I18nProvider";
 import { formatTimeMs } from "@/lib/utils/timeFormatter";
 
@@ -38,7 +38,15 @@ export default function WaveformTrimEditor({
 }: WaveformTrimEditorProps) {
   const { t } = useI18n();
   const containerRef = useRef<HTMLDivElement>(null);
-  const wsRef = useRef<{ destroy: () => void } | null>(null);
+  const wsRef = useRef<{
+    destroy: () => void;
+    setOptions?: (options: {
+      renderFunction?: (
+        peaks: Array<Float32Array | number[]>,
+        ctx: CanvasRenderingContext2D
+      ) => void;
+    }) => void;
+  } | null>(null);
   const regionsPluginRef = useRef<{
     getRegions: () => Array<{
       start: number;
@@ -58,8 +66,63 @@ export default function WaveformTrimEditor({
   const waveformDuration = loadedDuration > 0 ? loadedDuration : Math.max(effectiveEnd, durationFallback ?? 0, 0.01);
   const selectionLeft = `${(Math.max(0, startTime) / waveformDuration) * 100}%`;
   const selectionWidth = `${(effectiveDuration / waveformDuration) * 100}%`;
-  const fadeInWidth = `${Math.min(100, (Math.max(0, fadeIn) / effectiveDuration) * 100)}%`;
-  const fadeOutWidth = `${Math.min(100, (Math.max(0, fadeOut) / effectiveDuration) * 100)}%`;
+  const fadeInPercent = Math.min(100, (Math.max(0, fadeIn) / effectiveDuration) * 100);
+  const fadeOutPercent = Math.min(100, (Math.max(0, fadeOut) / effectiveDuration) * 100);
+  const fadeInWidth = `${fadeInPercent}%`;
+  const fadeOutWidth = `${fadeOutPercent}%`;
+  const fadeInEnd = Math.min(effectiveEnd, startTime + fadeIn);
+  const fadeOutStart = Math.max(startTime, effectiveEnd - fadeOut);
+
+  const createRenderFunction = useCallback(
+    (durationHint: number) =>
+      (peaks: Array<Float32Array | number[]>, ctx: CanvasRenderingContext2D) => {
+        const channel = peaks[0];
+        if (!channel || channel.length === 0) return;
+
+        const width = ctx.canvas.width;
+        const height = ctx.canvas.height;
+        const centerY = height / 2;
+        const maxBarHeight = height * 0.42;
+        const barWidth = 2;
+        const gap = 1;
+        const step = barWidth + gap;
+        const totalDuration = Math.max(durationHint, effectiveEnd, 0.01);
+
+        ctx.clearRect(0, 0, width, height);
+
+        for (let x = 0; x < width; x += step) {
+          const index = Math.min(
+            channel.length - 1,
+            Math.floor((x / width) * channel.length)
+          );
+          const rawPeak = Math.abs(Number(channel[index] ?? 0));
+          const time = (index / channel.length) * totalDuration;
+          const inSelection = time >= startTime && time <= effectiveEnd;
+
+          let amplitudeScale = 1;
+          if (inSelection && fadeIn > 0 && time < fadeInEnd) {
+            amplitudeScale = Math.min(amplitudeScale, (time - startTime) / Math.max(fadeIn, 0.001));
+          }
+          if (inSelection && fadeOut > 0 && time > fadeOutStart) {
+            amplitudeScale = Math.min(
+              amplitudeScale,
+              (effectiveEnd - time) / Math.max(fadeOut, 0.001)
+            );
+          }
+
+          if (!inSelection) {
+            amplitudeScale = 1;
+          }
+
+          const scaledPeak = rawPeak * Math.max(0.04, Math.min(1, amplitudeScale));
+          const barHeight = Math.max(1.5, scaledPeak * maxBarHeight);
+
+          ctx.fillStyle = inSelection ? "#17efc4" : "rgba(23, 239, 196, 0.22)";
+          ctx.fillRect(x, centerY - barHeight, barWidth, barHeight * 2);
+        }
+      },
+    [effectiveEnd, fadeIn, fadeInEnd, fadeOut, fadeOutStart, startTime]
+  );
 
   useEffect(() => {
     const el = containerRef.current;
@@ -84,13 +147,16 @@ export default function WaveformTrimEditor({
         const ws = WaveSurfer.create({
           container: el,
           height: 170,
-          waveColor: "#1C5876",
-          progressColor: "#1C5876",
+          waveColor: "#17efc4",
+          progressColor: "#17efc4",
           cursorColor: "#22d3ee",
           barWidth: 2,
           barGap: 1,
           barRadius: 2,
           normalize: true,
+          renderFunction: createRenderFunction(
+            durationFallback ?? Math.max(effectiveEnd, 0.01)
+          ),
         });
         wsRef.current = ws;
 
@@ -186,6 +252,17 @@ export default function WaveformTrimEditor({
   }, [audioUrl]);
 
   useEffect(() => {
+    if (!wsRef.current?.setOptions) return;
+    wsRef.current.setOptions({
+      renderFunction: createRenderFunction(
+        loadedDuration > 0
+          ? loadedDuration
+          : durationFallback ?? Math.max(effectiveEnd, 0.01)
+      ),
+    });
+  }, [createRenderFunction, durationFallback, effectiveEnd, loadedDuration]);
+
+  useEffect(() => {
     const rp = regionsPluginRef.current;
     const region = rp?.getRegions?.()?.[0];
     if (!region) return;
@@ -215,16 +292,48 @@ export default function WaveformTrimEditor({
         style={{ left: selectionLeft, width: selectionWidth }}
       >
         {fadeIn > 0 && (
+          <>
+            <div
+              className="absolute inset-y-0 left-0 border-r-2 border-cyan-100/90"
+              style={{ width: fadeInWidth }}
+            />
+            <div
+              className="absolute left-2 top-2 rounded-md border border-cyan-100/35 bg-[#071c39]/80 px-2.5 py-1 text-[11px] font-semibold tracking-[0.14em] text-cyan-50 shadow-lg"
+              style={{ maxWidth: `min(calc(${fadeInWidth} - 0.5rem), 12rem)` }}
+            >
+              Нарастание {formatTimeMs(fadeIn)}
+            </div>
+            <div className="absolute inset-y-2 left-0 w-[3px] rounded-full bg-cyan-50/90" />
+          </>
+        )}
+        {fadeIn > 0 && (
           <div
-            className="absolute inset-y-0 left-0 bg-gradient-to-r from-[#163865] via-[#163865]/65 to-transparent"
-            style={{ width: fadeInWidth }}
-          />
+            className="absolute bottom-3 left-0 rounded-full bg-[#071c39]/75 px-2 py-0.5 text-[10px] font-semibold tracking-[0.12em] text-cyan-50"
+            style={{ transform: `translateX(calc(${fadeInWidth} - 1.5rem))` }}
+          >
+            END
+          </div>
         )}
         {fadeOut > 0 && (
-          <div
-            className="absolute inset-y-0 right-0 bg-gradient-to-l from-[#163865] via-[#163865]/65 to-transparent"
-            style={{ width: fadeOutWidth }}
-          />
+          <>
+            <div
+              className="absolute inset-y-0 right-0 border-l-2 border-cyan-100/90"
+              style={{ width: fadeOutWidth }}
+            />
+            <div
+              className="absolute right-2 top-2 rounded-md border border-cyan-100/35 bg-[#071c39]/80 px-2.5 py-1 text-[11px] font-semibold tracking-[0.14em] text-cyan-50 shadow-lg"
+              style={{ maxWidth: `min(calc(${fadeOutWidth} - 0.5rem), 12rem)` }}
+            >
+              Затухание {formatTimeMs(fadeOut)}
+            </div>
+            <div className="absolute inset-y-2 right-0 w-[3px] rounded-full bg-cyan-50/90" />
+            <div
+              className="absolute bottom-3 right-0 rounded-full bg-[#071c39]/75 px-2 py-0.5 text-[10px] font-semibold tracking-[0.12em] text-cyan-50"
+              style={{ transform: `translateX(calc(-${fadeOutWidth} + 1.5rem))` }}
+            >
+              START
+            </div>
+          </>
         )}
       </div>
 

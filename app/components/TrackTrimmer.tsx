@@ -275,8 +275,8 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm p-3">
-      <div className="mx-auto flex h-full max-w-7xl flex-col overflow-hidden rounded-[28px] border border-cyan-400/10 bg-[#173f72] text-white shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-3 backdrop-blur-sm">
+      <div className="mx-auto flex max-h-[92vh] w-full max-w-7xl flex-col overflow-hidden rounded-[28px] border border-cyan-400/10 bg-[#173f72] text-white shadow-2xl">
         <audio
           ref={audioRef}
           src={`/api/audio/${track.id}`}
@@ -313,7 +313,7 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
           </button>
         </div>
 
-        <div className="flex-1 overflow-auto px-6 py-4">
+        <div className="overflow-auto px-6 py-4">
           <div className="rounded-[24px] border border-white/8 bg-[#102f5b] p-4 shadow-inner shadow-black/20">
             <WaveformTrimEditor
               audioUrl={`/api/audio/${track.id}`}
@@ -330,7 +330,7 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
               onDurationLoaded={handleDurationLoaded}
             />
 
-            <div className="mt-4 grid gap-3 lg:grid-cols-[auto_auto_minmax(0,1fr)_auto] lg:items-end">
+            <div className="mt-3 grid gap-3 lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-end">
               <button
                 type="button"
                 onClick={handlePlayPause}
@@ -345,14 +345,6 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
                 ) : (
                   <span className="ml-1 border-y-[10px] border-y-transparent border-l-[16px] border-l-white" />
                 )}
-              </button>
-
-              <button
-                type="button"
-                onClick={resetTrimRange}
-                className="flex h-14 w-24 items-center justify-center rounded-2xl bg-[#13294f] px-3 text-sm font-medium text-cyan-100 transition hover:bg-[#163564]"
-              >
-                {t("trimmer.reset")}
               </button>
 
               <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
@@ -499,7 +491,7 @@ export default function TrackTrimmer({ track, onCancel }: TrackTrimmerProps) {
           </div>
         </div>
 
-        <div className="grid flex-shrink-0 gap-3 border-t border-white/10 px-6 py-4 sm:grid-cols-2">
+        <div className="grid flex-shrink-0 gap-3 border-t border-white/10 px-6 py-3 sm:grid-cols-2">
           <button
             type="button"
             onClick={handleTrim}
