@@ -66,7 +66,7 @@ describe("getDownloadedTracks", () => {
 });
 
 describe("getProcessedTracks", () => {
-  it("returns processed and radio-synced tracks", () => {
+  it("returns processed tracks ready for metadata editing", () => {
     const tracks = [
       mkTrack("1", "downloaded"),
       mkTrack("2", "reviewed_approved"),
@@ -74,7 +74,7 @@ describe("getProcessedTracks", () => {
       mkTrack("4", "uploaded_ftp"),
       mkTrack("5", "uploaded_radio"),
     ];
-    expect(getProcessedTracks(tracks)).toEqual([tracks[1], tracks[2], tracks[4]]);
+    expect(getProcessedTracks(tracks)).toEqual([tracks[1], tracks[2]]);
   });
 });
 

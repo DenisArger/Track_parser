@@ -35,7 +35,6 @@ export function getProcessedTracks(tracks: Track[]): Track[] {
   return filterTracksByStatuses(tracks, [
     "reviewed_approved",
     "ready_for_upload",
-    "uploaded_radio",
   ]);
 }
 
