@@ -131,6 +131,14 @@ async function readResponse(res: Response, url: string) {
 
   if (!res.ok) {
     const message = parseBodyMessage(data) || `Streaming.Center API error: ${res.status} ${res.statusText}`;
+    console.error("[streamingCenterGridClient] response error", {
+      url,
+      status: res.status,
+      statusText: res.statusText,
+      contentType,
+      rawText: text.slice(0, 800),
+      parsedMessage: message,
+    });
     throw new Error(friendlyStreamingCenterMessage(message));
   }
 
@@ -192,6 +200,11 @@ async function writeGridEvent(
       "Content-Type": "application/json",
     },
     body: JSON.stringify(payload),
+  });
+  console.info("[streamingCenterGridClient] write request", {
+    method,
+    url,
+    payloadKeys: Object.keys(payload),
   });
   const data = await readResponse(res, url);
   if (Array.isArray(data)) return (data[0] as GridEvent) ?? payload;
