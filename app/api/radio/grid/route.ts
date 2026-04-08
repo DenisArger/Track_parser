@@ -12,6 +12,12 @@ function getGridEnv() {
   return { apiUrl, apiKey };
 }
 
+function maskKey(key: string): string {
+  if (!key) return "<empty>";
+  if (key.length <= 4) return "***";
+  return `${key.slice(0, 2)}***${key.slice(-2)}`;
+}
+
 export async function GET(request: Request) {
   try {
     const user = await getAuthUser();
@@ -33,10 +39,21 @@ export async function GET(request: Request) {
     }
 
     const { apiUrl, apiKey } = getGridEnv();
+    console.info("[radio grid] GET", {
+      server,
+      startTs,
+      endTs,
+      utc,
+      apiUrl,
+      apiKeyPresent: Boolean(apiKey),
+      apiKeyHint: maskKey(apiKey),
+    });
     const events = await fetchGridEvents(apiUrl, apiKey, { server, startTs, endTs, utc });
+    console.info("[radio grid] GET ok", { count: events.length });
     return NextResponse.json({ results: events });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    console.error("[radio grid] GET failed", { message });
     return NextResponse.json({ error: message }, { status: 502 });
   }
 }
@@ -51,10 +68,23 @@ export async function POST(request: Request) {
 
     const body = await request.json();
     const { apiUrl, apiKey } = getGridEnv();
+    console.info("[radio grid] POST", {
+      apiUrl,
+      apiKeyPresent: Boolean(apiKey),
+      apiKeyHint: maskKey(apiKey),
+      bodyKeys: body && typeof body === "object" ? Object.keys(body as Record<string, unknown>) : [],
+    });
     const event = await createGridEvent(apiUrl, apiKey, body);
+    console.info("[radio grid] POST ok", {
+      id: event.id ?? null,
+      name: event.name ?? null,
+      cast_type: event.cast_type ?? null,
+      periodicity: event.periodicity ?? null,
+    });
     return NextResponse.json(event);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    console.error("[radio grid] POST failed", { message });
     return NextResponse.json({ error: message }, { status: 502 });
   }
 }

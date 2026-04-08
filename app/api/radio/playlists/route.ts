@@ -60,6 +60,12 @@ function sortPlaylists(rows: PlaylistRow[]): PlaylistRow[] {
   });
 }
 
+function maskKey(key: string): string {
+  if (!key) return "<empty>";
+  if (key.length <= 4) return "***";
+  return `${key.slice(0, 2)}***${key.slice(-2)}`;
+}
+
 export async function GET() {
   try {
     const user = await getAuthUser();
@@ -82,6 +88,12 @@ export async function GET() {
 
     const base = normalizeApiBase(apiUrl);
     const url = `${base}/api/v2/playlists/`;
+    console.info("[radio playlists] GET", {
+      apiUrl,
+      apiKeyPresent: Boolean(apiKey),
+      apiKeyHint: maskKey(apiKey),
+      url,
+    });
     const res = await fetch(url, {
       headers: buildAuthHeaders(apiKey),
     });
@@ -100,12 +112,23 @@ export async function GET() {
         (data as { detail?: string; error?: string })?.detail ||
         (data as { detail?: string; error?: string })?.error ||
         `Streaming.Center error: ${res.status} ${res.statusText}`;
+      console.error("[radio playlists] GET failed", {
+        url,
+        status: res.status,
+        statusText: res.statusText,
+        message,
+      });
       return NextResponse.json({ error: friendlyStreamingCenterMessage(message) }, { status: 502 });
     }
 
+    console.info("[radio playlists] GET ok", {
+      url,
+      count: sortPlaylists(unwrapPlaylists(data)).length,
+    });
     return NextResponse.json({ playlists: sortPlaylists(unwrapPlaylists(data)) });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    console.error("[radio playlists] GET exception", { message });
     return NextResponse.json({ error: message }, { status: 502 });
   }
 }
