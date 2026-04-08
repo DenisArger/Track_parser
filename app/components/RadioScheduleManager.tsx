@@ -45,6 +45,7 @@ type FormState = {
 type PlaylistOption = {
   id: number;
   name: string;
+  created_at?: string | null;
 };
 
 const emptyForm = (): FormState => {
@@ -189,6 +190,7 @@ export default function RadioScheduleManager() {
   const [castTypeFilter, setCastTypeFilter] = useState("all");
   const [events, setEvents] = useState<GridEvent[]>([]);
   const [playlists, setPlaylists] = useState<PlaylistOption[]>([]);
+  const [playlistSearch, setPlaylistSearch] = useState("");
   const [loading, setLoading] = useState(false);
   const [playlistsLoading, setPlaylistsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -196,6 +198,14 @@ export default function RadioScheduleManager() {
   const [form, setForm] = useState<FormState>(emptyForm());
   const [saving, setSaving] = useState(false);
   const range = useMemo(() => buildDateRange(startDate, Number.parseInt(days, 10) || 7), [startDate, days]);
+  const filteredPlaylists = useMemo(() => {
+    const query = playlistSearch.trim().toLowerCase();
+    if (!query) return playlists;
+    return playlists.filter((playlist) => {
+      const haystack = [String(playlist.id), playlist.name, playlist.created_at ?? ""].join(" ").toLowerCase();
+      return haystack.includes(query);
+    });
+  }, [playlistSearch, playlists]);
 
   const loadEvents = useCallback(async () => {
     setLoading(true);
@@ -232,12 +242,12 @@ export default function RadioScheduleManager() {
       const items = Array.isArray(data.playlists) ? data.playlists : [];
       setPlaylists(
         items
-          .map((item: { id?: number | null; name?: string | null }) => ({
+          .map((item: { id?: number | null; name?: string | null; created_at?: string | null }) => ({
             id: Number(item.id),
             name: String(item.name ?? ""),
+            created_at: item.created_at ?? null,
           }))
           .filter((item: PlaylistOption) => Number.isFinite(item.id) && item.name.trim().length > 0)
-          .sort((a: PlaylistOption, b: PlaylistOption) => a.name.localeCompare(b.name))
       );
     } catch {
       setPlaylists([]);
@@ -606,6 +616,12 @@ export default function RadioScheduleManager() {
             </label>
             <label className="space-y-1">
               <span className="text-sm">{t("schedule.fields.playlist")}</span>
+              <input
+                className="w-full rounded-lg border px-3 py-2 bg-white dark:bg-gray-900"
+                placeholder={t("schedule.playlistSearchPlaceholder")}
+                value={playlistSearch}
+                onChange={(e) => setPlaylistSearch(e.target.value)}
+              />
               <select
                 className="w-full rounded-lg border px-3 py-2 bg-white dark:bg-gray-900"
                 value={form.playlist}
@@ -613,12 +629,15 @@ export default function RadioScheduleManager() {
                 disabled={playlistsLoading && playlists.length === 0}
               >
                 <option value="">{playlistsLoading ? t("schedule.loadingPlaylists") : t("schedule.playlistPlaceholder")}</option>
-                {playlists.map((playlist) => (
+                {filteredPlaylists.map((playlist) => (
                   <option key={playlist.id} value={playlist.id}>
                     {playlist.id} · {playlist.name}
                   </option>
                 ))}
               </select>
+              {playlistSearch.trim() && filteredPlaylists.length === 0 && (
+                <p className="text-xs text-gray-500">{t("schedule.playlistSearchEmpty")}</p>
+              )}
               <p className="text-xs text-gray-500">{t("schedule.playlistHint")}</p>
             </label>
           </div>

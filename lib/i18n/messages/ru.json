@@ -371,6 +371,8 @@
       "timezone": "Часовой пояс"
     },
     "playlistPlaceholder": "Выберите плейлист",
+    "playlistSearchPlaceholder": "Поиск по плейлистам",
+    "playlistSearchEmpty": "Плейлисты не найдены",
     "playlistHint": "Список подгружается из Streaming.Center, можно оставить поле пустым для ручного ввода.",
     "loadingPlaylists": "Загрузка плейлистов...",
     "badges": {

@@ -7,6 +7,7 @@ export const runtime = "nodejs";
 type PlaylistRow = {
   id?: number | null;
   name?: string | null;
+  created_at?: string | null;
   [key: string]: unknown;
 };
 
@@ -26,6 +27,21 @@ function unwrapPlaylists(data: unknown): PlaylistRow[] {
   const obj = data as Record<string, unknown>;
   const arr = obj.results ?? obj.data ?? obj.items ?? obj.playlists;
   return Array.isArray(arr) ? (arr as PlaylistRow[]) : [];
+}
+
+function sortPlaylists(rows: PlaylistRow[]): PlaylistRow[] {
+  return [...rows].sort((a, b) => {
+    const aTime = a.created_at ? Date.parse(a.created_at) : NaN;
+    const bTime = b.created_at ? Date.parse(b.created_at) : NaN;
+    const aHasTime = Number.isFinite(aTime);
+    const bHasTime = Number.isFinite(bTime);
+    if (aHasTime && bHasTime && aTime !== bTime) return bTime - aTime;
+    if (aHasTime !== bHasTime) return aHasTime ? -1 : 1;
+    const aId = typeof a.id === "number" ? a.id : Number.NaN;
+    const bId = typeof b.id === "number" ? b.id : Number.NaN;
+    if (Number.isFinite(aId) && Number.isFinite(bId) && aId !== bId) return bId - aId;
+    return String(a.name ?? "").localeCompare(String(b.name ?? ""));
+  });
 }
 
 export async function GET() {
@@ -71,7 +87,7 @@ export async function GET() {
       return NextResponse.json({ error: message }, { status: 502 });
     }
 
-    return NextResponse.json({ playlists: unwrapPlaylists(data) });
+    return NextResponse.json({ playlists: sortPlaylists(unwrapPlaylists(data)) });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     return NextResponse.json({ error: message }, { status: 502 });

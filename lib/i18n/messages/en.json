@@ -371,6 +371,8 @@
       "timezone": "Timezone"
     },
     "playlistPlaceholder": "Select a playlist",
+    "playlistSearchPlaceholder": "Search playlists",
+    "playlistSearchEmpty": "No playlists found",
     "playlistHint": "The list is loaded from Streaming.Center, and you can still leave the field empty for manual entry.",
     "loadingPlaylists": "Loading playlists...",
     "badges": {
