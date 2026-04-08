@@ -483,14 +483,7 @@ export async function rejectTrack(trackId: string): Promise<void> {
  */
 export async function processTrack(
   trackId: string,
-  metadata?: TrackMetadata,
-  trimSettings?: {
-    startTime: number;
-    endTime?: number;
-    fadeIn: number;
-    fadeOut: number;
-    maxDuration?: number;
-  }
+  metadata?: TrackMetadata
 ): Promise<Track> {
   console.log("Starting processTrack for trackId:", trackId);
 
@@ -505,12 +498,10 @@ export async function processTrack(
   // Если трек уже подготовлен, обновляем только метаданные без повторной обработки.
   if (
     (track.status === "reviewed_approved" ||
-      track.status === "trimmed" ||
       track.status === "ready_for_upload" ||
       track.status === "uploaded_ftp" ||
       track.status === "uploaded_radio") &&
-    track.processedPath &&
-    !trimSettings
+    track.processedPath
   ) {
     console.log("Track already processed, updating metadata only");
     if (metadata) {
@@ -572,7 +563,6 @@ export async function processTrack(
   await processAudioFile(
     inputFilePath,
     tempProcessedPath,
-    trimSettings,
     config.processing.maxDuration
   );
   
@@ -617,26 +607,6 @@ export async function processTrack(
   }
 
   // РЎРѕС…СЂР°РЅРёС‚СЊ РёРЅС„РѕСЂРјР°С†РёСЋ РѕР± РѕР±СЂРµР·РєРµ С‚РѕР»СЊРєРѕ РµСЃР»Рё РґРµР№СЃС‚РІРёС‚РµР»СЊРЅРѕ Р±С‹Р»Р° РїСЂРёРјРµРЅРµРЅР° РѕР±СЂРµР·РєР°
-  if (trimSettings) {
-    console.log("Saving trim information:", trimSettings);
-
-    // РџСЂРѕРІРµСЂСЏРµРј, Р±С‹Р»Р° Р»Рё РґРµР№СЃС‚РІРёС‚РµР»СЊРЅРѕ РїСЂРёРјРµРЅРµРЅР° РѕР±СЂРµР·РєР°
-    const hasRealTrimming =
-      trimSettings.startTime > 0 ||
-      trimSettings.endTime ||
-      trimSettings.fadeIn > 0 ||
-      trimSettings.fadeOut > 0 ||
-      (trimSettings.maxDuration && trimSettings.maxDuration < 360);
-
-    if (hasRealTrimming) {
-      track.metadata.isTrimmed = true;
-      track.metadata.trimSettings = trimSettings;
-      console.log("Track marked as trimmed with real trimming applied");
-    } else {
-      console.log("No real trimming applied, keeping track as original");
-    }
-  }
-
   console.log("Writing track tags...");
   try {
     const { writeTrackTags } = await import("./audio/metadataWriter");
@@ -670,94 +640,6 @@ export async function processTrack(
 /**
  * РћР±СЂРµР·Р°С‚СЊ С‚СЂРµРє Р±РµР· Р°РЅР°Р»РёР·Р° BPM
  */
-export async function trimTrack(
-  trackId: string,
-  trimSettings: {
-    startTime: number;
-    endTime?: number;
-    fadeIn: number;
-    fadeOut: number;
-    maxDuration?: number;
-  }
-): Promise<Track> {
-  console.log("Starting trimTrack for trackId:", trackId);
-
-  // Dynamic import to avoid issues during static generation
-  const path = await import("path");
-  const fs = await import("fs-extra");
-  const {
-    uploadFileToStorage,
-    downloadFileFromStorage,
-    STORAGE_BUCKETS,
-    sanitizeFilenameForStorage,
-  } = await import("./storage/supabaseStorage");
-
-  // Dynamic import to avoid issues during static generation
-  const { loadConfig } = await import("./config");
-  const config = await loadConfig();
-  const track = await getTrackFromStorage(trackId);
-  if (!track) throw new Error("Track not found");
-
-  console.log("Track found:", track.filename, "status:", track.status);
-
-  const tempInputPath = path.join(config.folders.downloads, `${trackId}_temp_trim_input.mp3`);
-  const fileBuffer = await downloadFileFromStorage(STORAGE_BUCKETS.downloads, track.originalPath);
-  await fs.writeFile(tempInputPath, fileBuffer);
-
-  const tempProcessedPath = path.join(config.folders.processed, `${trackId}_trimmed_${track.filename}`);
-  console.log("Trimming audio file:", tempInputPath, "->", tempProcessedPath);
-
-  const { processAudioFile } = await import("./audio/audioProcessor");
-  await processAudioFile(
-    tempInputPath,
-    tempProcessedPath,
-    trimSettings,
-    config.processing.maxDuration
-  );
-
-  const storagePath = `${trackId}/${sanitizeFilenameForStorage(track.filename)}`;
-  const processedBuffer = await fs.readFile(tempProcessedPath);
-  await uploadFileToStorage(
-    STORAGE_BUCKETS.processed,
-    storagePath,
-    processedBuffer,
-    { contentType: "audio/mpeg", upsert: true }
-  );
-  console.log("Trimmed file uploaded to Storage:", storagePath);
-
-  try {
-    if (await fs.pathExists(tempInputPath)) await fs.remove(tempInputPath);
-    if (await fs.pathExists(tempProcessedPath)) await fs.remove(tempProcessedPath);
-  } catch (e) {
-    console.warn("Error removing temp files:", e);
-  }
-
-  // РЎРѕС…СЂР°РЅРёС‚СЊ РёРЅС„РѕСЂРјР°С†РёСЋ РѕР± РѕР±СЂРµР·РєРµ
-  console.log("Saving trim information:", trimSettings);
-
-  // РџСЂРѕРІРµСЂСЏРµРј, Р±С‹Р»Р° Р»Рё РґРµР№СЃС‚РІРёС‚РµР»СЊРЅРѕ РїСЂРёРјРµРЅРµРЅР° РѕР±СЂРµР·РєР°
-  const hasRealTrimming =
-    trimSettings.startTime > 0 ||
-    trimSettings.endTime !== undefined ||
-    trimSettings.fadeIn > 0 ||
-    trimSettings.fadeOut > 0 ||
-    (trimSettings.maxDuration !== undefined && trimSettings.maxDuration < 360);
-
-  if (hasRealTrimming) {
-    track.metadata.isTrimmed = true;
-    track.metadata.trimSettings = trimSettings;
-    console.log("Track marked as trimmed with real trimming applied");
-  } else {
-    console.log("No real trimming applied, keeping track as original");
-  }
-
-  track.processedPath = storagePath;
-  track.status = "trimmed";
-  await setTrack(trackId, track);
-
-  console.log("Track trimming completed successfully");
-  return track;
-}
 
 /**
  * Р—Р°РіСЂСѓР·РєР° РЅР° FTP

@@ -23,7 +23,6 @@ const OVERVIEW_STATUS_FILTERS = [
   "downloaded",
   "reviewed_approved",
   "reviewed_rejected",
-  "trimmed",
   "ready_for_upload",
   "uploaded_ftp",
   "uploaded_radio",
@@ -31,7 +30,6 @@ const OVERVIEW_STATUS_FILTERS = [
 
 const FTP_READY_STATUSES: Track["status"][] = [
   "reviewed_approved",
-  "trimmed",
   "ready_for_upload",
 ];
 
@@ -45,9 +43,6 @@ const OVERVIEW_STATUS_TRANSITIONS: Partial<
     { status: "downloaded", labelKey: "overview.actions.backToDownloaded" },
   ],
   reviewed_rejected: [
-    { status: "downloaded", labelKey: "overview.actions.backToDownloaded" },
-  ],
-  trimmed: [
     { status: "downloaded", labelKey: "overview.actions.backToDownloaded" },
   ],
   ready_for_upload: [
@@ -248,9 +243,7 @@ export default function HomePage() {
             ? t("overview.filters.reviewedApproved")
             : status === "reviewed_rejected"
               ? t("overview.filters.reviewedRejected")
-              : status === "trimmed"
-                ? t("overview.filters.trimmed")
-                : status === "ready_for_upload"
+              : status === "ready_for_upload"
                   ? t("overview.filters.readyForUpload")
                   : status === "uploaded_ftp"
                     ? t("overview.filters.uploadedFtp")

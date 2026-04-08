@@ -7,8 +7,6 @@
   year: number;
   duration?: number;
   bpm?: number;
-  isTrimmed?: boolean;
-  trimSettings?: TrimSettings;
   sourceUrl?: string; // Original URL used to download the track
   sourceType?: "youtube" | "youtube-music"; // Source type for re-downloading
 }
@@ -35,7 +33,6 @@ export type TrackStatus =
   | "reviewed_approved"
   | "reviewed_rejected"
   | "ready_for_upload"
-  | "trimmed"
   | "uploading"
   | "uploaded_ftp"
   | "uploaded_radio"
@@ -86,15 +83,6 @@ export interface DownloadRequest {
 export interface ProcessingRequest {
   trackId: string;
   metadata: Partial<TrackMetadata>;
-  trimSettings?: TrimSettings;
-}
-
-export interface TrimSettings {
-  startTime: number; // время начала в секундах
-  endTime?: number; // время окончания в секундах (опционально)
-  fadeIn: number; // длительность затухания в начале в секундах
-  fadeOut: number; // длительность затухания в конце в секундах
-  maxDuration?: number; // максимальная длительность (если не указан endTime)
 }
 
 export interface UploadRequest {

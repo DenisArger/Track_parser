@@ -36,7 +36,6 @@ export async function POST(
       "reviewed_approved",
       "reviewed_rejected",
       "ready_for_upload",
-      "trimmed",
       "uploading",
       "uploaded_ftp",
       "uploaded_radio",

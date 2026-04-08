@@ -8,7 +8,6 @@ interface TrackStats {
   total: number;
   downloaded: number;
   processed: number;
-  trimmed: number;
   rejected: number;
 }
 
@@ -89,12 +88,6 @@ export default function TrackManager({
               <div className="flex justify-between">
                 <span className="text-gray-600">{t("manager.processed")}</span>
                 <span className="font-medium">{stats.processed}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">{t("manager.trimmed")}</span>
-                <span className="font-medium text-blue-600">
-                  {stats.trimmed}
-                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">{t("manager.rejected")}</span>

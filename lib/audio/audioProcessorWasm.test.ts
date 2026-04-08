@@ -58,13 +58,8 @@ describe("audioProcessorWasm", () => {
     mockDeleteVirtualFile.mockResolvedValue(undefined);
   });
 
-  it("processes audio with trim settings and writes output", async () => {
-    await processAudioFileWasm("/tmp/in.mp3", "/tmp/out.mp3", {
-      startTime: 5,
-      endTime: 25,
-      fadeIn: 2,
-      fadeOut: 3,
-    });
+  it("processes audio with max duration and writes output", async () => {
+    await processAudioFileWasm("/tmp/in.mp3", "/tmp/out.mp3", 20);
 
     expect(mockLoad).toHaveBeenCalled();
     expect(mockWriteVirtualFile).toHaveBeenCalledWith(
@@ -73,13 +68,8 @@ describe("audioProcessorWasm", () => {
     );
 
     const args = mockExec.mock.calls[0][0] as string[];
-    expect(args).toContain("-ss");
-    expect(args).toContain("5");
     expect(args).toContain("-t");
     expect(args).toContain("20");
-    expect(args).toContain("-af");
-    expect(args.join(" ")).toContain("afade=t=in:st=0:d=2");
-    expect(args.join(" ")).toContain("afade=t=out:st=17:d=3");
     expect(args.slice(-3)).toEqual(["-ab", "192k", "output.mp3"]);
 
     expect(mockWriteFile).toHaveBeenCalledWith(
@@ -90,10 +80,10 @@ describe("audioProcessorWasm", () => {
     expect(mockDeleteVirtualFile).toHaveBeenCalledWith("output.mp3");
   });
 
-  it("uses maxDuration when trim settings are not provided and skips load if already loaded", async () => {
+  it("uses maxDuration when provided and skips load if already loaded", async () => {
     ffmpegLoaded = true;
 
-    await processAudioFileWasm("/tmp/in.mp3", "/tmp/out.mp3", undefined, 120);
+    await processAudioFileWasm("/tmp/in.mp3", "/tmp/out.mp3", 120);
 
     expect(mockLoad).not.toHaveBeenCalled();
     const args = mockExec.mock.calls[0][0] as string[];

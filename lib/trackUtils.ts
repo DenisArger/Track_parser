@@ -1,26 +1,3 @@
-// Dynamic imports to avoid issues during static generation
-// import fs from "fs-extra";
-// import path from "path";
-import { Track, TrackMetadata } from "@/types/track";
-
-// Функция для проверки, был ли трек действительно обрезан
-export function isTrackActuallyTrimmed(metadata: TrackMetadata): boolean {
-  if (!metadata.isTrimmed || !metadata.trimSettings) {
-    return false;
-  }
-
-  const { trimSettings } = metadata;
-
-  // Проверяем, была ли действительно применена обрезка
-  return (
-    trimSettings.startTime > 0 ||
-    trimSettings.endTime !== undefined ||
-    trimSettings.fadeIn > 0 ||
-    trimSettings.fadeOut > 0 ||
-    (trimSettings.maxDuration !== undefined && trimSettings.maxDuration < 360)
-  );
-}
-
 // Функция для очистки неправильно помеченных треков
 export async function cleanupTrackStatuses(): Promise<void> {
   // Dynamic imports to avoid issues during static generation
@@ -45,21 +22,6 @@ export async function cleanupTrackStatuses(): Promise<void> {
   const tracksData = await fs.readJson(tracksPath);
   let hasChanges = false;
 
-  for (const track of tracksData) {
-    const wasActuallyTrimmed = isTrackActuallyTrimmed(track.metadata);
-
-    if (track.metadata.isTrimmed && !wasActuallyTrimmed) {
-      console.log(`Cleaning up track ${track.id}: removing false trim flag`);
-      delete track.metadata.isTrimmed;
-      delete track.metadata.trimSettings;
-      hasChanges = true;
-    } else if (!track.metadata.isTrimmed && wasActuallyTrimmed) {
-      console.log(`Fixing track ${track.id}: adding missing trim flag`);
-      track.metadata.isTrimmed = true;
-      hasChanges = true;
-    }
-  }
-
   if (hasChanges) {
     await fs.writeJson(tracksPath, tracksData, { spaces: 2 });
     console.log("Track statuses cleaned up successfully");
@@ -74,7 +36,6 @@ export async function getTrackStats(): Promise<{
   downloaded: number;
   processed: number;
   approved: number;
-  trimmed: number;
   rejected: number;
   readyForUpload: number;
   uploaded: number;
@@ -92,7 +53,6 @@ export async function getTrackStats(): Promise<{
       downloaded: 0,
       processed: 0,
       approved: 0,
-      trimmed: 0,
       rejected: 0,
       readyForUpload: 0,
       uploaded: 0,
@@ -109,7 +69,6 @@ export async function getTrackStats(): Promise<{
       downloaded: 0,
       processed: 0,
       approved: 0,
-      trimmed: 0,
       rejected: 0,
       readyForUpload: 0,
       uploaded: 0,
@@ -124,7 +83,6 @@ export async function getTrackStats(): Promise<{
     downloaded: 0,
     processed: 0,
     approved: 0,
-    trimmed: 0,
     rejected: 0,
     readyForUpload: 0,
     uploaded: 0,
@@ -153,9 +111,6 @@ export async function getTrackStats(): Promise<{
         break;
     }
 
-    if (isTrackActuallyTrimmed(track.metadata)) {
-      stats.trimmed++;
-    }
   }
 
   return stats;

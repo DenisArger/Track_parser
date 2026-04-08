@@ -12,7 +12,6 @@ export async function GET(
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     const { trackId } = await params;
     const { searchParams } = new URL(request.url);
-    const isTrimmed = searchParams.get("trimmed") === "true";
     const forceProcessed = searchParams.get("processed") === "true";
 
     const track = await getTrack(trackId);
@@ -23,11 +22,6 @@ export async function GET(
     if (forceProcessed && track.processedPath) {
       filePath = track.processedPath;
       bucket = "processed";
-    } else if ((isTrimmed && track.status === "trimmed") || track.status === "trimmed") {
-      if (track.processedPath) {
-        filePath = track.processedPath;
-        bucket = "processed";
-      }
     } else if (track.status === "reviewed_rejected") {
       bucket = "rejected";
     }

@@ -1,11 +1,3 @@
-export interface TrimSettings {
-  startTime: number;
-  endTime?: number;
-  fadeIn: number;
-  fadeOut: number;
-  maxDuration?: number;
-}
-
 type NativeFfmpegSelection = {
   ffmpegPath: string;
   ffprobePath: string;
@@ -18,25 +10,6 @@ type NativeFfmpegSelection = {
     | "common-path"
     | "which";
 };
-
-function resolveRequestedDuration(
-  trimSettings?: TrimSettings,
-  maxDuration?: number
-): number | undefined {
-  if (!trimSettings) {
-    return maxDuration;
-  }
-
-  if (trimSettings.endTime != null) {
-    return trimSettings.endTime - trimSettings.startTime;
-  }
-
-  if (trimSettings.maxDuration != null) {
-    return trimSettings.maxDuration;
-  }
-
-  return maxDuration;
-}
 
 async function resolveNativeFfmpeg(): Promise<NativeFfmpegSelection | null> {
   const fs = await import("fs-extra");
@@ -83,14 +56,9 @@ async function resolveNativeFfmpeg(): Promise<NativeFfmpegSelection | null> {
 export async function processAudioFile(
   inputPath: string,
   outputPath: string,
-  trimSettings?: TrimSettings,
   maxDuration?: number
 ): Promise<void> {
   const fs = await import("fs-extra");
-  const requestedDuration = resolveRequestedDuration(trimSettings, maxDuration);
-  const requiresProcessing =
-    trimSettings != null ||
-    (requestedDuration != null && requestedDuration > 0);
   const isNodeRuntime =
     typeof process !== "undefined" && Boolean(process.versions?.node);
 
@@ -98,17 +66,9 @@ export async function processAudioFile(
     try {
       console.log("Audio processing strategy: ffmpeg.wasm (non-Node runtime)");
       const { processAudioFileWasm } = await import("./audioProcessorWasm");
-      await processAudioFileWasm(inputPath, outputPath, trimSettings, maxDuration);
+      await processAudioFileWasm(inputPath, outputPath, maxDuration);
       return;
     } catch (error) {
-      if (requiresProcessing) {
-        throw new Error(
-          `Audio processing failed in non-Node runtime via ffmpeg.wasm: ${
-            error instanceof Error ? error.message : String(error)
-          }`
-        );
-      }
-
       console.warn("Non-Node ffmpeg.wasm failed, copying original file:", error);
       await fs.copy(inputPath, outputPath);
       return;
@@ -129,10 +89,6 @@ export async function processAudioFile(
 
   try {
     if (!nativeFfmpeg) {
-      if (requiresProcessing) {
-        throw new Error("Native FFmpeg not found for requested audio processing");
-      }
-
       console.warn("Native FFmpeg not found. Copying original file without processing.");
       await fs.copy(inputPath, outputPath);
       return;
@@ -147,34 +103,7 @@ export async function processAudioFile(
     await new Promise<void>((resolve, reject) => {
       let command = ffmpegInstance;
 
-      if (trimSettings) {
-        const duration = resolveRequestedDuration(trimSettings, maxDuration);
-
-        command = command.setStartTime(trimSettings.startTime);
-
-        if (trimSettings.endTime != null && duration != null) {
-          command = command.duration(duration);
-        } else if (trimSettings.maxDuration != null) {
-          command = command.duration(trimSettings.maxDuration);
-        } else if (maxDuration != null) {
-          command = command.duration(maxDuration);
-        }
-
-        const audioFilters: string[] = [];
-
-        if (trimSettings.fadeIn > 0) {
-          audioFilters.push(`afade=t=in:st=0:d=${trimSettings.fadeIn}`);
-        }
-
-        if (trimSettings.fadeOut > 0 && duration != null) {
-          const fadeOutStart = Math.max(0, duration - trimSettings.fadeOut);
-          audioFilters.push(`afade=t=out:st=${fadeOutStart}:d=${trimSettings.fadeOut}`);
-        }
-
-        if (audioFilters.length > 0) {
-          command = command.audioFilters(audioFilters);
-        }
-      } else if (maxDuration != null) {
+      if (maxDuration != null) {
         command = command.setStartTime(0).duration(maxDuration);
       }
 
@@ -193,28 +122,11 @@ export async function processAudioFile(
             ffprobePath: nativeFfmpeg.ffprobePath,
           });
 
-          if (requiresProcessing) {
-            reject(
-              new Error(
-                `Native FFmpeg processing failed via ${nativeFfmpeg.source}: ${message}`
-              )
-            );
-            return;
-          }
-
           fs.copy(inputPath, outputPath).then(() => resolve()).catch(reject);
         })
         .run();
     });
   } catch (error) {
-    if (requiresProcessing) {
-      throw new Error(
-        `Native audio processing failed: ${
-          error instanceof Error ? error.message : String(error)
-        }`
-      );
-    }
-
     console.warn("Error processing audio, copying original file:", error);
     await fs.copy(inputPath, outputPath);
   }

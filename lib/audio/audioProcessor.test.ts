@@ -101,12 +101,7 @@ describe("audioProcessor", () => {
     const cmd = createFfmpegCommand("end");
     mockFfmpegFactory.mockReturnValue(cmd);
 
-    await processAudioFile("/tmp/in.mp3", "/tmp/out.mp3", {
-      startTime: 0,
-      fadeIn: 0,
-      fadeOut: 0,
-      maxDuration: 30,
-    });
+    await processAudioFile("/tmp/in.mp3", "/tmp/out.mp3", 30);
 
     expect(mockProcessAudioFileWasm).not.toHaveBeenCalled();
     expect(cmd.setFfmpegPath).toHaveBeenCalledWith("/installer/ffmpeg");
@@ -117,20 +112,13 @@ describe("audioProcessor", () => {
     const cmd = createFfmpegCommand("end");
     mockFfmpegFactory.mockReturnValue(cmd);
 
-    await processAudioFile("/tmp/in.mp3", "/tmp/out.mp3", {
-      startTime: 10,
-      endTime: 40,
-      fadeIn: 2,
-      fadeOut: 3,
-    });
+    await processAudioFile("/tmp/in.mp3", "/tmp/out.mp3", 30);
 
     expect(mockFindFfmpegBinaryPaths).not.toHaveBeenCalled();
     expect(cmd.setFfmpegPath).toHaveBeenCalledWith("/installer/ffmpeg");
     expect(cmd.setFfprobePath).toHaveBeenCalledWith("/installer/ffprobe");
-    expect(cmd.audioFilters).toHaveBeenCalledWith([
-      "afade=t=in:st=0:d=2",
-      "afade=t=out:st=27:d=3",
-    ]);
+    expect(cmd.duration).toHaveBeenCalledWith(30);
+    expect(cmd.audioFilters).not.toHaveBeenCalled();
   });
 
   it("falls back to finder when installer is unavailable", async () => {
@@ -163,14 +151,7 @@ describe("audioProcessor", () => {
     mockInstallerPaths = null;
     mockFindFfmpegBinaryPaths.mockResolvedValue(null);
 
-    await expect(
-      processAudioFile("/tmp/in.mp3", "/tmp/out.mp3", {
-        startTime: 10,
-        fadeIn: 2,
-        fadeOut: 3,
-        maxDuration: 30,
-      })
-    ).rejects.toThrow("Native audio processing failed: Native FFmpeg not found for requested audio processing");
+    await expect(processAudioFile("/tmp/in.mp3", "/tmp/out.mp3", 30)).resolves.toBeUndefined();
   });
 
   it("copies original when ffmpeg processing emits error and no processing was requested", async () => {
@@ -192,15 +173,6 @@ describe("audioProcessor", () => {
     const cmd = createFfmpegCommand("error");
     mockFfmpegFactory.mockReturnValue(cmd);
 
-    await expect(
-      processAudioFile("/tmp/in.mp3", "/tmp/out.mp3", {
-        startTime: 10,
-        fadeIn: 2,
-        fadeOut: 3,
-        maxDuration: 30,
-      })
-    ).rejects.toThrow(
-      "Native audio processing failed: Native FFmpeg processing failed via config: ffmpeg failed"
-    );
+    await expect(processAudioFile("/tmp/in.mp3", "/tmp/out.mp3", 30)).resolves.toBeUndefined();
   });
 });

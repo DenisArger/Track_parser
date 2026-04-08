@@ -1,12 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   cleanupTracksAction,
-  createPreviewAction,
   deleteTrackAction,
   getTrackStatsAction,
   processTrackAction,
   rejectTrackAction,
-  trimTrackAction,
   updateMetadataAction,
   uploadLocalTrackAction,
   uploadTrackAction,
@@ -16,7 +14,6 @@ const mockRequireAuth = vi.fn();
 const mockUploadLocalTrack = vi.fn();
 const mockProcessTrack = vi.fn();
 const mockRejectTrack = vi.fn();
-const mockTrimTrack = vi.fn();
 const mockGetTrackFromLib = vi.fn();
 const mockUploadToFtp = vi.fn();
 
@@ -47,7 +44,6 @@ vi.mock("@/lib/processTracks", () => ({
   uploadLocalTrack: (...args: unknown[]) => mockUploadLocalTrack(...args),
   processTrack: (...args: unknown[]) => mockProcessTrack(...args),
   rejectTrack: (...args: unknown[]) => mockRejectTrack(...args),
-  trimTrack: (...args: unknown[]) => mockTrimTrack(...args),
   getTrack: (...args: unknown[]) => mockGetTrackFromLib(...args),
   uploadToFtp: (...args: unknown[]) => mockUploadToFtp(...args),
 }));
@@ -113,7 +109,7 @@ describe("trackActions additional coverage", () => {
     );
   });
 
-  it("process/reject/trim actions validate and wrap errors", async () => {
+  it("process and reject actions validate and wrap errors", async () => {
     mockProcessTrack.mockRejectedValueOnce(new Error("boom"));
     await expect(processTrackAction("t1", { title: "S" })).rejects.toThrow(
       "Processing failed: boom"
@@ -129,48 +125,6 @@ describe("trackActions additional coverage", () => {
     await expect(rejectTrackAction("")).rejects.toThrow(
       "Failed to reject track: Track ID is required"
     );
-
-    mockTrimTrack.mockResolvedValueOnce({ id: "t3" });
-    await expect(
-      trimTrackAction("t3", { startTime: 0, fadeIn: 0, fadeOut: 0, maxDuration: 30 })
-    ).resolves.toEqual({ id: "t3" });
-
-    await expect(trimTrackAction("", { startTime: 0, fadeIn: 0, fadeOut: 0 })).rejects.toThrow(
-      "Trim failed: Track ID is required"
-    );
-  });
-
-  it("createPreviewAction creates and uploads preview", async () => {
-    mockGetTrackFromLib.mockResolvedValue({
-      id: "t1",
-      originalPath: "downloads/t1/a.mp3",
-    });
-
-    const result = await createPreviewAction("t1", {
-      startTime: 5,
-      fadeIn: 1,
-      fadeOut: 1,
-      maxDuration: 30,
-    });
-
-    expect(result.previewId).toMatch(/^preview_/);
-    expect(mockDownloadFileFromStorage).toHaveBeenCalledWith("downloads", "downloads/t1/a.mp3");
-    expect(mockProcessAudioFile).toHaveBeenCalled();
-    expect(mockUploadFileToStorage).toHaveBeenCalledWith(
-      "previews",
-      expect.stringMatching(/^preview_.*\.mp3$/),
-      expect.any(Buffer),
-      expect.objectContaining({ upsert: true })
-    );
-    expect(mockRemove).toHaveBeenCalled();
-  });
-
-  it("createPreviewAction handles missing track", async () => {
-    mockGetTrackFromLib.mockResolvedValue(null);
-
-    await expect(
-      createPreviewAction("missing", { startTime: 0, fadeIn: 0, fadeOut: 0, maxDuration: 10 })
-    ).rejects.toThrow("Preview failed at load-track: Track not found");
   });
 
   it("updateMetadataAction updates storage and writes tags when processedPath exists", async () => {
@@ -219,7 +173,6 @@ describe("trackActions additional coverage", () => {
         downloaded: 1,
         processed: 0,
         approved: 1,
-        trimmed: 0,
         rejected: 0,
         readyForUpload: 0,
         uploaded: 0,
@@ -230,7 +183,6 @@ describe("trackActions additional coverage", () => {
         downloaded: 2,
         processed: 0,
         approved: 0,
-        trimmed: 0,
         rejected: 0,
         readyForUpload: 0,
         uploaded: 0,
@@ -247,7 +199,6 @@ describe("trackActions additional coverage", () => {
         downloaded: 1,
         processed: 0,
         approved: 1,
-        trimmed: 1,
         rejected: 0,
         readyForUpload: 0,
         uploaded: 0,
@@ -258,7 +209,6 @@ describe("trackActions additional coverage", () => {
         downloaded: 2,
         processed: 0,
         approved: 1,
-        trimmed: 0,
         rejected: 0,
         readyForUpload: 0,
         uploaded: 0,

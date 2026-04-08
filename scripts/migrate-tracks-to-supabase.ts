@@ -77,8 +77,6 @@ async function migrateTracks() {
       year: track.metadata.year || 0,
       duration: track.metadata.duration,
       bpm: track.metadata.bpm,
-      isTrimmed: track.metadata.isTrimmed,
-      trimSettings: track.metadata.trimSettings,
       sourceUrl: track.metadata.sourceUrl,
       sourceType: track.metadata.sourceType,
     },

@@ -72,8 +72,6 @@ function mapRowToTrack(row: any): Track {
       year: row.metadata?.year || 0,
       duration: row.metadata?.duration,
       bpm: row.metadata?.bpm,
-      isTrimmed: row.metadata?.isTrimmed,
-      trimSettings: row.metadata?.trimSettings,
       sourceUrl: row.metadata?.sourceUrl,
       sourceType: row.metadata?.sourceType,
     },

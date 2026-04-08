@@ -87,7 +87,6 @@ export default function FtpUploader({
   const processedTracks = tracks.filter(
     (track) =>
       (track.status === "ready_for_upload" ||
-        track.status === "trimmed" ||
         track.status === "reviewed_approved") &&
       track.processedPath &&
       !hiddenTrackIds[track.id],
@@ -238,8 +237,7 @@ export default function FtpUploader({
                   ready: tracks.filter(
                     (t) =>
                       (t.status === "reviewed_approved" ||
-                        t.status === "ready_for_upload" ||
-                        t.status === "trimmed") &&
+                        t.status === "ready_for_upload") &&
                       t.processedPath,
                   ).length,
                 })}

@@ -4,9 +4,6 @@ import { useEffect, useState, useRef } from "react";
 import { Track } from "@/types/track";
 import TrackList from "./shared/TrackList";
 import { getUserFacingErrorMessage } from "@/lib/utils/errorMessage";
-import { formatTime } from "@/lib/utils/timeFormatter";
-import TrackTrimmer from "./TrackTrimmer";
-import TrimDetails from "./TrimDetails";
 import { useI18n } from "./I18nProvider";
 import Spinner from "./Spinner";
 
@@ -25,13 +22,9 @@ export default function TrackPlayer({
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
   const [isAccepting, setIsAccepting] = useState(false);
   const [isRejecting, setIsRejecting] = useState(false);
-  const [showTrimmer, setShowTrimmer] = useState(false);
-  const [showTrimDetails, setShowTrimDetails] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
 
-  const downloadedTracks = tracks.filter(
-    (track) => track.status === "downloaded" || track.status === "trimmed"
-  );
+  const downloadedTracks = tracks.filter((track) => track.status === "downloaded");
 
   useEffect(() => {
     if (!currentTrack) return;
@@ -116,8 +109,6 @@ export default function TrackPlayer({
     }
   };
 
-  // Функция handleTrim больше не нужна, так как обрезка происходит напрямую в TrackTrimmer
-
   return (
     <div className="space-y-6">
       <div>
@@ -154,56 +145,12 @@ export default function TrackPlayer({
                 <p className="text-sm text-gray-600 mb-2">
                   {currentTrack.metadata.artist}
                 </p>
-                {currentTrack.metadata.isTrimmed && (
-                  <div className="flex items-center space-x-2 mb-3">
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                      <svg
-                        className="w-3 h-3 mr-1"
-                        fill="currentColor"
-                        viewBox="0 0 20 20"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                      {t("player.trimmedBadge")}
-                    </span>
-                    {currentTrack.metadata.trimSettings && (
-                      <div className="flex items-center space-x-2">
-                        <span className="text-xs text-gray-600">
-                          {t("player.trimFragment")}{" "}
-                          {formatTime(
-                            currentTrack.metadata.trimSettings.startTime
-                          )}{" "}
-                          -{" "}
-                          {formatTime(
-                            currentTrack.metadata.trimSettings.endTime ||
-                              currentTrack.metadata.trimSettings.startTime +
-                                (currentTrack.metadata.trimSettings
-                                  .maxDuration || 360)
-                          )}
-                        </span>
-                        <button
-                          onClick={() => setShowTrimDetails(true)}
-                          className="text-xs text-blue-600 hover:text-blue-800 underline"
-                        >
-                          {t("player.trimDetails")}
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
-
                 <audio
                   ref={audioRef}
                   controls
                   className="audio-light w-full"
                   src={
-                    currentTrack.status === "trimmed"
-                      ? `/api/audio/${currentTrack.id}?trimmed=true`
-                      : `/api/audio/${currentTrack.id}`
+                    `/api/audio/${currentTrack.id}`
                   }
                   onError={handleAudioError}
                   preload="metadata"
@@ -213,13 +160,6 @@ export default function TrackPlayer({
                 <div className="flex space-x-3 mt-4">
                   {currentTrack.status === "downloaded" ? (
                     <>
-                      <button
-                        onClick={() => setShowTrimmer(true)}
-                        disabled={isAccepting || isRejecting}
-                        className="btn btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {t("trimmer.trimAction")}
-                      </button>
                       <button
                         onClick={handleAccept}
                         disabled={isAccepting || isRejecting}
@@ -251,13 +191,6 @@ export default function TrackPlayer({
                     </>
                   ) : (
                     <>
-                      <button
-                        onClick={() => setShowTrimmer(true)}
-                        disabled={isAccepting || isRejecting}
-                        className="btn btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {t("player.editTrim")}
-                      </button>
                       <button
                         onClick={handleAccept}
                         disabled={isAccepting || isRejecting}
@@ -299,24 +232,6 @@ export default function TrackPlayer({
         </div>
       </div>
 
-      {/* Track Trimmer Modal */}
-      {showTrimmer && currentTrack && (
-        <TrackTrimmer
-          track={currentTrack}
-          onCancel={() => {
-            setShowTrimmer(false);
-            onTracksUpdate(); // Обновляем список треков после закрытия
-          }}
-        />
-      )}
-
-      {/* Trim Details Modal */}
-      {showTrimDetails && currentTrack?.metadata.trimSettings && (
-        <TrimDetails
-          trimSettings={currentTrack.metadata.trimSettings}
-          onClose={() => setShowTrimDetails(false)}
-        />
-      )}
     </div>
   );
 }

@@ -6,7 +6,6 @@ import {
   uploadLocalTrack as uploadLocalTrackFromLib,
   processTrack as processTrackFromLib,
   rejectTrack as rejectTrackFromLib,
-  trimTrack as trimTrackFromLib,
   getTrack as getTrackFromLib,
   uploadToFtp as uploadToFtpFromLib,
 } from "@/lib/processTracks";
@@ -21,7 +20,6 @@ import {
 import {
   Track,
   TrackMetadata,
-  TrimSettings,
   FtpConfig,
   DownloadRequest,
   ProcessingRequest,
@@ -84,20 +82,6 @@ export async function getAllTracks(): Promise<Track[]> {
             year: Number(track.metadata?.year || 0),
             duration: track.metadata?.duration ? Number(track.metadata.duration) : undefined,
             bpm: track.metadata?.bpm ? Number(track.metadata.bpm) : undefined,
-            isTrimmed: Boolean(track.metadata?.isTrimmed),
-            trimSettings: track.metadata?.trimSettings
-              ? {
-                  startTime: Number(track.metadata.trimSettings.startTime || 0),
-                  endTime: track.metadata.trimSettings.endTime
-                    ? Number(track.metadata.trimSettings.endTime)
-                    : undefined,
-                  fadeIn: Number(track.metadata.trimSettings.fadeIn || 0),
-                  fadeOut: Number(track.metadata.trimSettings.fadeOut || 0),
-                  maxDuration: track.metadata.trimSettings.maxDuration
-                    ? Number(track.metadata.trimSettings.maxDuration)
-                    : undefined,
-                }
-              : undefined,
             sourceUrl: track.metadata?.sourceUrl ? String(track.metadata.sourceUrl) : undefined,
             sourceType: track.metadata?.sourceType as
               | "youtube"
@@ -226,8 +210,7 @@ export async function uploadLocalTrackAction(
 
 export async function processTrackAction(
   trackId: string,
-  metadata?: Partial<TrackMetadata>,
-  trimSettings?: TrimSettings
+  metadata?: Partial<TrackMetadata>
 ): Promise<Track> {
   try {
     await requireAuth();
@@ -235,11 +218,7 @@ export async function processTrackAction(
       throw new Error("Track ID is required");
     }
 
-    return await processTrackFromLib(
-      trackId,
-      metadata as TrackMetadata | undefined,
-      trimSettings
-    );
+    return await processTrackFromLib(trackId, metadata as TrackMetadata | undefined);
   } catch (error) {
     console.error("[processTrackAction] Error:", error instanceof Error ? error.message : String(error), (error as Error)?.stack);
     throw new Error(
@@ -267,128 +246,6 @@ export async function rejectTrackAction(trackId: string): Promise<void> {
       `Failed to reject track: ${
         error instanceof Error ? error.message : String(error)
       }`
-    );
-  }
-}
-
-/**
- * Обрезать трек
- */
-export async function trimTrackAction(
-  trackId: string,
-  trimSettings: TrimSettings
-): Promise<Track> {
-  try {
-    await requireAuth();
-    if (!trackId) {
-      throw new Error("Track ID is required");
-    }
-
-    if (!trimSettings) {
-      throw new Error("Trim settings are required");
-    }
-
-    return await trimTrackFromLib(trackId, trimSettings);
-  } catch (error) {
-    console.error("[trimTrackAction] Error:", error instanceof Error ? error.message : String(error), (error as Error)?.stack);
-    throw new Error(
-      `Trim failed: ${error instanceof Error ? error.message : String(error)}`
-    );
-  }
-}
-
-/**
- * Создать preview обрезанного трека
- */
-export async function createPreviewAction(
-  trackId: string,
-  trimSettings: TrimSettings
-): Promise<{ previewId: string }> {
-  let stage = "init";
-  try {
-    await requireAuth();
-    const fs = await import("fs-extra");
-    const path = await import("path");
-
-    if (!trackId) {
-      throw new Error("Track ID is required");
-    }
-
-    stage = "load-track";
-    console.log("[createPreviewAction] Starting preview generation", {
-      trackId,
-      trimSettings,
-    });
-
-    const track = await getTrackFromLib(trackId);
-    if (!track) {
-      throw new Error("Track not found");
-    }
-
-    const { getSafeWorkingDirectory } = await import("@/lib/utils/environment");
-    const tempDir = path.join(getSafeWorkingDirectory(), "temp");
-    await fs.ensureDir(tempDir);
-
-    const {
-      downloadFileFromStorage,
-      uploadFileToStorage,
-      STORAGE_BUCKETS,
-    } = await import("@/lib/storage/supabaseStorage");
-
-    stage = "download-source";
-    console.log("[createPreviewAction] Downloading source audio", {
-      bucket: STORAGE_BUCKETS.downloads,
-      path: track.originalPath,
-    });
-
-    const fileBuffer = await downloadFileFromStorage(STORAGE_BUCKETS.downloads, track.originalPath);
-    const tempInputPath = path.join(tempDir, `${trackId}_preview_input.mp3`);
-    await fs.writeFile(tempInputPath, fileBuffer);
-
-    const previewId = `preview_${Date.now()}`;
-    const previewPath = path.join(tempDir, `${previewId}.mp3`);
-
-    const { processAudioFile } = await import("@/lib/audio/audioProcessor");
-    stage = "process-audio";
-    console.log("[createPreviewAction] Processing audio preview", {
-      inputPath: tempInputPath,
-      outputPath: previewPath,
-    });
-    await processAudioFile(tempInputPath, previewPath, trimSettings, 360);
-
-    const previewBuffer = await fs.readFile(previewPath);
-    stage = "upload-preview";
-    console.log("[createPreviewAction] Uploading preview to storage", {
-      bucket: STORAGE_BUCKETS.previews,
-      path: `${previewId}.mp3`,
-      size: previewBuffer.length,
-    });
-    await uploadFileToStorage(
-      STORAGE_BUCKETS.previews,
-      `${previewId}.mp3`,
-      previewBuffer,
-      { contentType: "audio/mpeg", upsert: true }
-    );
-
-    try {
-      await fs.remove(tempInputPath);
-      await fs.remove(previewPath);
-    } catch (e) {
-      console.warn("Error removing temp preview files:", e);
-    }
-
-    console.log("[createPreviewAction] Preview generation completed", {
-      trackId,
-      previewId,
-    });
-
-    return { previewId };
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    const stack = (error as Error)?.stack;
-    console.error(`[createPreviewAction] Error at stage "${stage}":`, message, stack);
-    throw new Error(
-      `Preview failed at ${stage}: ${message}`
     );
   }
 }
@@ -471,7 +328,6 @@ export async function getTrackStatsAction(): Promise<{
   downloaded: number;
   processed: number;
   approved: number;
-  trimmed: number;
   rejected: number;
   readyForUpload: number;
   uploaded: number;
@@ -499,7 +355,6 @@ export async function cleanupTracksAction(): Promise<{
     downloaded: number;
     processed: number;
     approved: number;
-    trimmed: number;
     rejected: number;
     readyForUpload: number;
     uploaded: number;
@@ -510,7 +365,6 @@ export async function cleanupTracksAction(): Promise<{
     downloaded: number;
     processed: number;
     approved: number;
-    trimmed: number;
     rejected: number;
     readyForUpload: number;
     uploaded: number;

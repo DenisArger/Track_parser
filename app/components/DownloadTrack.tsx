@@ -597,39 +597,15 @@ ${errorDiagnostics.stack || "-"}`}
                     <p className="text-sm text-gray-600">
                       {track.metadata.artist}
                     </p>
-                    {track.metadata.isTrimmed && (
-                      <div className="flex items-center space-x-1 mt-0.5">
-                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                          <svg
-                            className="w-2.5 h-2.5 mr-1"
-                            fill="currentColor"
-                            viewBox="0 0 20 20"
-                          >
-                            <path
-                              fillRule="evenodd"
-                              d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z"
-                              clipRule="evenodd"
-                            />
-                          </svg>
-                          {t("download.trimmedBadge")}
-                        </span>
-                      </div>
-                    )}
                   </div>
                   <audio
                     controls
                     className="audio-light w-full h-8"
-                    src={
-                      track.status === "trimmed"
-                        ? `/api/audio/${track.id}?trimmed=true`
-                        : `/api/audio/${track.id}`
-                    }
+                    src={`/api/audio/${track.id}`}
                   />
                   <div className="flex items-center space-x-3">
                     <span className="text-sm text-green-600 font-medium">
-                      {track.metadata.isTrimmed
-                        ? t("download.processed")
-                        : t("download.readyForProcessing")}
+                      {t("download.readyForProcessing")}
                     </span>
                     <button
                       onClick={() => handleDeleteTrack(track.id)}

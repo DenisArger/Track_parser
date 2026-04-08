@@ -1,35 +1,3 @@
-// Dynamic imports to avoid issues during static generation
-// import fs from "fs-extra";
-// Dynamic import to avoid issues during static generation
-// import { isServerlessEnvironment } from "@/lib/utils/environment";
-
-export interface TrimSettings {
-  startTime: number;
-  endTime?: number;
-  fadeIn: number;
-  fadeOut: number;
-  maxDuration?: number;
-}
-
-function resolveRequestedDuration(
-  trimSettings?: TrimSettings,
-  maxDuration?: number
-): number {
-  if (trimSettings?.endTime != null) {
-    return trimSettings.endTime - trimSettings.startTime;
-  }
-
-  if (trimSettings?.maxDuration != null) {
-    return trimSettings.maxDuration;
-  }
-
-  if (maxDuration != null) {
-    return maxDuration;
-  }
-
-  return 360;
-}
-
 /**
  * Processes audio file using FFmpeg.wasm (WebAssembly version)
  * Works in serverless environments like Netlify
@@ -37,7 +5,6 @@ function resolveRequestedDuration(
 export async function processAudioFileWasm(
   inputPath: string,
   outputPath: string,
-  trimSettings?: TrimSettings,
   maxDuration?: number
 ): Promise<void> {
   // Dynamic imports to avoid issues during static generation
@@ -74,38 +41,7 @@ export async function processAudioFileWasm(
     // Build FFmpeg command
     const args: string[] = ["-i", inputFileName];
 
-    if (trimSettings) {
-      // Set start time
-      if (trimSettings.startTime > 0) {
-        args.push("-ss", trimSettings.startTime.toString());
-      }
-
-      // Calculate duration
-      const duration = resolveRequestedDuration(trimSettings, maxDuration);
-
-      args.push("-t", duration.toString());
-
-      // Build audio filter for fade in/out
-      const audioFilters: string[] = [];
-
-      // Apply fade in
-      if (trimSettings.fadeIn > 0) {
-        audioFilters.push(`afade=t=in:st=0:d=${trimSettings.fadeIn}`);
-      }
-
-      // Apply fade out
-      if (trimSettings.fadeOut > 0) {
-        const fadeOutStart = Math.max(0, duration - trimSettings.fadeOut);
-        audioFilters.push(
-          `afade=t=out:st=${fadeOutStart}:d=${trimSettings.fadeOut}`
-        );
-      }
-
-      // Apply audio filters if any
-      if (audioFilters.length > 0) {
-        args.push("-af", audioFilters.join(","));
-      }
-    } else if (maxDuration) {
+    if (maxDuration) {
       args.push("-t", maxDuration.toString());
     }
 

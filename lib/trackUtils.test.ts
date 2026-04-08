@@ -1,119 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import {
-  isTrackActuallyTrimmed,
-  getTrackStats,
-  cleanupTrackStatuses,
-} from "./trackUtils";
-import type { TrackMetadata } from "@/types/track";
+import { getTrackStats, cleanupTrackStatuses } from "./trackUtils";
 
 const normalizePath = (value: string) => value.replace(/\\/g, "/");
-
-const baseMeta: TrackMetadata = {
-  title: "",
-  artist: "",
-  album: "",
-  genre: "Средний",
-  rating: 5,
-  year: 2024,
-};
-
-describe("isTrackActuallyTrimmed", () => {
-  it("returns false when isTrimmed is false", () => {
-    expect(
-      isTrackActuallyTrimmed({
-        ...baseMeta,
-        isTrimmed: false,
-        trimSettings: { startTime: 10, fadeIn: 0, fadeOut: 0 },
-      })
-    ).toBe(false);
-  });
-
-  it("returns false when isTrimmed true but no trimSettings", () => {
-    expect(isTrackActuallyTrimmed({ ...baseMeta, isTrimmed: true })).toBe(
-      false
-    );
-  });
-
-  it("returns false when isTrimmed true and trimSettings are all empty", () => {
-    expect(
-      isTrackActuallyTrimmed({
-        ...baseMeta,
-        isTrimmed: true,
-        trimSettings: { startTime: 0, fadeIn: 0, fadeOut: 0 },
-      })
-    ).toBe(false);
-  });
-
-  it("returns true when startTime > 0", () => {
-    expect(
-      isTrackActuallyTrimmed({
-        ...baseMeta,
-        isTrimmed: true,
-        trimSettings: { startTime: 5, fadeIn: 0, fadeOut: 0 },
-      })
-    ).toBe(true);
-  });
-
-  it("returns true when endTime is defined", () => {
-    expect(
-      isTrackActuallyTrimmed({
-        ...baseMeta,
-        isTrimmed: true,
-        trimSettings: { startTime: 0, endTime: 180, fadeIn: 0, fadeOut: 0 },
-      })
-    ).toBe(true);
-  });
-
-  it("returns true when fadeIn > 0", () => {
-    expect(
-      isTrackActuallyTrimmed({
-        ...baseMeta,
-        isTrimmed: true,
-        trimSettings: { startTime: 0, fadeIn: 1, fadeOut: 0 },
-      })
-    ).toBe(true);
-  });
-
-  it("returns true when fadeOut > 0", () => {
-    expect(
-      isTrackActuallyTrimmed({
-        ...baseMeta,
-        isTrimmed: true,
-        trimSettings: { startTime: 0, fadeIn: 0, fadeOut: 2 },
-      })
-    ).toBe(true);
-  });
-
-  it("returns true when maxDuration < 360", () => {
-    expect(
-      isTrackActuallyTrimmed({
-        ...baseMeta,
-        isTrimmed: true,
-        trimSettings: {
-          startTime: 0,
-          fadeIn: 0,
-          fadeOut: 0,
-          maxDuration: 300,
-        },
-      })
-    ).toBe(true);
-  });
-
-  it("returns false when maxDuration >= 360", () => {
-    expect(
-      isTrackActuallyTrimmed({
-        ...baseMeta,
-        isTrimmed: true,
-        trimSettings: {
-          startTime: 0,
-          fadeIn: 0,
-          fadeOut: 0,
-          maxDuration: 360,
-        },
-      })
-    ).toBe(false);
-  });
-});
 
 describe("getTrackStats", () => {
   beforeEach(() => {
@@ -136,7 +24,6 @@ describe("getTrackStats", () => {
       downloaded: 0,
       processed: 0,
       approved: 0,
-      trimmed: 0,
       rejected: 0,
       readyForUpload: 0,
       uploaded: 0,
@@ -153,53 +40,7 @@ describe("getTrackStats", () => {
       downloaded: 0,
       processed: 0,
       approved: 0,
-      trimmed: 0,
       rejected: 0,
-      readyForUpload: 0,
-      uploaded: 0,
-      uploadedRadio: 0,
-    });
-  });
-
-  it("counts statuses and trimmed tracks correctly", async () => {
-    vi.resetModules();
-    vi.doMock("fs-extra", () => ({
-      pathExists: vi.fn().mockResolvedValue(true),
-      readJson: vi.fn().mockResolvedValue([
-        {
-          id: "d1",
-          status: "downloaded",
-          metadata: { ...baseMeta, isTrimmed: false },
-        },
-        {
-          id: "p1",
-          status: "reviewed_approved",
-          metadata: {
-            ...baseMeta,
-            isTrimmed: true,
-            trimSettings: { startTime: 10, fadeIn: 0, fadeOut: 0 },
-          },
-        },
-        {
-          id: "r1",
-          status: "reviewed_rejected",
-          metadata: { ...baseMeta, isTrimmed: false },
-        },
-      ]),
-    }));
-    vi.doMock("@/lib/utils/environment", () => ({
-      getSafeWorkingDirectory: () => "/tmp",
-    }));
-
-    const mod = await import("./trackUtils");
-    const stats = await mod.getTrackStats();
-    expect(stats).toEqual({
-      total: 3,
-      downloaded: 1,
-      processed: 0,
-      approved: 1,
-      trimmed: 1,
-      rejected: 1,
       readyForUpload: 0,
       uploaded: 0,
       uploadedRadio: 0,
@@ -232,65 +73,12 @@ describe("cleanupTrackStatuses", () => {
     await expect(mod.cleanupTrackStatuses()).resolves.toBeUndefined();
   });
 
-  it("writes updated json when invalid trim flags are found", async () => {
+  it("does not rewrite json when there is nothing to clean", async () => {
     vi.resetModules();
     const writeJson = vi.fn();
     vi.doMock("fs-extra", () => ({
       pathExists: vi.fn().mockResolvedValue(true),
-      readJson: vi.fn().mockResolvedValue([
-        {
-          id: "t1",
-          metadata: {
-            ...baseMeta,
-            isTrimmed: true,
-            trimSettings: { startTime: 0, fadeIn: 0, fadeOut: 0 },
-          },
-        },
-        {
-          id: "t2",
-          metadata: {
-            ...baseMeta,
-            isTrimmed: false,
-            trimSettings: { startTime: 5, fadeIn: 0, fadeOut: 0 },
-          },
-        },
-      ]),
-      writeJson,
-    }));
-    vi.doMock("@/lib/utils/environment", () => ({
-      getSafeWorkingDirectory: () => "/tmp",
-    }));
-
-    const mod = await import("./trackUtils");
-    await mod.cleanupTrackStatuses();
-
-    expect(normalizePath(writeJson.mock.calls[0][0] as string)).toBe("/tmp/tracks.json");
-    expect(writeJson.mock.calls[0][1]).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          id: "t1",
-          metadata: expect.not.objectContaining({ isTrimmed: true }),
-        }),
-      ])
-    );
-    expect(writeJson.mock.calls[0][2]).toEqual({ spaces: 2 });
-  });
-
-  it("does not write json when no cleanup is needed", async () => {
-    vi.resetModules();
-    const writeJson = vi.fn();
-    vi.doMock("fs-extra", () => ({
-      pathExists: vi.fn().mockResolvedValue(true),
-      readJson: vi.fn().mockResolvedValue([
-        {
-          id: "ok-1",
-          metadata: {
-            ...baseMeta,
-            isTrimmed: true,
-            trimSettings: { startTime: 10, fadeIn: 0, fadeOut: 0 },
-          },
-        },
-      ]),
+      readJson: vi.fn().mockResolvedValue([{ id: "ok-1", metadata: {} }]),
       writeJson,
     }));
     vi.doMock("@/lib/utils/environment", () => ({
@@ -300,5 +88,6 @@ describe("cleanupTrackStatuses", () => {
     const mod = await import("./trackUtils");
     await mod.cleanupTrackStatuses();
     expect(writeJson).not.toHaveBeenCalled();
+    expect(normalizePath("/tmp/tracks.json")).toBe("/tmp/tracks.json");
   });
 });

@@ -46,7 +46,7 @@
   }
 }
 
-/* Wavesurfer.js trim region: color set in WaveformTrimEditor addRegion/enableDragSelection.
+/* Wavesurfer.js region styling can be adjusted here if needed.
    To override region/handle appearance (e.g. border), use the element’s ::part() if exposed. */
 
 
@@ -60,4 +60,3 @@ audio.audio-light::-webkit-media-controls-panel {
   background-color: #f8fafc;
   border-radius: 10px;
 }
-

@@ -45,11 +45,11 @@ describe("filterTracksByStatuses", () => {
     const tracks = [
       mkTrack("1", "downloaded"),
       mkTrack("2", "reviewed_approved"),
-      mkTrack("3", "trimmed"),
+      mkTrack("3", "ready_for_upload"),
       mkTrack("4", "uploaded_ftp"),
       mkTrack("5", "reviewed_rejected"),
     ];
-    const r = filterTracksByStatuses(tracks, ["reviewed_approved", "trimmed"]);
+    const r = filterTracksByStatuses(tracks, ["reviewed_approved", "ready_for_upload"]);
     expect(r).toEqual([tracks[1], tracks[2]]);
   });
 });
@@ -66,11 +66,11 @@ describe("getDownloadedTracks", () => {
 });
 
 describe("getProcessedTracks", () => {
-  it("returns processed, trimmed and radio-synced tracks", () => {
+  it("returns processed and radio-synced tracks", () => {
     const tracks = [
       mkTrack("1", "downloaded"),
       mkTrack("2", "reviewed_approved"),
-      mkTrack("3", "trimmed"),
+      mkTrack("3", "ready_for_upload"),
       mkTrack("4", "uploaded_ftp"),
       mkTrack("5", "uploaded_radio"),
     ];
