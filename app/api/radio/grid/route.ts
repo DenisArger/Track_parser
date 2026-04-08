@@ -6,11 +6,10 @@ import { createGridEvent, fetchGridEvents } from "@/lib/radio/streamingCenterGri
 function getGridEnv() {
   const apiUrl = process.env.STREAMING_CENTER_API_URL || "";
   const apiKey = process.env.STREAMING_CENTER_API_KEY || "";
-  const authToken = process.env.STREAMING_CENTER_AUTH_TOKEN || "";
   if (!apiUrl || !apiKey) {
     throw new Error("STREAMING_CENTER_API_URL и STREAMING_CENTER_API_KEY должны быть заданы");
   }
-  return { apiUrl, apiKey, authToken };
+  return { apiUrl, apiKey };
 }
 
 export async function GET(request: Request) {
@@ -33,8 +32,8 @@ export async function GET(request: Request) {
       );
     }
 
-    const { apiUrl, apiKey, authToken } = getGridEnv();
-    const events = await fetchGridEvents(apiUrl, apiKey, { server, startTs, endTs, utc }, authToken);
+    const { apiUrl, apiKey } = getGridEnv();
+    const events = await fetchGridEvents(apiUrl, apiKey, { server, startTs, endTs, utc });
     return NextResponse.json({ results: events });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -51,8 +50,8 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { apiUrl, apiKey, authToken } = getGridEnv();
-    const event = await createGridEvent(apiUrl, apiKey, body, authToken);
+    const { apiUrl, apiKey } = getGridEnv();
+    const event = await createGridEvent(apiUrl, apiKey, body);
     return NextResponse.json(event);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

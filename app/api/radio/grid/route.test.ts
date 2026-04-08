@@ -75,7 +75,7 @@ describe("/api/radio/grid", () => {
       startTs: 10,
       endTs: 20,
       utc: 1,
-    }, "");
+    });
   });
 
   it("creates grid events for admin POST", async () => {

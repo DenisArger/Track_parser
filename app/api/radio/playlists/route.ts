@@ -21,12 +21,8 @@ function normalizeApiBase(apiUrl: string): string {
   return trimmed;
 }
 
-function buildAuthHeaders(apiKey: string, authToken?: string): HeadersInit {
-  const headers: Record<string, string> = { "SC-API-KEY": apiKey };
-  if (authToken && authToken.trim()) {
-    headers.Authorization = `Token ${authToken.trim()}`;
-  }
-  return headers;
+function buildAuthHeaders(apiKey: string): HeadersInit {
+  return { "SC-API-KEY": apiKey };
 }
 
 function unwrapPlaylists(data: unknown): PlaylistRow[] {
@@ -42,9 +38,8 @@ function friendlyStreamingCenterMessage(message: string): string {
   if (!normalized) return normalized;
   if (normalized.toLowerCase().includes("authentication credentials were not provided")) {
     return (
-      "Streaming.Center требует авторизацию для списка плейлистов. " +
-      "Добавьте STREAMING_CENTER_AUTH_TOKEN, полученный через POST /api/v1/rest-auth/login/ " +
-      "в админке Streaming.Center, и используйте его как Authorization: Token <key>."
+      "Streaming.Center требует `SC-API-KEY` для списка плейлистов. " +
+      "Проверьте, что STREAMING_CENTER_API_KEY задан и передаётся в HTTP-заголовке."
     );
   }
   return normalized;
@@ -78,7 +73,6 @@ export async function GET() {
 
     const apiUrl = process.env.STREAMING_CENTER_API_URL || "";
     const apiKey = process.env.STREAMING_CENTER_API_KEY || "";
-    const authToken = process.env.STREAMING_CENTER_AUTH_TOKEN || "";
     if (!apiUrl || !apiKey) {
       return NextResponse.json(
         { error: "STREAMING_CENTER_API_URL и STREAMING_CENTER_API_KEY должны быть заданы" },
@@ -89,7 +83,7 @@ export async function GET() {
     const base = normalizeApiBase(apiUrl);
     const url = `${base}/api/v2/playlists/`;
     const res = await fetch(url, {
-      headers: buildAuthHeaders(apiKey, authToken),
+      headers: buildAuthHeaders(apiKey),
     });
     const text = await res.text();
     let data: unknown = text;

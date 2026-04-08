@@ -6,11 +6,10 @@ import { deleteGridEvent, updateGridEvent } from "@/lib/radio/streamingCenterGri
 function getGridEnv() {
   const apiUrl = process.env.STREAMING_CENTER_API_URL || "";
   const apiKey = process.env.STREAMING_CENTER_API_KEY || "";
-  const authToken = process.env.STREAMING_CENTER_AUTH_TOKEN || "";
   if (!apiUrl || !apiKey) {
     throw new Error("STREAMING_CENTER_API_URL и STREAMING_CENTER_API_KEY должны быть заданы");
   }
-  return { apiUrl, apiKey, authToken };
+  return { apiUrl, apiKey };
 }
 
 export async function PUT(
@@ -30,8 +29,8 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { apiUrl, apiKey, authToken } = getGridEnv();
-    const event = await updateGridEvent(apiUrl, apiKey, eventId, body, authToken);
+    const { apiUrl, apiKey } = getGridEnv();
+    const event = await updateGridEvent(apiUrl, apiKey, eventId, body);
     return NextResponse.json(event);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -55,8 +54,8 @@ export async function DELETE(
       return NextResponse.json({ error: "Invalid event id" }, { status: 400 });
     }
 
-    const { apiUrl, apiKey, authToken } = getGridEnv();
-    await deleteGridEvent(apiUrl, apiKey, eventId, authToken);
+    const { apiUrl, apiKey } = getGridEnv();
+    await deleteGridEvent(apiUrl, apiKey, eventId);
     return NextResponse.json({ ok: true });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
