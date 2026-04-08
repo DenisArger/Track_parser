@@ -175,6 +175,48 @@ function formatTs(value?: number | null): string {
   }).format(new Date(value * 1000));
 }
 
+const checkboxOptions: Array<[
+  keyof Pick<
+    FormState,
+    | "break_track"
+    | "start_playlist_from_beginning"
+    | "allow_jingles"
+    | "allow_song_requests"
+    | "allow_jingles_after"
+    | "allow_song_requests_after"
+    | "wd_mon"
+    | "wd_tue"
+    | "wd_wed"
+    | "wd_thu"
+    | "wd_fri"
+    | "wd_sat"
+    | "wd_sun"
+    | "week_1"
+    | "week_2"
+    | "week_3"
+    | "week_4"
+  >,
+  string
+]> = [
+  ["break_track", "Break track"],
+  ["start_playlist_from_beginning", "Start playlist from beginning"],
+  ["allow_jingles", "Allow jingles"],
+  ["allow_song_requests", "Allow song requests"],
+  ["allow_jingles_after", "Allow jingles after"],
+  ["allow_song_requests_after", "Allow requests after"],
+  ["wd_mon", "Mon"],
+  ["wd_tue", "Tue"],
+  ["wd_wed", "Wed"],
+  ["wd_thu", "Thu"],
+  ["wd_fri", "Fri"],
+  ["wd_sat", "Sat"],
+  ["wd_sun", "Sun"],
+  ["week_1", "Week 1"],
+  ["week_2", "Week 2"],
+  ["week_3", "Week 3"],
+  ["week_4", "Week 4"],
+];
+
 export default function RadioScheduleManager() {
   const [server, setServer] = useState("1");
   const [startDate, setStartDate] = useState(() => new Date().toISOString().slice(0, 10));
@@ -537,24 +579,17 @@ export default function RadioScheduleManager() {
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2">
-                {[
-                  ["wd_mon", "Mon"],
-                  ["wd_tue", "Tue"],
-                  ["wd_wed", "Wed"],
-                  ["wd_thu", "Thu"],
-                  ["wd_fri", "Fri"],
-                  ["wd_sat", "Sat"],
-                  ["wd_sun", "Sun"],
-                  ["week_1", "Week 1"],
-                  ["week_2", "Week 2"],
-                  ["week_3", "Week 3"],
-                  ["week_4", "Week 4"],
-                ].map(([key, label]) => (
+                {checkboxOptions.map(([key, label]) => (
                   <label key={key} className="flex items-center gap-2">
                     <input
                       type="checkbox"
-                      checked={(form as Record<string, boolean>)[key] || false}
-                      onChange={(e) => setForm({ ...form, [key]: e.target.checked })}
+                      checked={Boolean(form[key])}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          [key]: e.target.checked,
+                        })
+                      }
                     />
                     <span className="text-sm">{label}</span>
                   </label>
