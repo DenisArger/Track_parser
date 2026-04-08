@@ -90,11 +90,34 @@ function normalizeApiBase(apiUrl: string): string {
   return trimmed;
 }
 
+function buildAuthHeaders(apiKey: string, authToken?: unknown): HeadersInit {
+  const headers: Record<string, string> = {
+    "SC-API-KEY": apiKey,
+  };
+  if (typeof authToken === "string" && authToken.trim()) {
+    headers.Authorization = `Token ${authToken.trim()}`;
+  }
+  return headers;
+}
+
 function parseBodyMessage(data: unknown): string {
   if (typeof data === "string" && data.trim()) return data.trim();
   if (!data || typeof data !== "object") return "";
   const obj = data as { detail?: string; error?: string; message?: string };
   return obj.detail || obj.error || obj.message || "";
+}
+
+function friendlyStreamingCenterMessage(message: string): string {
+  const normalized = message.trim();
+  if (!normalized) return normalized;
+  if (normalized.toLowerCase().includes("authentication credentials were not provided")) {
+    return (
+      "Streaming.Center требует авторизацию для этой операции. " +
+      "Добавьте STREAMING_CENTER_AUTH_TOKEN, полученный через POST /api/v1/rest-auth/login/ " +
+      "в админке Streaming.Center, и используйте его как Authorization: Token <key>."
+    );
+  }
+  return normalized;
 }
 
 async function readResponse(res: Response, url: string) {
@@ -113,7 +136,7 @@ async function readResponse(res: Response, url: string) {
 
   if (!res.ok) {
     const message = parseBodyMessage(data) || `Streaming.Center API error: ${res.status} ${res.statusText}`;
-    throw new Error(message);
+    throw new Error(friendlyStreamingCenterMessage(message));
   }
 
   return data;
@@ -145,7 +168,8 @@ export async function fetchGridEvents(
     startTs: number;
     endTs: number;
     utc?: 0 | 1;
-  }
+  },
+  authToken?: string
 ): Promise<GridEvent[]> {
   const base = normalizeApiBase(apiUrl);
   const url = `${base}/api/v2/grid/${toQueryString({
@@ -154,7 +178,7 @@ export async function fetchGridEvents(
     end_ts: params.endTs,
     utc: params.utc ?? 1,
   })}`;
-  const res = await fetch(url, { headers: { "SC-API-KEY": apiKey } });
+  const res = await fetch(url, { headers: buildAuthHeaders(apiKey, authToken) });
   return unwrapGridItems(await readResponse(res, url));
 }
 
@@ -163,14 +187,15 @@ async function writeGridEvent(
   apiUrl: string,
   apiKey: string,
   payload: GridEventInput,
-  id?: number
+  id?: number,
+  authToken?: string
 ): Promise<GridEvent> {
   const base = normalizeApiBase(apiUrl);
   const url = id ? `${base}/api/v2/grid/${id}/` : `${base}/api/v2/grid/`;
   const res = await fetch(url, {
     method,
     headers: {
-      "SC-API-KEY": apiKey,
+      ...buildAuthHeaders(apiKey, authToken),
       "Content-Type": "application/json",
     },
     body: JSON.stringify(payload),
@@ -183,30 +208,33 @@ async function writeGridEvent(
 export function createGridEvent(
   apiUrl: string,
   apiKey: string,
-  payload: GridEventInput
+  payload: GridEventInput,
+  authToken?: string
 ): Promise<GridEvent> {
-  return writeGridEvent("POST", apiUrl, apiKey, payload);
+  return writeGridEvent("POST", apiUrl, apiKey, payload, undefined, authToken);
 }
 
 export function updateGridEvent(
   apiUrl: string,
   apiKey: string,
   id: number,
-  payload: GridEventInput
+  payload: GridEventInput,
+  authToken?: string
 ): Promise<GridEvent> {
-  return writeGridEvent("PUT", apiUrl, apiKey, payload, id);
+  return writeGridEvent("PUT", apiUrl, apiKey, payload, id, authToken);
 }
 
 export async function deleteGridEvent(
   apiUrl: string,
   apiKey: string,
-  id: number
+  id: number,
+  authToken?: string
 ): Promise<void> {
   const base = normalizeApiBase(apiUrl);
   const url = `${base}/api/v2/grid/${id}/`;
   const res = await fetch(url, {
     method: "DELETE",
-    headers: { "SC-API-KEY": apiKey },
+    headers: buildAuthHeaders(apiKey, authToken),
   });
   await readResponse(res, url);
 }

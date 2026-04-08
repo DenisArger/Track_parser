@@ -21,12 +21,33 @@ function normalizeApiBase(apiUrl: string): string {
   return trimmed;
 }
 
+function buildAuthHeaders(apiKey: string, authToken?: string): HeadersInit {
+  const headers: Record<string, string> = { "SC-API-KEY": apiKey };
+  if (authToken && authToken.trim()) {
+    headers.Authorization = `Token ${authToken.trim()}`;
+  }
+  return headers;
+}
+
 function unwrapPlaylists(data: unknown): PlaylistRow[] {
   if (Array.isArray(data)) return data as PlaylistRow[];
   if (!data || typeof data !== "object") return [];
   const obj = data as Record<string, unknown>;
   const arr = obj.results ?? obj.data ?? obj.items ?? obj.playlists;
   return Array.isArray(arr) ? (arr as PlaylistRow[]) : [];
+}
+
+function friendlyStreamingCenterMessage(message: string): string {
+  const normalized = message.trim();
+  if (!normalized) return normalized;
+  if (normalized.toLowerCase().includes("authentication credentials were not provided")) {
+    return (
+      "Streaming.Center требует авторизацию для списка плейлистов. " +
+      "Добавьте STREAMING_CENTER_AUTH_TOKEN, полученный через POST /api/v1/rest-auth/login/ " +
+      "в админке Streaming.Center, и используйте его как Authorization: Token <key>."
+    );
+  }
+  return normalized;
 }
 
 function sortPlaylists(rows: PlaylistRow[]): PlaylistRow[] {
@@ -57,6 +78,7 @@ export async function GET() {
 
     const apiUrl = process.env.STREAMING_CENTER_API_URL || "";
     const apiKey = process.env.STREAMING_CENTER_API_KEY || "";
+    const authToken = process.env.STREAMING_CENTER_AUTH_TOKEN || "";
     if (!apiUrl || !apiKey) {
       return NextResponse.json(
         { error: "STREAMING_CENTER_API_URL и STREAMING_CENTER_API_KEY должны быть заданы" },
@@ -67,7 +89,7 @@ export async function GET() {
     const base = normalizeApiBase(apiUrl);
     const url = `${base}/api/v2/playlists/`;
     const res = await fetch(url, {
-      headers: { "SC-API-KEY": apiKey },
+      headers: buildAuthHeaders(apiKey, authToken),
     });
     const text = await res.text();
     let data: unknown = text;
@@ -84,7 +106,7 @@ export async function GET() {
         (data as { detail?: string; error?: string })?.detail ||
         (data as { detail?: string; error?: string })?.error ||
         `Streaming.Center error: ${res.status} ${res.statusText}`;
-      return NextResponse.json({ error: message }, { status: 502 });
+      return NextResponse.json({ error: friendlyStreamingCenterMessage(message) }, { status: 502 });
     }
 
     return NextResponse.json({ playlists: sortPlaylists(unwrapPlaylists(data)) });
