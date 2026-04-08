@@ -5,6 +5,7 @@ import DownloadTrack from "./DownloadTrack";
 import TrackPlayer from "./TrackPlayer";
 import MetadataEditor from "./MetadataEditor";
 import FtpUploader from "./FtpUploader";
+import RadioScheduleManager from "./RadioScheduleManager";
 import TrackStatusBadge from "./shared/TrackStatusBadge";
 import TrackManager from "./TrackManager";
 import PlayList from "./PlayList";
@@ -215,16 +216,17 @@ export default function HomePage() {
     { id: "upload", label: t("tabs.upload"), component: FtpUploader },
     { id: "manage", label: t("tabs.manage"), component: TrackManager },
     { id: "playlist", label: t("tabs.playlist"), component: PlayList },
+    { id: "schedule", label: "Schedule", component: RadioScheduleManager },
   ];
 
   const tabs = isAdmin
     ? allTabs
-    : allTabs.filter((tab) => !["upload", "manage", "playlist"].includes(tab.id));
+    : allTabs.filter((tab) => !["upload", "manage", "playlist", "schedule"].includes(tab.id));
 
   useEffect(() => {
     if (
       !isAdmin &&
-      (activeTab === "upload" || activeTab === "manage" || activeTab === "playlist")
+      (activeTab === "upload" || activeTab === "manage" || activeTab === "playlist" || activeTab === "schedule")
     ) {
       setActiveTab("download");
     }
