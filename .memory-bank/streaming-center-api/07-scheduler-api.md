@@ -2,150 +2,173 @@
 
 ## Обзор
 
-Streaming.Center поддерживает функции планирования вещания (scheduler) через веб-интерфейс панели управления. Платформа позволяет программировать вещание и планировать запуск плейлистов в определенное время.
+Scheduler API в Streaming.Center представлен endpoint'ом `/api/v2/grid/`.
+Он позволяет получать события сетки вещания и создавать новые события расписания.
 
-**Важно:** Официальная публичная документация по Scheduler API endpoints отсутствует на сайте streaming.center/docs/api.
+## Endpoint
 
-## Подтвержденные возможности платформы
-
-Согласно общим описаниям платформы Streaming.Center:
-
-1. **Планирование вещания** — функция scheduler доступна в панели управления
-2. **Запуск плейлистов по расписанию** — можно настроить запуск плейлистов в определенное время
-3. **Настройки scheduler для плейлистов** — включая опцию "Start playlist again" для неслучайных плейлистов
-
-## Статус API документации
-
-**Официальная документация по Scheduler API endpoints не найдена в публичных источниках.**
-
-Документированные endpoints Streaming.Center API:
-- ✅ `/api/v2/playlists/` — управление плейлистами
-- ✅ `/api/v2/history/` — история воспроизведения
-- ✅ `/api/v2/podcasts/` — управление подкастами
-- ❓ Scheduler API endpoints — **не документированы публично**
-
-## Как проверить доступность Scheduler API
-
-### 1. Проверка в панели управления
-
-1. Войдите в панель управления Streaming.Center
-2. Перейдите в раздел **Settings → API Keys**
-3. Проверьте доступную документацию API
-4. Ищите разделы, связанные с "scheduler", "schedule", "planning"
-
-### 2. Проверка через API
-
-Попробуйте проверить возможные endpoints:
-
-```typescript
-async function checkSchedulerEndpoints() {
-  const apiUrl = "https://your-server.streaming.center:1030";
-  const apiKey = "your-api-key-here";
-
-  // Возможные варианты endpoints
-  const possibleEndpoints = [
-    "/api/v2/scheduler/",
-    "/api/v2/schedule/",
-    "/api/v2/schedules/",
-    "/api/v1/scheduler/",
-    "/api/v2/playlists/{id}/schedule/",
-  ];
-
-  for (const endpoint of possibleEndpoints) {
-    try {
-      const response = await fetch(`${apiUrl}${endpoint}`, {
-        headers: { "SC-API-KEY": apiKey },
-      });
-
-      if (response.ok) {
-        console.log(`✅ Found: ${endpoint}`);
-        const data = await response.json();
-        console.log("Response:", data);
-        return endpoint;
-      } else if (response.status === 404) {
-        console.log(`❌ Not found: ${endpoint}`);
-      } else {
-        console.log(`⚠️  ${endpoint}: ${response.status} ${response.statusText}`);
-      }
-    } catch (error) {
-      console.log(`❌ Error checking ${endpoint}:`, error);
-    }
-  }
-
-  return null;
-}
+```
+GET /api/v2/grid/
+POST /api/v2/grid/
 ```
 
-### 3. Проверка через Playlists API
+## Аутентификация
 
-Возможно, функции планирования интегрированы в Playlists API. Проверьте структуру ответа при получении плейлиста:
+- `GET` - не требуется
+- `POST` - требуется `SC-API-KEY`
+
+## Параметры запроса для GET
+
+| Параметр | Тип | Описание | Обязательный |
+|----------|-----|----------|--------------|
+| `server` | integer | ID радиосервера | Да |
+| `start_ts` | integer | Начало диапазона как Unix timestamp | Да |
+| `end_ts` | integer | Конец диапазона как Unix timestamp | Да |
+| `utc` | integer | `1`, если `start_ts` и `end_ts` переданы в UTC | Нет |
+
+## Что делает GET
+
+Официальная документация указывает, что при запросе списка событий API:
+
+- загружает события для выбранного сервера;
+- разворачивает периодические события в реальные occurrences;
+- автоматически вычисляет `finish_date`, `finish_time` и `end_ts`;
+- может добавлять служебное событие окончания radioshow.
+
+## Структура события
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `id` | integer/null | ID события, у служебных событий может быть `null` |
+| `server` | integer | ID радиосервера |
+| `name` | string | Название события |
+| `periodicity` | string | `onetime` или `periodic` |
+| `cast_type` | string | Тип события: `playlist`, `radioshow`, `relay`, `rotation` |
+| `break_track` | boolean | Нужно ли прерывать текущий трек |
+| `start_playlist_from_beginning` | boolean | Запускать плейлист с начала |
+| `start_date` | string | Дата старта |
+| `start_time` | string | Время старта |
+| `finish_date` | string | Дата завершения |
+| `finish_time` | string | Время завершения |
+| `playlist` | integer/null | ID плейлиста |
+| `playlist_after_radioshow` | integer/null | Плейлист после radioshow |
+| `rotation_after_radioshow` | integer/null | Rotation после radioshow |
+| `dj` | integer/null | ID DJ |
+| `rotation` | integer/null | ID rotation |
+| `allow_jingles` | boolean | Разрешить jingles |
+| `allow_song_requests` | boolean | Разрешить song requests |
+| `allow_jingles_after` | boolean | Разрешить jingles после radioshow |
+| `allow_song_requests_after` | boolean | Разрешить song requests после radioshow |
+| `color` | string | Основной цвет события |
+| `color2` | string/null | Второй цвет события |
+| `local_time` | string | Локальное время события |
+| `timezone` | string | Таймзона события |
+| `parent_id` | integer/null | ID родительского radioshow события |
+| `start_ts` | integer | Unix timestamp старта |
+| `start_ts_utc_readable` | string | Читаемое UTC-время старта |
+| `end_ts` | integer | Unix timestamp завершения |
+| `wd_mon` | boolean | Повторять по понедельникам |
+| `wd_tue` | boolean | Повторять по вторникам |
+| `wd_wed` | boolean | Повторять по средам |
+| `wd_thu` | boolean | Повторять по четвергам |
+| `wd_fri` | boolean | Повторять по пятницам |
+| `wd_sat` | boolean | Повторять по субботам |
+| `wd_sun` | boolean | Повторять по воскресеньям |
+| `week_1` | boolean | Первая неделя месяца |
+| `week_2` | boolean | Вторая неделя месяца |
+| `week_3` | boolean | Третья неделя месяца |
+| `week_4` | boolean | Четвёртая неделя месяца |
+
+## Параметры POST
+
+При создании события используются поля:
+
+- `server`
+- `name`
+- `periodicity`
+- `cast_type`
+- `break_track`
+- `start_playlist_from_beginning`
+- `start_date`
+- `start_time`
+- `finish_date`
+- `finish_time`
+- `wd_mon` ... `wd_sun`
+- `week_1` ... `week_4`
+- `playlist`
+- `playlist_after_radioshow`
+- `rotation_after_radioshow`
+- `dj`
+- `rotation`
+- `allow_jingles`
+- `allow_song_requests`
+- `allow_jingles_after`
+- `allow_song_requests_after`
+- `color`
+- `color2`
+- `local_time`
+- `timezone`
+
+## Валидация
+
+При создании или обновлении события API может вернуть ошибки:
+
+- `repeat_week_days_not_set`
+- `repeat_weeks_not_set`
+- `playlist_required`
+- `time_slot_busy`
+
+## Пример GET
+
+```typescript
+const apiUrl = "https://your-server.streaming.center:1030";
+
+const response = await fetch(
+  `${apiUrl}/api/v2/grid/?server=1&start_ts=1744041600&end_ts=1744646400&utc=1`
+);
+
+const schedule = await response.json();
+console.log(schedule);
+```
+
+## Пример POST
 
 ```typescript
 const apiUrl = "https://your-server.streaming.center:1030";
 const apiKey = "your-api-key-here";
 
-const response = await fetch(`${apiUrl}/api/v2/playlists/1/`, {
-  headers: { "SC-API-KEY": apiKey },
-});
-
-const playlist = await response.json();
-console.log("Playlist structure:", playlist);
-// Проверьте, есть ли поля, связанные с расписанием:
-// schedule, scheduled_time, scheduler_settings и т.д.
-```
-
-## Альтернативные способы управления расписанием
-
-### 1. Через веб-интерфейс
-
-Используйте панель управления Streaming.Center для настройки расписания:
-- Войдите в панель управления
-- Найдите раздел Scheduler или Schedule
-- Настройте расписание через веб-интерфейс
-
-### 2. Через Admin Area API (v1)
-
-Возможно, функции планирования доступны через Admin Area API:
-
-```typescript
-// Аутентификация через v1 API
-const loginResponse = await fetch(`${apiUrl}/api/v1/rest-auth/login/`, {
+const response = await fetch(`${apiUrl}/api/v2/grid/`, {
   method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ username, password }),
+  headers: {
+    "SC-API-KEY": apiKey,
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    server: 1,
+    name: "Morning playlist",
+    periodicity: "onetime",
+    cast_type: "playlist",
+    break_track: true,
+    start_playlist_from_beginning: true,
+    start_date: "2026-04-08",
+    start_time: "08:00:00",
+    playlist: 2,
+    local_time: "08:00:00",
+    timezone: "Europe/Moscow",
+    color: "#87c95f",
+  }),
 });
 
-const { key: authToken } = await loginResponse.json();
-
-// Проверка endpoints в v1
-const v1Endpoints = [
-  "/api/v1/scheduler/",
-  "/api/v1/schedule/",
-  "/api/v1/broadcasters/{id}/schedule/",
-];
-
-for (const endpoint of v1Endpoints) {
-  const response = await fetch(`${apiUrl}${endpoint}`, {
-    headers: { "Authorization": `Token ${authToken}` },
-  });
-  // Проверка ответа...
-}
+const createdEvent = await response.json();
+console.log(createdEvent);
 ```
 
-## Рекомендации
+## Пример ответа
 
-1. **Обратитесь к поддержке Streaming.Center** — запросите документацию по Scheduler API
-2. **Проверьте панель управления** — возможно, документация доступна только авторизованным пользователям
-3. **Используйте веб-интерфейс** — для настройки расписания, если API недоступен
-4. **Изучите структуру ответов** — проверьте, есть ли информация о расписании в ответах других endpoints
+Официальная страница показывает, что ответ представляет собой массив событий.
 
 ## Связанные документы
 
 - [Введение](./01-introduction.md)
-- [Аутентификация](./02-authentication.md)
-- [Playlists API](./04-playlists.md) — возможно, содержит информацию о расписании
-- [Admin Area API](./06-admin-api.md) — альтернативный способ доступа
-
-## Обновление документации
-
-Если вы найдете официальную документацию по Scheduler API или рабочие endpoints, пожалуйста, обновите этот файл с подтвержденной информацией.
+- [Playlists API](./04-playlists.md)
+- [Admin Area API](./06-admin-api.md)

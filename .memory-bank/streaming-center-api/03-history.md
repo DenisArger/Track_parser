@@ -4,6 +4,8 @@
 
 History API предоставляет доступ к истории воспроизведенных треков (What's on air). Позволяет получить информацию о том, какие треки были воспроизведены на радиостанции.
 
+На официальной странице API раздел "What's on air" показывает запрос к `/api/v2/history/` как способ получить текущий и недавние треки.
+
 ## Endpoint
 
 ```
@@ -27,11 +29,14 @@ GET /api/v2/history/
 | `album` | string | Название альбома |
 | `author` | string | Исполнитель/автор трека |
 | `title` | string | Название трека |
-| `ts` | string/integer | Временная метка воспроизведения (timestamp) |
-| `length` | integer | Длина трека в секундах |
-| `filename` | string | Имя файла трека |
-| `path` | string | Путь к файлу |
-| `public_path` | string | Публичный URL файла (если доступен) |
+| `ts` | integer | Временная метка воспроизведения в миллисекундах |
+| `length` | integer | Длина трека в миллисекундах |
+| `dj_name` | string | Имя DJ или источника воспроизведения |
+| `playlist_title` | string | Название плейлиста |
+| `metadata` | string | Человекочитаемые метаданные трека |
+| `img_url` | string | URL обложки |
+| `img_medium_url` | string | URL средней обложки |
+| `img_large_url` | string | URL большой обложки |
 
 ## Примеры запросов
 
@@ -53,6 +58,31 @@ const response = await fetch(
 
 const history = await response.json();
 console.log(history);
+```
+
+### Пример формата ответа с сайта
+
+Официальная документация показывает ответ в формате пагинированного объекта:
+
+```json
+{
+  "count": 500,
+  "next": "https://demoaccount.streaming.center:8080/api/v2/history/?limit=1&offset=1&server=1",
+  "previous": null,
+  "results": [
+    {
+      "album": "Ozzmosis (Expanded Edition)",
+      "author": "Ozzy Osbourne",
+      "dj_name": "AutoDJ",
+      "metadata": "Ozzy Osbourne - I Just Want You",
+      "playlist_title": "All music",
+      "title": "I Just Want You",
+      "ts": 1733763534000,
+      "length": 296347,
+      "img_url": "https://demoaccount.streaming.center:8080/media/tracks/trackImage1190.jpg"
+    }
+  ]
+}
 ```
 
 ### С пагинацией
@@ -114,28 +144,24 @@ curl -H "SC-API-KEY: your-api-key-here" \
 ## Пример ответа
 
 ```json
-[
-  {
-    "album": "Greatest Hits",
-    "author": "Artist Name",
-    "title": "Song Title",
-    "ts": "2024-01-15T10:30:00Z",
-    "length": 240,
-    "filename": "song_title.mp3",
-    "path": "/media/Server_1/0 0 ALL_TRACK/song_title.mp3",
-    "public_path": "https://your-server.streaming.center/media/song_title.mp3"
-  },
-  {
-    "album": "Another Album",
-    "author": "Another Artist",
-    "title": "Another Song",
-    "ts": "2024-01-15T10:26:00Z",
-    "length": 195,
-    "filename": "another_song.mp3",
-    "path": "/media/Server_1/0 0 ALL_TRACK/another_song.mp3",
-    "public_path": "https://your-server.streaming.center/media/another_song.mp3"
-  }
-]
+{
+  "count": 2,
+  "next": null,
+  "previous": null,
+  "results": [
+    {
+      "album": "Greatest Hits",
+      "author": "Artist Name",
+      "title": "Song Title",
+      "ts": 1736937000000,
+      "length": 240000,
+      "playlist_title": "All music",
+      "metadata": "Artist Name - Song Title",
+      "dj_name": "AutoDJ",
+      "img_url": "https://your-server.streaming.center/media/track.jpg"
+    }
+  ]
+}
 ```
 
 ## Использование в проекте

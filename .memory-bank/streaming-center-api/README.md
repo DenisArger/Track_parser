@@ -35,10 +35,14 @@
    - Аутентификация через токены
 
 7. [Scheduler API](./07-scheduler-api.md)
-   - Управление сеткой вещания
-   - Планирование запуска плейлистов
-   - Запуск треков в определенное время
-   - Управление джинглами и рекламой
+   - Управление сеткой вещания через `/api/v2/grid/`
+   - Планирование запуска плейлистов и radioshow
+   - Периодические события и валидация расписания
+
+8. [Broadcast Channels API](./08-channels-api.md)
+   - Управление вещательными каналами
+   - Статус потока, порты и URL
+   - Дополнительные admin/service поля для авторизованных запросов
 
 ## Быстрый старт
 
@@ -194,20 +198,27 @@ POST /api/radio/sync
 Для получения актуальной информации обращайтесь к официальной документации Streaming.Center:
 
 - В панели управления: **Settings → API Keys**
-- Официальный сайт: [streaming.center](https://streaming.center)
+- Официальные страницы API:
+  - [Getting started](https://streaming.center/docs/api/intro/)
+  - [Authentication](https://streaming.center/docs/api/auth/)
+  - [What's on air](https://streaming.center/docs/api/history/)
+  - [Playlists](https://streaming.center/docs/api/playlists/)
+  - [Scheduler](https://streaming.center/docs/api/schedule/)
+  - [Broadcast Channels](https://streaming.center/docs/api/channels/)
 
 ## Версии API
 
-- **v2** (`/api/v2/`) — основная версия, используется для плейлистов, истории, подкастов, scheduler
+- **v2** (`/api/v2/`) — основная версия, используется для плейлистов, истории, подкастов, scheduler и каналов
 - **v1** (`/api/v1/`) — административная версия, используется для управления системой
 
-## Управление сеткой вещания
+## Управление сеткой вещания и каналами
 
-Streaming.Center поддерживает функции планирования вещания (scheduler) через веб-интерфейс панели управления.
+Streaming.Center поддерживает API для сетки вещания (`/api/v2/grid/`) и для вещательных каналов (`/api/v2/channels/`).
 
-**⚠️ Важно:** Официальная публичная документация по Scheduler API endpoints отсутствует. Функции планирования доступны через панель управления, но API endpoints не документированы публично.
+Подробнее см.:
 
-Подробнее см. [Scheduler API](./07-scheduler-api.md) — информация о проверке доступности API.
+- [Scheduler API](./07-scheduler-api.md)
+- [Broadcast Channels API](./08-channels-api.md)
 
 ## Поддержка
 

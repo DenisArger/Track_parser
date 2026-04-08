@@ -4,6 +4,8 @@
 
 Playlists API позволяет управлять плейлистами и получать информацию о треках в плейлистах. Это основной API, используемый в проекте Track_parser для проверки, какие треки уже находятся на радио.
 
+Официальная документация показывает, что этот endpoint принимает параметр `server` и поддерживает не только список и создание, но и получение, обновление и удаление конкретного плейлиста, а также дополнительные действия для запуска вещания.
+
 ## Endpoints
 
 ### Получение списка плейлистов
@@ -12,11 +14,21 @@ Playlists API позволяет управлять плейлистами и п
 GET /api/v2/playlists/
 ```
 
+На сайте пример запроса выглядит так:
+
+```typescript
+fetch("https://demo.streaming.center:1030/api/v2/playlists/?server=1", {
+  headers: { "SC-API-KEY": apiKey },
+});
+```
+
 ### Создание плейлиста
 
 ```
 POST /api/v2/playlists/
 ```
+
+Официальная документация также показывает импорт M3U через этот же endpoint с `multipart/form-data`.
 
 ### Получение треков плейлиста
 
@@ -25,6 +37,14 @@ GET /api/v2/playlists/{id}/tracks/
 ```
 
 Где `{id}` — ID плейлиста.
+
+Дополнительно на сайте задокументированы:
+
+- `GET /api/v2/playlists/{id}/`
+- `PUT /api/v2/playlists/{id}/`
+- `DELETE /api/v2/playlists/{id}/`
+- `POST /api/v2/playlists/{id}/add_tracks_ordered/`
+- `POST /api/v2/playlists/{id}/start_broadcasting/` - создает событие в scheduler на следующей полной минуте
 
 ## Создание плейлиста
 
@@ -82,6 +102,22 @@ console.log("Created playlist:", playlist);
 | `track` | object | Вложенный объект с информацией о треке |
 
 **Важно:** API может возвращать данные в разных форматах. В проекте используется гибкая обработка различных вариантов структуры ответа.
+
+## Поля плейлиста по официальной документации
+
+Сайт перечисляет основные поля плейлиста:
+
+- `id`
+- `duration`
+- `playlist_files_per_page`
+- `tracks_num`
+- `name`
+- `is_default`
+- `is_random`
+- `on_air`
+- `directory_name`
+- `current_track_order`
+- `server`
 
 ### Пример получения треков (TypeScript)
 

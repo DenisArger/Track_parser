@@ -2,7 +2,7 @@
 
 ## Обзор
 
-Admin Area API (v1) предоставляет административные функции для управления broadcasters, resellers, templates и другими системными настройками. Это более низкоуровневый API по сравнению с v2.
+Admin Area API (v1) предоставляет административные функции для управления broadcasters, resellers, templates и другими системными настройками.
 
 ## Базовый URL
 
@@ -10,11 +10,11 @@ Admin Area API (v1) предоставляет административные 
 <control-panel-address>/api/v1/
 ```
 
-Где `<control-panel-address>` — адрес вашей панели управления Streaming.Center.
+Где `<control-panel-address>` — адрес вашей панели управления Streaming.Center. На сайте в качестве примера указан формат вроде `https://stream.radio.com:2345`.
 
 ## Аутентификация
 
-Admin Area API использует аутентификацию через сессию или токен, полученный через endpoint `/api/v1/rest-auth/login/`.
+Admin Area API использует аутентификацию через токен, полученный через endpoint `/api/v1/rest-auth/login/`.
 
 ### Логин
 
@@ -42,7 +42,8 @@ curl -X POST \
 
 ```json
 {
-  "key": "your-auth-token-here"
+  "key": "your-auth-token-here",
+  "user": {}
 }
 ```
 
@@ -54,11 +55,7 @@ curl -X POST \
 Authorization: Token your-auth-token-here
 ```
 
-Или в заголовке `X-Auth-Token`:
-
-```
-X-Auth-Token: your-auth-token-here
-```
+В официальной документации показан именно вариант с `Authorization: Token <key>`.
 
 ## Endpoints
 
@@ -89,6 +86,8 @@ PATCH /api/v1/broadcasters/{id}/
 
 ```
 DELETE /api/v1/broadcasters/{id}/
+
+На официальной странице отдельно указано, что `DELETE` помечает broadcaster как `BEING_DELETED`.
 ```
 
 ### Resellers
@@ -122,6 +121,13 @@ GET /api/v1/templates/
 ```
 POST /api/v1/templates/
 ```
+
+На сайте подробно перечислены и дополнительные пути для шаблонов:
+
+- `/api/v1/templates/email/`
+- `/api/v1/templates/email/types/`
+- `/api/v1/templates/broadcasters/`
+- `/api/v1/templates/resellers/`
 
 ## Примеры использования
 
@@ -200,7 +206,7 @@ const broadcaster = await response.json();
 
 | Поле | Тип | Описание |
 |------|-----|----------|
-| `id` | integer | Уникальный идентификатор |
+| `pk` | integer | Уникальный идентификатор |
 | `name` | string | Название broadcaster |
 | `created_at` | string | Дата создания |
 | `updated_at` | string | Дата обновления |
@@ -209,7 +215,7 @@ const broadcaster = await response.json();
 
 | Поле | Тип | Описание |
 |------|-----|----------|
-| `id` | integer | Уникальный идентификатор |
+| `pk` | integer | Уникальный идентификатор |
 | `name` | string | Название reseller |
 | `created_at` | string | Дата создания |
 
@@ -217,7 +223,7 @@ const broadcaster = await response.json();
 
 | Поле | Тип | Описание |
 |------|-----|----------|
-| `id` | integer | Уникальный идентификатор |
+| `pk` | integer | Уникальный идентификатор |
 | `name` | string | Название шаблона |
 | `config` | object | Конфигурация шаблона |
 
@@ -258,8 +264,19 @@ try {
 |--------|----------------|-----------------|
 | Аутентификация | Token через `/rest-auth/login/` | API ключ в заголовке `SC-API-KEY` |
 | Использование | Административные функции | Публичные функции (плейлисты, история, подкасты) |
-| Безопасность | Требует логин/пароль | Требует API ключ |
-| Endpoints | Broadcasters, resellers, templates | Playlists, history, podcasts |
+
+## Дополнения с официального сайта
+
+На странице официальной документации также есть следующие важные детали, которые стоит учитывать при дальнейшем расширении этого файла:
+
+- `GET /api/v1/broadcasters/{pk}/` для получения одной записи
+- `GET /api/v1/resellers/{pk}/`, `PUT`, `PATCH`, `DELETE`
+- `POST /api/v1/broadcasters/{pk}/download_backup/?t=<token>`
+- `POST /api/v1/broadcasters/{pk}/backup/`
+- `POST /api/v1/broadcasters/{pk}/suspend/` и `/unsuspend/`
+- `POST /api/v1/broadcasters/{pk}/login/`
+- `POST /api/v1/resellers/{pk}/login/`
+- `GET/PUT /api/v1/license/`
 
 ## Рекомендации
 

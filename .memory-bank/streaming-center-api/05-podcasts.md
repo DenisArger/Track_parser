@@ -2,7 +2,7 @@
 
 ## Обзор
 
-Podcasts API позволяет управлять подкастами и их эпизодами. Подкасты могут быть созданы, получены и управляемы через REST API.
+Podcasts API позволяет создавать подкасты, получать один подкаст по ID, получать список эпизодов и скачивать MP3-файл эпизода.
 
 ## Endpoints
 
@@ -18,13 +18,29 @@ GET /api/v2/podcasts/
 POST /api/v2/podcasts/
 ```
 
+### Получение одного подкаста
+
+```
+GET /api/v2/podcasts/{id}/
+```
+
 ### Получение эпизодов подкаста
 
 ```
 GET /api/v2/podcasts/{podcast_id}/episodes/
 ```
 
-Где `{podcast_id}` — ID подкаста.
+### Получение одного эпизода
+
+```
+GET /api/v2/podcasts/{podcast_id}/episodes/{episode_id}/
+```
+
+### Скачать MP3 эпизода
+
+```
+GET /api/v2/podcasts/{podcast_id}/episodes/{episode_id}/episode.mp3/
+```
 
 ## Получение списка подкастов
 
@@ -57,12 +73,10 @@ console.log(podcasts);
 | Поле | Тип | Описание |
 |------|-----|----------|
 | `id` | integer | Уникальный идентификатор подкаста |
-| `name` | string | Название подкаста |
+| `title` | string | Название подкаста |
+| `published` | boolean | Опубликован ли подкаст |
 | `description` | string | Описание подкаста |
-| `author` | string | Автор подкаста |
-| `image` | string | URL изображения подкаста |
-| `created_at` | string | Дата создания |
-| `updated_at` | string | Дата последнего обновления |
+| `server` | integer | ID сервера |
 
 ## Создание подкаста
 
@@ -70,11 +84,12 @@ console.log(podcasts);
 
 | Параметр | Тип | Описание | Обязательный |
 |----------|-----|----------|--------------|
-| `name` | string | Название подкаста | Да |
+| `title` | string | Название подкаста | Да |
+| `published` | boolean | Опубликовать подкаст | Нет |
 | `description` | string | Описание подкаста | Нет |
-| `author` | string | Автор подкаста | Нет |
-| `image` | string | URL изображения | Нет |
 | `server` | integer | ID сервера | Нет |
+
+На официальной странице указано, что при необходимости загрузить обложку нужно отправлять `multipart/form-data` и передавать изображение в поле `image`.
 
 ### Пример создания подкаста
 
@@ -89,9 +104,9 @@ const response = await fetch(`${apiUrl}/api/v2/podcasts/`, {
     "Content-Type": "application/json",
   },
   body: JSON.stringify({
-    name: "My Podcast",
+    title: "My Podcast",
+    published: true,
     description: "Description of my podcast",
-    author: "Author Name",
     server: 1,
   }),
 });
@@ -138,12 +153,8 @@ console.log(episodes);
 | `podcast_id` | integer | ID подкаста |
 | `title` | string | Название эпизода |
 | `description` | string | Описание эпизода |
-| `duration` | integer | Длительность в секундах |
-| `published_at` | string | Дата публикации |
-| `audio_url` | string | URL аудиофайла |
-| `file_path` | string | Путь к файлу на сервере |
-| `created_at` | string | Дата создания |
-| `updated_at` | string | Дата последнего обновления |
+| `file` | string | Имя файла эпизода |
+| `published` | boolean | Опубликован ли эпизод |
 
 ## Примеры ответов
 
@@ -153,20 +164,17 @@ console.log(episodes);
 [
   {
     "id": 1,
-    "name": "My Podcast",
+    "title": "My Podcast",
+    "published": true,
     "description": "Description of my podcast",
-    "author": "Author Name",
-    "image": "https://your-server.streaming.center/media/podcast_image.jpg",
-    "created_at": "2024-01-15T10:00:00Z",
-    "updated_at": "2024-01-15T10:00:00Z"
+    "server": 1
   },
   {
     "id": 2,
-    "name": "Another Podcast",
+    "title": "Another Podcast",
+    "published": false,
     "description": "Another podcast description",
-    "author": "Another Author",
-    "created_at": "2024-01-16T12:00:00Z",
-    "updated_at": "2024-01-16T12:00:00Z"
+    "server": 1
   }
 ]
 ```
@@ -180,24 +188,16 @@ console.log(episodes);
     "podcast_id": 1,
     "title": "Episode 1: Introduction",
     "description": "First episode of the podcast",
-    "duration": 3600,
-    "published_at": "2024-01-15T10:00:00Z",
-    "audio_url": "https://your-server.streaming.center/media/episode1.mp3",
-    "file_path": "/media/podcasts/episode1.mp3",
-    "created_at": "2024-01-15T10:00:00Z",
-    "updated_at": "2024-01-15T10:00:00Z"
+    "file": "episode1.mp3",
+    "published": true
   },
   {
     "id": 2,
     "podcast_id": 1,
     "title": "Episode 2: Deep Dive",
     "description": "Second episode",
-    "duration": 4200,
-    "published_at": "2024-01-22T10:00:00Z",
-    "audio_url": "https://your-server.streaming.center/media/episode2.mp3",
-    "file_path": "/media/podcasts/episode2.mp3",
-    "created_at": "2024-01-22T10:00:00Z",
-    "updated_at": "2024-01-22T10:00:00Z"
+    "file": "episode2.mp3",
+    "published": true
   }
 ]
 ```
@@ -225,7 +225,7 @@ async function getAllEpisodes(podcastId: number) {
     );
 
     const episodes = await response.json();
-    
+
     if (!Array.isArray(episodes) || episodes.length === 0) {
       break;
     }
@@ -291,7 +291,7 @@ curl -H "SC-API-KEY: your-api-key-here" \
 curl -X POST \
      -H "SC-API-KEY: your-api-key-here" \
      -H "Content-Type: application/json" \
-     -d '{"name":"My Podcast","description":"Description","author":"Author"}' \
+     -d '{"title":"My Podcast","published":true,"description":"Description","server":1}' \
      "https://your-server.streaming.center:1030/api/v2/podcasts/"
 ```
 
