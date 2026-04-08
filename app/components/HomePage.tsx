@@ -216,7 +216,7 @@ export default function HomePage() {
     { id: "upload", label: t("tabs.upload"), component: FtpUploader },
     { id: "manage", label: t("tabs.manage"), component: TrackManager },
     { id: "playlist", label: t("tabs.playlist"), component: PlayList },
-    { id: "schedule", label: "Schedule", component: RadioScheduleManager },
+    { id: "schedule", label: t("tabs.schedule"), component: RadioScheduleManager },
   ];
 
   const tabs = isAdmin

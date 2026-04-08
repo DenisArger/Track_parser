@@ -13,7 +13,8 @@
     "metadata": "Edit Metadata",
     "upload": "FTP Upload",
     "manage": "Track Manager",
-    "playlist": "Playlist"
+    "playlist": "Playlist",
+    "schedule": "Broadcast grid"
   },
   "overview": {
     "title": "Tracks Overview",
@@ -333,5 +334,95 @@
     "groupsLoadError": "Failed to load groups",
     "groupsSaved": "Groups saved",
     "groupsSaveError": "Failed to save groups"
+  },
+  "schedule": {
+    "title": "Broadcast grid",
+    "description": "Admin view and management for broadcast grid events.",
+    "serverId": "Server ID",
+    "startDate": "Start date",
+    "days": "Days",
+    "refresh": "Refresh grid",
+    "newEvent": "New event",
+    "loading": "Loading...",
+    "all": "All",
+    "filter": "Filter",
+    "legend": "Legend",
+    "events": "Events",
+    "empty": "No events",
+    "emptyDay": "Empty",
+    "editTitle": "Edit event",
+    "createTitle": "New event",
+    "save": "Save",
+    "create": "Create",
+    "delete": "Delete",
+    "reset": "Reset",
+    "showAdvanced": "Show / hide advanced fields",
+    "fields": {
+      "name": "Name",
+      "castType": "Event type",
+      "periodicity": "Periodicity",
+      "server": "Server",
+      "startDate": "Start date",
+      "startTime": "Start time",
+      "finishDate": "End date",
+      "finishTime": "End time",
+      "playlist": "Playlist",
+      "localTime": "Local time",
+      "timezone": "Timezone"
+    },
+    "playlistPlaceholder": "Select a playlist",
+    "playlistHint": "The list is loaded from Streaming.Center, and you can still leave the field empty for manual entry.",
+    "loadingPlaylists": "Loading playlists...",
+    "badges": {
+      "id": "ID",
+      "server": "Server",
+      "type": "Type",
+      "color": "Color"
+    },
+    "serverInstance": "Server {n}",
+    "castTypes": {
+      "playlist": "Playlist",
+      "radioshow": "Radio show",
+      "relay": "Relay",
+      "rotation": "Rotation"
+    },
+    "periodicity": {
+      "onetime": "One-time",
+      "periodic": "Periodic"
+    },
+    "weekday": {
+      "mon": "Mon",
+      "tue": "Tue",
+      "wed": "Wed",
+      "thu": "Thu",
+      "fri": "Fri",
+      "sat": "Sat",
+      "sun": "Sun"
+    },
+    "week": {
+      "1": "Week 1",
+      "2": "Week 2",
+      "3": "Week 3",
+      "4": "Week 4"
+    },
+    "checkboxes": {
+      "breakTrack": "Break track",
+      "startPlaylistFromBeginning": "Start playlist from beginning",
+      "allowJingles": "Allow jingles",
+      "allowSongRequests": "Allow song requests",
+      "allowJinglesAfter": "Allow jingles after radioshow",
+      "allowSongRequestsAfter": "Allow song requests after radioshow"
+    },
+    "messages": {
+      "created": "Event created",
+      "updated": "Event updated",
+      "deleted": "Event deleted"
+    },
+    "confirmDelete": "Delete this grid event?",
+    "errors": {
+      "load": "Failed to load grid",
+      "save": "Failed to save event",
+      "delete": "Failed to delete event"
+    }
   }
 }

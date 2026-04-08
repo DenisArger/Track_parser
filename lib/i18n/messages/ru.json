@@ -13,7 +13,8 @@
     "metadata": "Редактировать метаданные",
     "upload": "FTP загрузка",
     "manage": "Менеджер треков",
-    "playlist": "Плейлист"
+    "playlist": "Плейлист",
+    "schedule": "Сетка вещания"
   },
   "overview": {
     "title": "Обзор треков",
@@ -333,5 +334,95 @@
     "groupsLoadError": "Не удалось загрузить группы",
     "groupsSaved": "Группы сохранены",
     "groupsSaveError": "Ошибка сохранения групп"
+  },
+  "schedule": {
+    "title": "Сетка вещания",
+    "description": "Админский просмотр и управление событиями сетки вещания.",
+    "serverId": "ID сервера",
+    "startDate": "Дата начала",
+    "days": "Дней",
+    "refresh": "Обновить сетку",
+    "newEvent": "Новое событие",
+    "loading": "Загрузка...",
+    "all": "Все",
+    "filter": "Фильтр",
+    "legend": "Легенда",
+    "events": "События",
+    "empty": "Нет событий",
+    "emptyDay": "Пусто",
+    "editTitle": "Редактирование события",
+    "createTitle": "Новое событие",
+    "save": "Сохранить",
+    "create": "Создать",
+    "delete": "Удалить",
+    "reset": "Сбросить",
+    "showAdvanced": "Показать / скрыть расширенные поля",
+    "fields": {
+      "name": "Название",
+      "castType": "Тип события",
+      "periodicity": "Периодичность",
+      "server": "Сервер",
+      "startDate": "Дата старта",
+      "startTime": "Время старта",
+      "finishDate": "Дата завершения",
+      "finishTime": "Время завершения",
+      "playlist": "Плейлист",
+      "localTime": "Локальное время",
+      "timezone": "Часовой пояс"
+    },
+    "playlistPlaceholder": "Выберите плейлист",
+    "playlistHint": "Список подгружается из Streaming.Center, можно оставить поле пустым для ручного ввода.",
+    "loadingPlaylists": "Загрузка плейлистов...",
+    "badges": {
+      "id": "ID",
+      "server": "Сервер",
+      "type": "Тип",
+      "color": "Цвет"
+    },
+    "serverInstance": "Сервер {n}",
+    "castTypes": {
+      "playlist": "Плейлист",
+      "radioshow": "Радиошоу",
+      "relay": "Ретрансляция",
+      "rotation": "Ротация"
+    },
+    "periodicity": {
+      "onetime": "Разовое",
+      "periodic": "Периодическое"
+    },
+    "weekday": {
+      "mon": "Пн",
+      "tue": "Вт",
+      "wed": "Ср",
+      "thu": "Чт",
+      "fri": "Пт",
+      "sat": "Сб",
+      "sun": "Вс"
+    },
+    "week": {
+      "1": "Неделя 1",
+      "2": "Неделя 2",
+      "3": "Неделя 3",
+      "4": "Неделя 4"
+    },
+    "checkboxes": {
+      "breakTrack": "Прерывать трек",
+      "startPlaylistFromBeginning": "Запускать плейлист сначала",
+      "allowJingles": "Разрешить jingles",
+      "allowSongRequests": "Разрешить song requests",
+      "allowJinglesAfter": "Разрешить jingles после radioshow",
+      "allowSongRequestsAfter": "Разрешить song requests после radioshow"
+    },
+    "messages": {
+      "created": "Событие создано",
+      "updated": "Событие обновлено",
+      "deleted": "Событие удалено"
+    },
+    "confirmDelete": "Удалить событие из сетки?",
+    "errors": {
+      "load": "Не удалось загрузить сетку",
+      "save": "Не удалось сохранить событие",
+      "delete": "Не удалось удалить событие"
+    }
   }
 }
