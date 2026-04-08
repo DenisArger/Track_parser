@@ -364,6 +364,7 @@
       "server": "Server",
       "startDate": "Start date",
       "startTime": "Start time",
+      "hasFinish": "Set end time",
       "finishDate": "End date",
       "finishTime": "End time",
       "playlist": "Playlist",

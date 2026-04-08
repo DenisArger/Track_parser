@@ -12,6 +12,7 @@ type FormState = {
   cast_type: "playlist" | "radioshow" | "relay" | "rotation";
   start_date: string;
   start_time: string;
+  has_finish: boolean;
   finish_date: string;
   finish_time: string;
   playlist: string;
@@ -57,6 +58,7 @@ const emptyForm = (): FormState => {
     cast_type: "playlist",
     start_date: today,
     start_time: "08:00:00",
+    has_finish: false,
     finish_date: today,
     finish_time: "09:00:00",
     playlist: "",
@@ -94,6 +96,8 @@ function parseNumber(value: string): number | null {
 }
 
 function toPayload(form: FormState): GridEventInput {
+  const finish_date = form.has_finish ? form.finish_date : "";
+  const finish_time = form.has_finish ? form.finish_time : "";
   return {
     server: Number.parseInt(form.server, 10) || 1,
     name: form.name.trim(),
@@ -101,8 +105,8 @@ function toPayload(form: FormState): GridEventInput {
     cast_type: form.cast_type,
     start_date: form.start_date,
     start_time: form.start_time,
-    finish_date: form.finish_date || undefined,
-    finish_time: form.finish_time || undefined,
+    finish_date: finish_date || undefined,
+    finish_time: finish_time || undefined,
     playlist: parseNumber(form.playlist),
     playlist_after_radioshow: parseNumber(form.playlist_after_radioshow),
     rotation_after_radioshow: parseNumber(form.rotation_after_radioshow),
@@ -143,6 +147,7 @@ function fromEvent(event: GridEvent): FormState {
     cast_type: (event.cast_type as FormState["cast_type"]) || "playlist",
     start_date: String(event.start_date ?? today),
     start_time: String(event.start_time ?? "08:00:00"),
+    has_finish: Boolean(event.finish_date || event.finish_time),
     finish_date: String(event.finish_date ?? today),
     finish_time: String(event.finish_time ?? "09:00:00"),
     playlist: event.playlist == null ? "" : String(event.playlist),
@@ -606,13 +611,39 @@ export default function RadioScheduleManager() {
               <span className="text-sm">{t("schedule.fields.startTime")}</span>
               <input type="time" step="1" className="w-full rounded-lg border px-3 py-2 bg-white dark:bg-gray-900" value={form.start_time} onChange={(e) => setForm({ ...form, start_time: e.target.value })} />
             </label>
+            <label className="flex items-center gap-2 sm:col-span-2">
+              <input
+                type="checkbox"
+                checked={form.has_finish}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    has_finish: e.target.checked,
+                  })
+                }
+              />
+              <span className="text-sm">{t("schedule.fields.hasFinish")}</span>
+            </label>
             <label className="space-y-1">
               <span className="text-sm">{t("schedule.fields.finishDate")}</span>
-              <input type="date" className="w-full rounded-lg border px-3 py-2 bg-white dark:bg-gray-900" value={form.finish_date} onChange={(e) => setForm({ ...form, finish_date: e.target.value })} />
+              <input
+                type="date"
+                className="w-full rounded-lg border px-3 py-2 bg-white dark:bg-gray-900 disabled:opacity-50"
+                value={form.finish_date}
+                onChange={(e) => setForm({ ...form, finish_date: e.target.value })}
+                disabled={!form.has_finish}
+              />
             </label>
             <label className="space-y-1">
               <span className="text-sm">{t("schedule.fields.finishTime")}</span>
-              <input type="time" step="1" className="w-full rounded-lg border px-3 py-2 bg-white dark:bg-gray-900" value={form.finish_time} onChange={(e) => setForm({ ...form, finish_time: e.target.value })} />
+              <input
+                type="time"
+                step="1"
+                className="w-full rounded-lg border px-3 py-2 bg-white dark:bg-gray-900 disabled:opacity-50"
+                value={form.finish_time}
+                onChange={(e) => setForm({ ...form, finish_time: e.target.value })}
+                disabled={!form.has_finish}
+              />
             </label>
             <label className="space-y-1">
               <span className="text-sm">{t("schedule.fields.playlist")}</span>
@@ -653,17 +684,6 @@ export default function RadioScheduleManager() {
                 <label className="flex items-center gap-2">
                   <input type="checkbox" checked={form.start_playlist_from_beginning} onChange={(e) => setForm({ ...form, start_playlist_from_beginning: e.target.checked })} />
                   <span className="text-sm">{t("schedule.checkboxes.startPlaylistFromBeginning")}</span>
-                </label>
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-2">
-                <label className="space-y-1">
-                  <span className="text-sm">{t("schedule.fields.localTime")}</span>
-                  <input className="w-full rounded-lg border px-3 py-2 bg-white dark:bg-gray-900" value={form.local_time} onChange={(e) => setForm({ ...form, local_time: e.target.value })} />
-                </label>
-                <label className="space-y-1">
-                  <span className="text-sm">{t("schedule.fields.timezone")}</span>
-                  <input className="w-full rounded-lg border px-3 py-2 bg-white dark:bg-gray-900" value={form.timezone} onChange={(e) => setForm({ ...form, timezone: e.target.value })} />
                 </label>
               </div>
 
