@@ -151,11 +151,11 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const trackTypeLabelMap = useMemo(
     () => ({
-      "Быстрый": t("playlist.trackType.fast"),
-      "Средний": t("playlist.trackType.mid"),
-      "Медленный": t("playlist.trackType.slow"),
-      "Модерн": t("playlist.trackType.modern"),
-      "Любой": t("playlist.trackType.any"),
+      "Быстрый": t("trackTypes.fast"),
+      "Средний": t("trackTypes.mid"),
+      "Медленный": t("trackTypes.slow"),
+      "Модерн": t("trackTypes.modern"),
+      "Любой": t("trackTypes.any"),
     }),
     [t]
   );
