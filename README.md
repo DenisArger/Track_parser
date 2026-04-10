@@ -40,6 +40,12 @@ yarn install
 cp .env.example .env
 ```
 
+## Commit Workflow
+- Commit messages follow Conventional Commits, validated by `commit-msg` via `commitlint`.
+- `pre-commit` runs `yarn lint-staged` and then `yarn verify` before the commit is created.
+- `pre-push` runs `yarn verify` again, so `git push` is blocked if build or tests fail.
+- `yarn verify` is the local gate for this workflow and runs `yarn build && yarn test:ci`.
+
 ## Русский
 ## Проблема
 Радиокоманда тратит много времени на ручную подготовку треков: скачивание, проверка, обрезка, теги и загрузка.

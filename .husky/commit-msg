@@ -1,3 +1,3 @@
 . "$HOME/.nvm/nvm.sh"
 nvm use --silent --lts >/dev/null
-corepack yarn lint-staged && corepack yarn verify
+corepack yarn commitlint --edit "$1"

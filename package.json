@@ -5,12 +5,13 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "yarn lint && yarn test:ci && next build",
+    "build": "next build",
     "start": "next start",
     "lint": "eslint . --ext .ts,.tsx,.js,.jsx",
     "test": "vitest",
     "test:ci": "NODE_ENV=test vitest run",
     "test:coverage": "vitest run --coverage",
+    "verify": "yarn build && yarn test:ci",
     "check": "node scripts/check-ffmpeg.js",
     "migrate:tracks": "tsx scripts/migrate-tracks-to-supabase.ts",
     "migrate:files": "tsx scripts/migrate-files-to-storage.ts",
@@ -40,6 +41,8 @@
     "wavesurfer.js": "^7.12.1"
   },
   "devDependencies": {
+    "@commitlint/cli": "^19.8.1",
+    "@commitlint/config-conventional": "^19.8.1",
     "@eslint/eslintrc": "^3.3.3",
     "@eslint/js": "^9.39.2",
     "@testing-library/dom": "^10.4.0",
