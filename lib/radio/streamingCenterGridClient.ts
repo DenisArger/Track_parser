@@ -92,13 +92,18 @@ function normalizeApiBase(apiUrl: string): string {
 
 function buildAuthHeaders(apiKey: string): HeadersInit {
   return {
-    "SC-API-KEY": apiKey,
+    Authorization: apiKey.startsWith("JWT ") ? apiKey : `JWT ${apiKey}`,
   };
 }
 
+function sanitizeToken(apiKey: string): string {
+  return apiKey.replace(/^JWT\s+/i, "");
+}
+
 function describeAuthHeaders(apiKey: string): Record<string, string> {
+  const token = sanitizeToken(apiKey);
   return {
-    "SC-API-KEY": apiKey ? `${apiKey.slice(0, 2)}***${apiKey.slice(-2)}` : "<empty>",
+    Authorization: token ? `JWT ${token.slice(0, 2)}***${token.slice(-2)}` : "<empty>",
   };
 }
 
@@ -114,7 +119,7 @@ function friendlyStreamingCenterMessage(message: string): string {
   if (!normalized) return normalized;
   if (normalized.toLowerCase().includes("authentication credentials were not provided")) {
     return (
-      "Streaming.Center требует `SC-API-KEY` для этой операции. " +
+      "Streaming.Center требует `Authorization: JWT <token>` для этой операции. " +
       "Проверьте, что STREAMING_CENTER_API_KEY задан и передаётся в HTTP-заголовке."
     );
   }

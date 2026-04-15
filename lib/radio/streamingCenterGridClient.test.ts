@@ -32,7 +32,7 @@ describe("streamingCenterGridClient", () => {
     expect(events).toEqual([{ id: 1, name: "Morning" }]);
     expect(mockFetch).toHaveBeenCalledWith(
       "https://api.example.com/api/v2/grid/?server=2&start_ts=10&end_ts=20&utc=1",
-      { headers: { "SC-API-KEY": "key" } }
+      { headers: { Authorization: "JWT key" } }
     );
   });
 
