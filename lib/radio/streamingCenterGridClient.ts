@@ -96,6 +96,12 @@ function buildAuthHeaders(apiKey: string): HeadersInit {
   };
 }
 
+function describeAuthHeaders(apiKey: string): Record<string, string> {
+  return {
+    "SC-API-KEY": apiKey ? `${apiKey.slice(0, 2)}***${apiKey.slice(-2)}` : "<empty>",
+  };
+}
+
 function parseBodyMessage(data: unknown): string {
   if (typeof data === "string" && data.trim()) return data.trim();
   if (!data || typeof data !== "object") return "";
@@ -180,7 +186,13 @@ export async function fetchGridEvents(
     end_ts: params.endTs,
     utc: params.utc ?? 1,
   })}`;
-  const res = await fetch(url, { headers: buildAuthHeaders(apiKey) });
+  const headers = buildAuthHeaders(apiKey);
+  console.info("[streamingCenterGridClient] read request", {
+    method: "GET",
+    url,
+    headers: describeAuthHeaders(apiKey),
+  });
+  const res = await fetch(url, { headers });
   return unwrapGridItems(await readResponse(res, url));
 }
 
@@ -193,17 +205,14 @@ async function writeGridEvent(
 ): Promise<GridEvent> {
   const base = normalizeApiBase(apiUrl);
   const url = id ? `${base}/api/v2/grid/${id}/` : `${base}/api/v2/grid/`;
-  const res = await fetch(url, {
-    method,
-    headers: {
-      ...buildAuthHeaders(apiKey),
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
-  });
+  const headers = {
+    ...buildAuthHeaders(apiKey),
+    "Content-Type": "application/json",
+  };
   console.info("[streamingCenterGridClient] write request", {
     method,
     url,
+    headers: describeAuthHeaders(apiKey),
     payloadKeys: Object.keys(payload),
     payloadSummary: {
       server: payload.server,
@@ -225,6 +234,11 @@ async function writeGridEvent(
       break_track: payload.break_track ?? null,
       start_playlist_from_beginning: payload.start_playlist_from_beginning ?? null,
     },
+  });
+  const res = await fetch(url, {
+    method,
+    headers,
+    body: JSON.stringify(payload),
   });
   const data = await readResponse(res, url);
   if (Array.isArray(data)) return (data[0] as GridEvent) ?? payload;
@@ -255,9 +269,15 @@ export async function deleteGridEvent(
 ): Promise<void> {
   const base = normalizeApiBase(apiUrl);
   const url = `${base}/api/v2/grid/${id}/`;
+  const headers = buildAuthHeaders(apiKey);
+  console.info("[streamingCenterGridClient] delete request", {
+    method: "DELETE",
+    url,
+    headers: describeAuthHeaders(apiKey),
+  });
   const res = await fetch(url, {
     method: "DELETE",
-    headers: buildAuthHeaders(apiKey),
+    headers,
   });
   await readResponse(res, url);
 }
