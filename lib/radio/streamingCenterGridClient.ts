@@ -205,6 +205,26 @@ async function writeGridEvent(
     method,
     url,
     payloadKeys: Object.keys(payload),
+    payloadSummary: {
+      server: payload.server,
+      name: payload.name,
+      periodicity: payload.periodicity,
+      cast_type: payload.cast_type,
+      start_date: payload.start_date,
+      start_time: payload.start_time,
+      finish_date: payload.finish_date ?? null,
+      finish_time: payload.finish_time ?? null,
+      playlist: payload.playlist ?? null,
+      playlist_after_radioshow: payload.playlist_after_radioshow ?? null,
+      rotation_after_radioshow: payload.rotation_after_radioshow ?? null,
+      dj: payload.dj ?? null,
+      rotation: payload.rotation ?? null,
+      timezone: payload.timezone ?? null,
+      color: payload.color ?? null,
+      color2: payload.color2 ?? null,
+      break_track: payload.break_track ?? null,
+      start_playlist_from_beginning: payload.start_playlist_from_beginning ?? null,
+    },
   });
   const data = await readResponse(res, url);
   if (Array.isArray(data)) return (data[0] as GridEvent) ?? payload;

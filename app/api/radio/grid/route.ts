@@ -68,13 +68,36 @@ export async function POST(request: Request) {
 
     const body = await request.json();
     const { apiUrl, apiKey } = getGridEnv();
+    const bodyObj = body && typeof body === "object" ? (body as Record<string, unknown>) : null;
     console.info("[radio grid] POST", {
       apiUrl,
       apiKeyPresent: Boolean(apiKey),
       apiKeyHint: maskKey(apiKey),
-      bodyKeys: body && typeof body === "object" ? Object.keys(body as Record<string, unknown>) : [],
+      bodyKeys: bodyObj ? Object.keys(bodyObj) : [],
+      summary: bodyObj
+        ? {
+            server: bodyObj.server ?? null,
+            name: bodyObj.name ?? null,
+            periodicity: bodyObj.periodicity ?? null,
+            cast_type: bodyObj.cast_type ?? null,
+            start_date: bodyObj.start_date ?? null,
+            start_time: bodyObj.start_time ?? null,
+            finish_date: bodyObj.finish_date ?? null,
+            finish_time: bodyObj.finish_time ?? null,
+            playlist: bodyObj.playlist ?? null,
+            playlist_after_radioshow: bodyObj.playlist_after_radioshow ?? null,
+            rotation_after_radioshow: bodyObj.rotation_after_radioshow ?? null,
+            dj: bodyObj.dj ?? null,
+            rotation: bodyObj.rotation ?? null,
+            timezone: bodyObj.timezone ?? null,
+            color: bodyObj.color ?? null,
+            color2: bodyObj.color2 ?? null,
+            break_track: bodyObj.break_track ?? null,
+            start_playlist_from_beginning: bodyObj.start_playlist_from_beginning ?? null,
+          }
+        : null,
     });
-    const event = await createGridEvent(apiUrl, apiKey, body);
+    const event = await createGridEvent(apiUrl, apiKey, body as Parameters<typeof createGridEvent>[2]);
     console.info("[radio grid] POST ok", {
       id: event.id ?? null,
       name: event.name ?? null,

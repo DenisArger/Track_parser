@@ -277,6 +277,26 @@ export default function RadioScheduleManager() {
     setMessage(null);
     try {
       const payload = toPayload(form);
+      console.info("[radio schedule] submit", {
+        mode: form.id ? "update" : "create",
+        formId: form.id ?? null,
+        server: payload.server,
+        name: payload.name,
+        periodicity: payload.periodicity,
+        cast_type: payload.cast_type,
+        start_date: payload.start_date,
+        start_time: payload.start_time,
+        finish_date: payload.finish_date ?? null,
+        finish_time: payload.finish_time ?? null,
+        playlist: payload.playlist ?? null,
+        playlist_after_radioshow: payload.playlist_after_radioshow ?? null,
+        rotation_after_radioshow: payload.rotation_after_radioshow ?? null,
+        dj: payload.dj ?? null,
+        rotation: payload.rotation ?? null,
+        timezone: payload.timezone ?? null,
+        break_track: payload.break_track ?? null,
+        start_playlist_from_beginning: payload.start_playlist_from_beginning ?? null,
+      });
       const response = await fetch(form.id ? `/api/radio/grid/${form.id}` : "/api/radio/grid", {
         method: form.id ? "PUT" : "POST",
         credentials: "include",
@@ -284,6 +304,12 @@ export default function RadioScheduleManager() {
         body: JSON.stringify(payload),
       });
       const data = await response.json();
+      console.info("[radio schedule] submit response", {
+        ok: response.ok,
+        status: response.status,
+        statusText: response.statusText,
+        bodyKeys: data && typeof data === "object" ? Object.keys(data) : [],
+      });
       if (!response.ok) throw new Error(data.error || String(response.status));
       setMessage(form.id ? t("schedule.messages.updated") : t("schedule.messages.created"));
       resetForm();
