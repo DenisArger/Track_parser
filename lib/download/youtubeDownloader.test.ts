@@ -48,6 +48,11 @@ describe("youtubeDownloader", () => {
 
     mockedAxios.request.mockResolvedValue({
       data: { status: "ok", link: "https://cdn/audio", title: "Title" },
+      headers: {
+        "x-ratelimit-limit": "100",
+        "x-ratelimit-remaining": "99",
+        "x-ratelimit-reset": "1234567890",
+      },
     } as never);
     mockedAxios.get.mockResolvedValue({
       data: Buffer.from([1, 2, 3]),
@@ -56,10 +61,10 @@ describe("youtubeDownloader", () => {
 
   it("extractVideoId parses supported youtube urls", () => {
     expect(
-      extractVideoId("https://www.youtube.com/watch?v=abc123&list=ignored")
+      extractVideoId("https://www.youtube.com/watch?v=abc123&list=ignored"),
     ).toBe("abc123");
     expect(extractVideoId("https://music.youtube.com/watch?v=zzz999")).toBe(
-      "zzz999"
+      "zzz999",
     );
     expect(extractVideoId("https://youtu.be/QWE123")).toBe("QWE123");
     expect(extractVideoId("https://youtube.com/embed/EMB777")).toBe("EMB777");
@@ -67,10 +72,10 @@ describe("youtubeDownloader", () => {
 
   it("extractVideoId throws on playlist and invalid URLs", () => {
     expect(() =>
-      extractVideoId("https://youtube.com/playlist?list=PL123")
+      extractVideoId("https://youtube.com/playlist?list=PL123"),
     ).toThrow("Плейлисты не поддерживаются");
     expect(() => extractVideoId("https://example.com/not-youtube")).toThrow(
-      "Invalid YouTube URL"
+      "Invalid YouTube URL",
     );
   });
 
@@ -78,27 +83,37 @@ describe("youtubeDownloader", () => {
     mockEnsureDir.mockRejectedValue(new Error("no permissions"));
 
     await expect(
-      downloadTrackViaRapidAPI("https://youtube.com/watch?v=abc", "/tmp/out")
+      downloadTrackViaRapidAPI("https://youtube.com/watch?v=abc", "/tmp/out"),
     ).rejects.toThrow("Failed to create output directory: no permissions");
   });
 
   it("downloadTrackViaRapidAPI throws on RapidAPI fail status", async () => {
     mockedAxios.request.mockResolvedValue({
       data: { status: "fail", msg: "quota exceeded" },
+      headers: {
+        "x-ratelimit-limit": "100",
+        "x-ratelimit-remaining": "0",
+        "x-ratelimit-reset": "1234567890",
+      },
     } as never);
 
     await expect(
-      downloadTrackViaRapidAPI("https://youtube.com/watch?v=abc", "/tmp/out")
+      downloadTrackViaRapidAPI("https://youtube.com/watch?v=abc", "/tmp/out"),
     ).rejects.toThrow("RapidAPI error: quota exceeded");
   });
 
   it("downloadTrackViaRapidAPI throws when link is missing", async () => {
     mockedAxios.request.mockResolvedValue({
       data: { status: "ok", title: "No link title" },
+      headers: {
+        "x-ratelimit-limit": "100",
+        "x-ratelimit-remaining": "50",
+        "x-ratelimit-reset": "1234567890",
+      },
     } as never);
 
     await expect(
-      downloadTrackViaRapidAPI("https://youtube.com/watch?v=abc", "/tmp/out")
+      downloadTrackViaRapidAPI("https://youtube.com/watch?v=abc", "/tmp/out"),
     ).rejects.toThrow("No download link received from RapidAPI");
   });
 
@@ -108,19 +123,23 @@ describe("youtubeDownloader", () => {
     const result = await downloadTrackViaRapidAPI(
       "https://youtube.com/watch?v=abc123",
       "/tmp/out",
-      "trk1"
+      "trk1",
     );
 
     expect(mockSanitizeFilenameForStorage).toHaveBeenCalledWith("Title.mp3");
-    expect(normalizePath(mockWriteFile.mock.calls[0][0] as string)).toBe("/tmp/out/safe.mp3");
+    expect(normalizePath(mockWriteFile.mock.calls[0][0] as string)).toBe(
+      "/tmp/out/safe.mp3",
+    );
     expect(mockWriteFile.mock.calls[0][1]).toEqual(expect.any(Buffer));
     expect(mockUploadFileToStorage).toHaveBeenCalledWith(
       "downloads",
       "trk1/safe.mp3",
       expect.any(Buffer),
-      { contentType: "audio/mpeg", upsert: true }
+      { contentType: "audio/mpeg", upsert: true },
     );
-    expect(normalizePath(mockRemove.mock.calls[0][0] as string)).toBe("/tmp/out/safe.mp3");
+    expect(normalizePath(mockRemove.mock.calls[0][0] as string)).toBe(
+      "/tmp/out/safe.mp3",
+    );
     expect(result).toEqual({
       filePath: "trk1/safe.mp3",
       title: "Title",

@@ -14,10 +14,17 @@ export function extractVideoId(url: string): string {
     /(?:(?:youtube\.com|music\.youtube\.com)\/watch\?v=|youtu\.be\/|(?:youtube\.com|music\.youtube\.com)\/embed\/)([^&\n?#]+)/;
   const match = url.match(regex);
   if (!match) {
-    if (/youtube\.com|music\.youtube\.com/.test(url) && /list=|\/playlist/.test(url)) {
-      throw new Error("Плейлисты не поддерживаются. Вставьте ссылку на один трек (Watch).");
+    if (
+      /youtube\.com|music\.youtube\.com/.test(url) &&
+      /list=|\/playlist/.test(url)
+    ) {
+      throw new Error(
+        "Плейлисты не поддерживаются. Вставьте ссылку на один трек (Watch).",
+      );
     }
-    throw new Error("Invalid YouTube URL. Ожидается ссылка на видео (youtube.com/watch или music.youtube.com/watch).");
+    throw new Error(
+      "Invalid YouTube URL. Ожидается ссылка на видео (youtube.com/watch или music.youtube.com/watch).",
+    );
   }
   return match[1];
 }
@@ -28,17 +35,14 @@ export function extractVideoId(url: string): string {
 export async function downloadTrackViaRapidAPI(
   url: string,
   outputDir: string,
-  trackId?: string
+  trackId?: string,
 ): Promise<{ filePath: string; title: string; storagePath: string }> {
   // Dynamic imports to avoid issues in serverless
   const fs = await import("fs-extra");
   const path = await import("path");
   const { loadConfig } = await import("@/lib/config");
-  const {
-    uploadFileToStorage,
-    STORAGE_BUCKETS,
-    sanitizeFilenameForStorage,
-  } = await import("@/lib/storage/supabaseStorage");
+  const { uploadFileToStorage, STORAGE_BUCKETS, sanitizeFilenameForStorage } =
+    await import("@/lib/storage/supabaseStorage");
 
   const config = await loadConfig();
 
@@ -66,6 +70,14 @@ export async function downloadTrackViaRapidAPI(
 
   const response = await axios.request(options);
 
+  // Логируем лимиты RapidAPI
+  const rateLimit = {
+    limit: response.headers["x-ratelimit-limit"],
+    remaining: response.headers["x-ratelimit-remaining"],
+    reset: response.headers["x-ratelimit-reset"],
+  };
+  console.log("[RapidAPI] Rate limits:", rateLimit);
+
   if (response.data.status === "fail") {
     throw new Error(`RapidAPI error: ${response.data.msg || "Unknown error"}`);
   }
@@ -73,11 +85,15 @@ export async function downloadTrackViaRapidAPI(
   if (!response.data.link) {
     const status = response.data.status;
     const msg = response.data.msg;
-    console.warn("[RapidAPI] No link in response:", { status, msg, hasTitle: !!response.data.title });
+    console.warn("[RapidAPI] No link in response:", {
+      status,
+      msg,
+      hasTitle: !!response.data.title,
+    });
     throw new Error(
       "No download link received from RapidAPI. " +
-      "Возможные причины: ограничения видео (регион, возраст), премиум/авторские, лимиты подписки RapidAPI или youtube-mp36 не поддерживает этот тип ссылки. " +
-      "Попробуйте другое видео или проверьте квоты на rapidapi.com."
+        "Возможные причины: ограничения видео (регион, возраст), премиум/авторские, лимиты подписки RapidAPI или youtube-mp36 не поддерживает этот тип ссылки. " +
+        "Попробуйте другое видео или проверьте квоты на rapidapi.com.",
     );
   }
 
@@ -107,9 +123,11 @@ export async function downloadTrackViaRapidAPI(
   await fs.writeFile(filepath, audioResponse.data);
 
   // Загружаем в Supabase Storage
-  const storagePath = trackId ? `${trackId}/${filename}` : `${Date.now()}_${filename}`;
+  const storagePath = trackId
+    ? `${trackId}/${filename}`
+    : `${Date.now()}_${filename}`;
   const fileBuffer = Buffer.from(audioResponse.data);
-  
+
   const { path: uploadedPath } = await uploadFileToStorage(
     STORAGE_BUCKETS.downloads,
     storagePath,
@@ -117,7 +135,7 @@ export async function downloadTrackViaRapidAPI(
     {
       contentType: "audio/mpeg",
       upsert: true,
-    }
+    },
   );
 
   // Всегда удаляем локальный файл после успешной загрузки в Storage
