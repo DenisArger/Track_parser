@@ -52,7 +52,10 @@ export function normalizeBucketPath(
 
 function getCandidateBucketPaths(bucket: string, path: string): string[] {
   const normalized = normalizeBucketPath(bucket, path);
-  return normalized === path ? [path] : [path, normalized];
+  const bucketPrefixed = path.startsWith(`${bucket}/`) ? path : `${bucket}/${normalized}`;
+
+  const candidates = [path, normalized, bucketPrefixed];
+  return Array.from(new Set(candidates.filter(Boolean)));
 }
 
 function logStorageLookup(
@@ -93,6 +96,15 @@ export async function uploadFileToStorage(
   }
 ): Promise<{ path: string; publicUrl?: string }> {
   const supabase = createSupabaseServerClient();
+  const pathParts = path.split("/");
+  console.log("[storage:upload:start]", {
+    bucket,
+    path,
+    pathParts,
+    bytes: file.byteLength,
+    contentType: options?.contentType || "audio/mpeg",
+    upsert: options?.upsert ?? true,
+  });
 
   const { data, error } = await supabase.storage
     .from(bucket)
@@ -105,6 +117,13 @@ export async function uploadFileToStorage(
     console.error(`Error uploading file to ${bucket}/${path}:`, error);
     throw error;
   }
+
+  console.log("[storage:upload:success]", {
+    bucket,
+    requestedPath: path,
+    storedPath: data.path,
+    storedPathParts: data.path.split("/"),
+  });
 
   // Получаем public URL если bucket публичный
   const { data: urlData } = supabase.storage

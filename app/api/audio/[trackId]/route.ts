@@ -47,6 +47,7 @@ export async function GET(
       originalPath: track.originalPath,
       processedPath: track.processedPath,
       resolvedPath: storagePath,
+      resolvedPathParts: storagePath.split("/"),
       forceProcessed,
       status: track.status,
     });
@@ -93,6 +94,7 @@ export async function GET(
         trackId,
         storageBucket,
         storagePath,
+        storagePathParts: storagePath.split("/"),
       });
       return NextResponse.redirect(signedUrl);
     } catch (storageError) {
@@ -100,6 +102,7 @@ export async function GET(
         trackId,
         storageBucket,
         storagePath,
+        storagePathParts: storagePath.split("/"),
         storageError,
       });
       if (rangeHeader) {
@@ -111,6 +114,7 @@ export async function GET(
             trackId,
             storageBucket,
             storagePath,
+            storagePathParts: storagePath.split("/"),
             bufferError,
           });
         }
@@ -133,6 +137,7 @@ export async function GET(
           sourceUrl,
           sourceType,
           downloadsDir: config.folders.downloads,
+          originalPathBeforeRedownload: track.originalPath,
         });
         const result = await downloadTrackViaRapidAPI(sourceUrl, config.folders.downloads, trackId);
         track.originalPath = result.storagePath;
@@ -140,6 +145,7 @@ export async function GET(
         console.log("[audio:serve] serverless re-download complete", {
           trackId,
           storagePath: result.storagePath,
+          storagePathParts: result.storagePath.split("/"),
         });
         const fileBuffer = await downloadFileFromStorage(STORAGE_BUCKETS.downloads, result.storagePath);
         return serveFromBuffer(fileBuffer, track.filename);

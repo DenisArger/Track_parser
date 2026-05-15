@@ -127,6 +127,15 @@ export async function downloadTrackViaRapidAPI(
     ? `${trackId}/${filename}`
     : `${Date.now()}_${filename}`;
   const fileBuffer = Buffer.from(audioResponse.data);
+  console.log("[youtubeDownloader] upload target", {
+    trackId,
+    storageBucket: STORAGE_BUCKETS.downloads,
+    storagePath,
+    storagePathParts: storagePath.split("/"),
+    filename,
+    outputDir,
+    sourceTitle: response.data.title,
+  });
 
   const { path: uploadedPath } = await uploadFileToStorage(
     STORAGE_BUCKETS.downloads,
@@ -144,6 +153,13 @@ export async function downloadTrackViaRapidAPI(
   } catch (e) {
     // Игнорируем ошибки удаления
   }
+
+  console.log("[youtubeDownloader] upload complete", {
+    trackId,
+    uploadedPath,
+    storagePath,
+    uploadedPathParts: uploadedPath.split("/"),
+  });
 
   return {
     filePath: uploadedPath,
