@@ -1,3 +1,5 @@
+export LANG=C.UTF-8
+export LC_ALL=C.UTF-8
 . "$HOME/.nvm/nvm.sh"
-nvm use --silent --lts >/dev/null
+nvm use --silent >/dev/null
 corepack yarn commitlint --edit "$1"

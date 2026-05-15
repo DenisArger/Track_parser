@@ -55,6 +55,19 @@ function getCandidateBucketPaths(bucket: string, path: string): string[] {
   return normalized === path ? [path] : [path, normalized];
 }
 
+function logStorageLookup(
+  action: string,
+  bucket: string,
+  path: string,
+  details: Record<string, unknown>
+) {
+  console.log(`[storage:${action}]`, {
+    bucket,
+    path,
+    ...details,
+  });
+}
+
 /**
  * Возвращает bucket для originalPath в зависимости от status.
  * rejected → rejected, иначе → downloads.
@@ -114,15 +127,22 @@ export async function createSignedUrl(
 ): Promise<string> {
   const supabase = createSupabaseServerClient();
   let lastError: unknown;
+  const candidates = getCandidateBucketPaths(bucket, path);
+  logStorageLookup("signed-url:start", bucket, path, { expiresIn, candidates });
 
-  for (const candidate of getCandidateBucketPaths(bucket, path)) {
+  for (const candidate of candidates) {
     const { data, error } = await supabase.storage
       .from(bucket)
       .createSignedUrl(candidate, expiresIn);
 
     if (!error && data?.signedUrl) {
+      logStorageLookup("signed-url:success", bucket, path, { candidate });
       return data.signedUrl;
     }
+    logStorageLookup("signed-url:miss", bucket, path, {
+      candidate,
+      error: error instanceof Error ? error.message : error,
+    });
     lastError = error;
   }
 
@@ -139,16 +159,23 @@ export async function downloadFileFromStorage(
 ): Promise<Buffer> {
   const supabase = createSupabaseServerClient();
   let lastError: unknown;
+  const candidates = getCandidateBucketPaths(bucket, path);
+  logStorageLookup("download:start", bucket, path, { candidates });
 
-  for (const candidate of getCandidateBucketPaths(bucket, path)) {
+  for (const candidate of candidates) {
     const { data, error } = await supabase.storage
       .from(bucket)
       .download(candidate);
 
     if (!error && data) {
+      logStorageLookup("download:success", bucket, path, { candidate });
       const arrayBuffer = await data.arrayBuffer();
       return Buffer.from(arrayBuffer);
     }
+    logStorageLookup("download:miss", bucket, path, {
+      candidate,
+      error: error instanceof Error ? error.message : error,
+    });
     lastError = error;
   }
 
@@ -180,17 +207,28 @@ export async function fileExistsInStorage(
   path: string
 ): Promise<boolean> {
   const supabase = createSupabaseServerClient();
-  for (const candidate of getCandidateBucketPaths(bucket, path)) {
+  const candidates = getCandidateBucketPaths(bucket, path);
+  logStorageLookup("exists:start", bucket, path, { candidates });
+
+  for (const candidate of candidates) {
     const { data, error } = await supabase.storage
       .from(bucket)
       .list(candidate.split("/").slice(0, -1).join("/") || "", {
         limit: 1000,
       });
 
-    if (error) continue;
+    if (error) {
+      logStorageLookup("exists:miss", bucket, path, {
+        candidate,
+        error: error instanceof Error ? error.message : error,
+      });
+      continue;
+    }
 
     const fileName = candidate.split("/").pop();
-    if (data?.some((file) => file.name === fileName)) return true;
+    const found = data?.some((file) => file.name === fileName) ?? false;
+    logStorageLookup("exists:check", bucket, path, { candidate, found });
+    if (found) return true;
   }
 
   return false;

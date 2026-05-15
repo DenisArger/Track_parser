@@ -40,6 +40,16 @@ export async function GET(
     if (bucket === "processed" || filePath.startsWith("processed/")) storageBucket = STORAGE_BUCKETS.processed;
     else if (bucket === "rejected" || filePath.startsWith("rejected/")) storageBucket = STORAGE_BUCKETS.rejected;
     const storagePath = filePath;
+    console.log("[audio:serve] resolved storage target", {
+      trackId,
+      bucket,
+      storageBucket,
+      originalPath: track.originalPath,
+      processedPath: track.processedPath,
+      resolvedPath: storagePath,
+      forceProcessed,
+      status: track.status,
+    });
 
     const rangeHeader = request.headers.get("range");
 
@@ -79,15 +89,30 @@ export async function GET(
 
     try {
       const signedUrl = await createSignedUrl(storageBucket, storagePath, 3600);
+      console.log("[audio:serve] signed URL created", {
+        trackId,
+        storageBucket,
+        storagePath,
+      });
       return NextResponse.redirect(signedUrl);
     } catch (storageError) {
-      console.error("Error accessing Storage:", storageError);
+      console.error("[audio:serve] Error accessing Storage:", {
+        trackId,
+        storageBucket,
+        storagePath,
+        storageError,
+      });
       if (rangeHeader) {
         try {
           const fileBuffer = await downloadFileFromStorage(storageBucket, storagePath);
           return serveFromBuffer(fileBuffer, track.filename);
         } catch (bufferError) {
-          console.error("Error downloading file buffer:", bufferError);
+          console.error("[audio:serve] Error downloading file buffer:", {
+            trackId,
+            storageBucket,
+            storagePath,
+            bufferError,
+          });
         }
       }
     }
@@ -103,13 +128,26 @@ export async function GET(
         const { downloadTrackViaRapidAPI } = await import("@/lib/download/youtubeDownloader");
         const { setTrack } = await import("@/lib/storage/trackStorage");
         const config = await loadConfig();
+        console.log("[audio:serve] starting serverless re-download", {
+          trackId,
+          sourceUrl,
+          sourceType,
+          downloadsDir: config.folders.downloads,
+        });
         const result = await downloadTrackViaRapidAPI(sourceUrl, config.folders.downloads, trackId);
         track.originalPath = result.storagePath;
         await setTrack(trackId, track);
+        console.log("[audio:serve] serverless re-download complete", {
+          trackId,
+          storagePath: result.storagePath,
+        });
         const fileBuffer = await downloadFileFromStorage(STORAGE_BUCKETS.downloads, result.storagePath);
         return serveFromBuffer(fileBuffer, track.filename);
       } catch (reDownloadError) {
-        console.error("[SERVERLESS] Re-download failed:", reDownloadError);
+        console.error("[audio:serve] [SERVERLESS] Re-download failed:", {
+          trackId,
+          reDownloadError,
+        });
       }
     }
 
