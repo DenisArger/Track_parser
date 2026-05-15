@@ -7,7 +7,6 @@ import { getMessages } from "@/lib/i18n/getMessages";
 
 const mockUpdateMetadataAction = vi.fn();
 const mockFetch = vi.fn();
-const mockAlert = vi.fn();
 
 type EditableTrack = {
   id: string;
@@ -26,7 +25,6 @@ describe("MetadataEditor", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.stubGlobal("fetch", mockFetch);
-    vi.stubGlobal("alert", mockAlert);
 
     mockFetch.mockImplementation((input: RequestInfo | URL, _init?: RequestInit) => {
       const url = typeof input === "string" ? input : input.toString();
@@ -127,7 +125,7 @@ describe("MetadataEditor", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save Metadata" }));
 
     await waitFor(() => {
-      expect(mockAlert).toHaveBeenCalledWith("Error updating metadata: save failed");
+      expect(screen.getByText("Error updating metadata: save failed")).toBeInTheDocument();
     });
 
     expect(screen.queryByLabelText("Status")).not.toBeInTheDocument();

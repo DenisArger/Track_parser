@@ -2,6 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useI18n } from "./I18nProvider";
+import {
+  formatErrorReportForCopy,
+  reportClientError,
+} from "@/lib/utils/errorReporter";
+import ErrorDetails from "./ErrorDetails";
 import Spinner from "./Spinner";
 
 type PlayListProps = {
@@ -77,9 +82,7 @@ function isNewTrack(year: number | null): boolean {
   return year !== null && year >= 2023;
 }
 
-function pickWeightedByRating(
-  items: PlaylistTrack[],
-): PlaylistTrack | null {
+function pickWeightedByRating(items: PlaylistTrack[]): PlaylistTrack | null {
   if (items.length === 0) return null;
   let total = 0;
   const weights = items.map((t) => {
@@ -116,12 +119,43 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
   const [tracks, setTracks] = useState<PlaylistTrack[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorDetails, setErrorDetails] = useState<string | null>(null);
   const [template, setTemplate] = useState<TemplateRow[]>([
-    { id: "r1", trackType: "Быстрый", ageGroup: "old", count: 1, useGlobalLimits: true },
-    { id: "r2", trackType: "Быстрый", ageGroup: "new", count: 1, useGlobalLimits: true },
-    { id: "r3", trackType: "Средний", ageGroup: "old", count: 1, useGlobalLimits: true },
-    { id: "r4", trackType: "Средний", ageGroup: "new", count: 1, useGlobalLimits: true },
-    { id: "r5", trackType: "Медленный", ageGroup: "new", count: 1, useGlobalLimits: true },
+    {
+      id: "r1",
+      trackType: "Быстрый",
+      ageGroup: "old",
+      count: 1,
+      useGlobalLimits: true,
+    },
+    {
+      id: "r2",
+      trackType: "Быстрый",
+      ageGroup: "new",
+      count: 1,
+      useGlobalLimits: true,
+    },
+    {
+      id: "r3",
+      trackType: "Средний",
+      ageGroup: "old",
+      count: 1,
+      useGlobalLimits: true,
+    },
+    {
+      id: "r4",
+      trackType: "Средний",
+      ageGroup: "new",
+      count: 1,
+      useGlobalLimits: true,
+    },
+    {
+      id: "r5",
+      trackType: "Медленный",
+      ageGroup: "new",
+      count: 1,
+      useGlobalLimits: true,
+    },
   ]);
   const [generated, setGenerated] = useState<GeneratedItem[]>([]);
   const [targetHours, setTargetHours] = useState(0);
@@ -149,23 +183,58 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
   const [uploading, setUploading] = useState(false);
   const [uploadMessage, setUploadMessage] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploadErrorDetails, setUploadErrorDetails] = useState<string | null>(
+    null,
+  );
   const trackTypeLabelMap = useMemo(
     () => ({
-      "Быстрый": t("trackTypes.fast"),
-      "Средний": t("trackTypes.mid"),
-      "Медленный": t("trackTypes.slow"),
-      "Модерн": t("trackTypes.modern"),
-      "Любой": t("trackTypes.any"),
+      Быстрый: t("trackTypes.fast"),
+      Средний: t("trackTypes.mid"),
+      Медленный: t("trackTypes.slow"),
+      Модерн: t("trackTypes.modern"),
+      Любой: t("trackTypes.any"),
     }),
-    [t]
+    [t],
   );
+
+  const setDetailedError = (
+    userMessage: string,
+    operation: string,
+    err?: unknown,
+    extras: Record<string, unknown> = {},
+  ) => {
+    setError(userMessage);
+    const report = reportClientError(err ?? userMessage, {
+      operation,
+      component: "PlayList",
+      ...extras,
+    });
+
+    setErrorDetails(formatErrorReportForCopy(report));
+  };
+
+  const setDetailedUploadError = (
+    userMessage: string,
+    operation: string,
+    err?: unknown,
+    extras: Record<string, unknown> = {},
+  ) => {
+    setUploadError(userMessage);
+    const report = reportClientError(err ?? userMessage, {
+      operation,
+      component: "PlayList",
+      ...extras,
+    });
+
+    setUploadErrorDetails(formatErrorReportForCopy(report));
+  };
   const ageOptions = useMemo(
     () => [
       { value: "old" as AgeGroup, label: t("playlist.age.old") },
       { value: "new" as AgeGroup, label: t("playlist.age.new") },
       { value: "any" as AgeGroup, label: t("playlist.age.any") },
     ],
-    [t]
+    [t],
   );
   const formatRowLabel = useCallback(
     (row: TemplateRow) => {
@@ -175,22 +244,30 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
           : row.ageGroup === "old"
             ? ` (${t("playlist.ageSuffix.old")})`
             : ` (${t("playlist.ageSuffix.new")})`;
-      const typeLabel = trackTypeLabelMap[row.trackType as keyof typeof trackTypeLabelMap] || row.trackType;
+      const typeLabel =
+        trackTypeLabelMap[row.trackType as keyof typeof trackTypeLabelMap] ||
+        row.trackType;
       return `${typeLabel}${ageSuffix}`;
     },
-    [t, trackTypeLabelMap]
+    [t, trackTypeLabelMap],
   );
 
   const loadTracks = useCallback(async () => {
     setIsLoading(true);
     setError(null);
+    setErrorDetails(null);
     try {
       const r = await fetch("/api/radio/playlist-tracks");
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || String(r.status));
       setTracks(Array.isArray(d.tracks) ? d.tracks : []);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setDetailedError(
+        e instanceof Error ? e.message : String(e),
+        "load-playlist-tracks",
+        e,
+        { endpoint: "/api/radio/playlist-tracks" },
+      );
     } finally {
       setIsLoading(false);
     }
@@ -209,42 +286,45 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
         setRelatedGroups(Array.isArray(d.groups) ? d.groups : []);
       } catch (e) {
         setRelatedMessage(
-          e instanceof Error ? e.message : t("playlist.groupsLoadError")
+          e instanceof Error ? e.message : t("playlist.groupsLoadError"),
         );
       }
     };
     loadGroups();
   }, [t]);
 
-  const loadTemplate = useCallback(async (name: string) => {
-    try {
-      const r = await fetch(
-        `/api/playlist/rotation-template?name=${encodeURIComponent(name)}`
-      );
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error || String(r.status));
-      if (Array.isArray(d.template) && d.template.length > 0) {
-        setTemplate(d.template as TemplateRow[]);
+  const loadTemplate = useCallback(
+    async (name: string) => {
+      try {
+        const r = await fetch(
+          `/api/playlist/rotation-template?name=${encodeURIComponent(name)}`,
+        );
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error || String(r.status));
+        if (Array.isArray(d.template) && d.template.length > 0) {
+          setTemplate(d.template as TemplateRow[]);
+        }
+        if (d.settings && typeof d.settings === "object") {
+          const s = d.settings as Partial<RotationSettings>;
+          if (typeof s.targetHours === "number") setTargetHours(s.targetHours);
+          if (typeof s.targetMinutes === "number")
+            setTargetMinutes(s.targetMinutes);
+          if (typeof s.avgMinutes === "number") setAvgMinutes(s.avgMinutes);
+          if (typeof s.avgSeconds === "number") setAvgSeconds(s.avgSeconds);
+          if (typeof s.minArtistGapMinutes === "number")
+            setMinArtistGapMinutes(s.minArtistGapMinutes);
+          if (typeof s.minTrackGapMinutes === "number")
+            setMinTrackGapMinutes(s.minTrackGapMinutes);
+        }
+        setTemplateMessage(t("playlist.templateLoaded", { name }));
+      } catch (e) {
+        setTemplateMessage(
+          e instanceof Error ? e.message : t("playlist.templateLoadError"),
+        );
       }
-      if (d.settings && typeof d.settings === "object") {
-        const s = d.settings as Partial<RotationSettings>;
-        if (typeof s.targetHours === "number") setTargetHours(s.targetHours);
-        if (typeof s.targetMinutes === "number")
-          setTargetMinutes(s.targetMinutes);
-        if (typeof s.avgMinutes === "number") setAvgMinutes(s.avgMinutes);
-        if (typeof s.avgSeconds === "number") setAvgSeconds(s.avgSeconds);
-        if (typeof s.minArtistGapMinutes === "number")
-          setMinArtistGapMinutes(s.minArtistGapMinutes);
-        if (typeof s.minTrackGapMinutes === "number")
-          setMinTrackGapMinutes(s.minTrackGapMinutes);
-      }
-      setTemplateMessage(t("playlist.templateLoaded", { name }));
-    } catch (e) {
-      setTemplateMessage(
-        e instanceof Error ? e.message : t("playlist.templateLoadError")
-      );
-    }
-  }, [t]);
+    },
+    [t],
+  );
 
   useEffect(() => {
     loadTemplate(templateName);
@@ -277,7 +357,7 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
 
   const recentCutoffMs = useMemo(
     () => Date.now() - Math.max(1, recentDays) * 24 * 60 * 60 * 1000,
-    [recentDays]
+    [recentDays],
   );
 
   const tracksForGeneration = useMemo(() => {
@@ -291,8 +371,12 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
 
   const availableStats = useMemo(() => {
     const total = tracksForGeneration.length;
-    const oldCount = tracksForGeneration.filter((t) => isOldTrack(t.year)).length;
-    const newCount = tracksForGeneration.filter((t) => isNewTrack(t.year)).length;
+    const oldCount = tracksForGeneration.filter((t) =>
+      isOldTrack(t.year),
+    ).length;
+    const newCount = tracksForGeneration.filter((t) =>
+      isNewTrack(t.year),
+    ).length;
     return { total, oldCount, newCount };
   }, [tracksForGeneration]);
 
@@ -312,11 +396,11 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
   const generate = () => {
     const avgTotalSeconds = Math.max(
       30,
-      Math.floor(avgMinutes * 60 + avgSeconds)
+      Math.floor(avgMinutes * 60 + avgSeconds),
     );
     const targetTotalSeconds = Math.max(
       0,
-      Math.floor(targetHours * 3600 + targetMinutes * 60)
+      Math.floor(targetHours * 3600 + targetMinutes * 60),
     );
 
     const pools = new Map<string, PlaylistTrack[]>();
@@ -335,7 +419,7 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
       t: PlaylistTrack,
       nowSeconds: number,
       artistGapMinutes: number,
-      trackGapMinutes: number
+      trackGapMinutes: number,
     ): boolean => {
       if (artistGapMinutes > 0) {
         const artistKey = normalizeArtistName(t.artist);
@@ -368,11 +452,11 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
       pool: PlaylistTrack[],
       nowSeconds: number,
       artistGapMinutes: number,
-      trackGapMinutes: number
+      trackGapMinutes: number,
     ): PlaylistTrack | null => {
       if (pool.length === 0) return null;
       const filtered = pool.filter((t) =>
-        canUseTrack(t, nowSeconds, artistGapMinutes, trackGapMinutes)
+        canUseTrack(t, nowSeconds, artistGapMinutes, trackGapMinutes),
       );
       if (filtered.length === 0) return null;
       return pickWeightedByRating(filtered);
@@ -444,7 +528,7 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
               pool,
               totalSeconds,
               artistGapMinutes,
-              trackGapMinutes
+              trackGapMinutes,
             );
             items.push({
               rowId: row.id,
@@ -480,7 +564,7 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
           pool,
           totalSeconds,
           artistGapMinutes,
-          trackGapMinutes
+          trackGapMinutes,
         );
         items.push({
           rowId: row.id,
@@ -503,9 +587,8 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
       .filter((t): t is PlaylistTrack => !!t);
     const text = buildM3u(list);
     const safeName =
-      (exportFileName || "playlist")
-        .trim()
-        .replace(/[\\/:*?"<>|]+/g, "_") || "playlist";
+      (exportFileName || "playlist").trim().replace(/[\\/:*?"<>|]+/g, "_") ||
+      "playlist";
     const blob = new Blob([text], { type: "audio/x-mpegurl;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -519,6 +602,7 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
     setUploading(true);
     setUploadMessage(null);
     setUploadError(null);
+    setUploadErrorDetails(null);
     try {
       const items = generated
         .map((g) => g.track)
@@ -526,7 +610,7 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
       if (items.length === 0) {
         throw new Error(t("playlist.noTracksToUpload"));
       }
-          const r = await fetch("/api/radio/upload-playlist", {
+      const r = await fetch("/api/radio/upload-playlist", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -546,8 +630,11 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
       if (!r.ok) throw new Error(d.error || String(r.status));
       setUploadMessage(t("playlist.uploadSuccess"));
     } catch (e) {
-      setUploadError(
-        e instanceof Error ? e.message : t("playlist.uploadError")
+      setDetailedUploadError(
+        e instanceof Error ? e.message : t("playlist.uploadError"),
+        "upload-playlist-to-radio",
+        e,
+        { endpoint: "/api/radio/upload-playlist", serverId: uploadServerId },
       );
     } finally {
       setUploading(false);
@@ -556,7 +643,7 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
 
   const updateRow = (id: string, patch: Partial<TemplateRow>) => {
     setTemplate((prev) =>
-      prev.map((row) => (row.id === id ? { ...row, ...patch } : row))
+      prev.map((row) => (row.id === id ? { ...row, ...patch } : row)),
     );
   };
 
@@ -614,7 +701,7 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
       setTemplateMessage(t("playlist.templateSaved", { name: templateName }));
     } catch (e) {
       setTemplateMessage(
-        e instanceof Error ? e.message : t("playlist.templateSaveError")
+        e instanceof Error ? e.message : t("playlist.templateSaveError"),
       );
     } finally {
       setTemplateSaving(false);
@@ -631,7 +718,7 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
 
   const updateRelatedGroup = (id: string, patch: Partial<RelatedGroup>) => {
     setRelatedGroups((prev) =>
-      prev.map((g) => (g.id === id ? { ...g, ...patch } : g))
+      prev.map((g) => (g.id === id ? { ...g, ...patch } : g)),
     );
   };
 
@@ -659,7 +746,7 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
       setRelatedMessage(t("playlist.groupsSaved"));
     } catch (e) {
       setRelatedMessage(
-        e instanceof Error ? e.message : t("playlist.groupsSaveError")
+        e instanceof Error ? e.message : t("playlist.groupsSaveError"),
       );
     } finally {
       setRelatedSaving(false);
@@ -668,11 +755,11 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
 
   const avgTotalSeconds = Math.max(
     30,
-    Math.floor(avgMinutes * 60 + avgSeconds)
+    Math.floor(avgMinutes * 60 + avgSeconds),
   );
   const targetTotalSeconds = Math.max(
     0,
-    Math.floor(targetHours * 3600 + targetMinutes * 60)
+    Math.floor(targetHours * 3600 + targetMinutes * 60),
   );
   const estimatedSeconds = generated.length * avgTotalSeconds;
 
@@ -714,9 +801,14 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
       </div>
 
       {error && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 text-red-800 dark:text-red-300 text-sm">
-          {error}
-        </div>
+        <ErrorDetails
+          title={t("playlist.errorDetailsTitle")}
+          message={error}
+          details={errorDetails ?? undefined}
+          copyLabel={t("playlist.copyDebugDetails")}
+          copySuccessLabel={t("playlist.copyDebugDetailsSuccess")}
+          copyErrorLabel={t("playlist.copyDebugDetailsError")}
+        />
       )}
 
       <div className="card">
@@ -830,7 +922,9 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
                 onChange={(e) => setTargetHours(Number(e.target.value) || 0)}
                 className="w-20 rounded border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1 text-sm"
               />
-              <span className="text-sm text-gray-500">{t("playlist.hoursShort")}</span>
+              <span className="text-sm text-gray-500">
+                {t("playlist.hoursShort")}
+              </span>
               <input
                 type="number"
                 min={0}
@@ -839,7 +933,9 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
                 onChange={(e) => setTargetMinutes(Number(e.target.value) || 0)}
                 className="w-20 rounded border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1 text-sm"
               />
-              <span className="text-sm text-gray-500">{t("playlist.minutesShort")}</span>
+              <span className="text-sm text-gray-500">
+                {t("playlist.minutesShort")}
+              </span>
             </div>
             <p className="text-xs text-gray-500 mt-1">
               {t("playlist.targetHint")}
@@ -858,7 +954,9 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
                 onChange={(e) => setAvgMinutes(Number(e.target.value) || 0)}
                 className="w-20 rounded border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1 text-sm"
               />
-              <span className="text-sm text-gray-500">{t("playlist.minutesShort")}</span>
+              <span className="text-sm text-gray-500">
+                {t("playlist.minutesShort")}
+              </span>
               <input
                 type="number"
                 min={0}
@@ -867,7 +965,9 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
                 onChange={(e) => setAvgSeconds(Number(e.target.value) || 0)}
                 className="w-20 rounded border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1 text-sm"
               />
-              <span className="text-sm text-gray-500">{t("playlist.secondsShort")}</span>
+              <span className="text-sm text-gray-500">
+                {t("playlist.secondsShort")}
+              </span>
             </div>
           </div>
 
@@ -880,19 +980,27 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
               />
               {t("playlist.recentOnly")}
             </label>
-            <label className="block text-xs text-gray-500 mb-1">{t("playlist.recentDays")}</label>
+            <label className="block text-xs text-gray-500 mb-1">
+              {t("playlist.recentDays")}
+            </label>
             <div className="flex items-center gap-2">
               <input
                 type="number"
                 min={1}
                 value={recentDays}
-                onChange={(e) => setRecentDays(Math.max(1, Number(e.target.value) || 1))}
+                onChange={(e) =>
+                  setRecentDays(Math.max(1, Number(e.target.value) || 1))
+                }
                 disabled={!useRecentOnly}
                 className="w-20 rounded border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1 text-sm disabled:opacity-60"
               />
-              <span className="text-sm text-gray-500">{t("playlist.daysShort")}</span>
+              <span className="text-sm text-gray-500">
+                {t("playlist.daysShort")}
+              </span>
             </div>
-            <p className="text-xs text-gray-500 mt-1">{t("playlist.recentHint")}</p>
+            <p className="text-xs text-gray-500 mt-1">
+              {t("playlist.recentHint")}
+            </p>
           </div>
 
           <div>
@@ -913,7 +1021,7 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
               <div className="text-xs text-gray-500 mt-1">
                 {Math.min(
                   100,
-                  Math.round((estimatedSeconds / targetTotalSeconds) * 100)
+                  Math.round((estimatedSeconds / targetTotalSeconds) * 100),
                 )}
                 {t("playlist.ofTarget")}
               </div>
@@ -936,7 +1044,11 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
                 className="mt-1 min-w-[180px] rounded border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1 text-sm"
               />
             </label>
-            <button type="button" onClick={addRow} className="btn btn-secondary text-sm">
+            <button
+              type="button"
+              onClick={addRow}
+              className="btn btn-secondary text-sm"
+            >
               {t("playlist.addRow")}
             </button>
             <button
@@ -977,7 +1089,9 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
               className="grid grid-cols-1 md:grid-cols-[minmax(140px,1.1fr)_minmax(200px,1.4fr)_80px_140px_140px_150px_auto] gap-3 items-end border rounded-lg p-3 bg-gray-50 dark:bg-gray-800 dark:border-gray-700"
             >
               <div className="flex-1 min-w-[160px]">
-                <label className="block text-xs text-gray-500 mb-1">{t("playlist.typeLabel")}</label>
+                <label className="block text-xs text-gray-500 mb-1">
+                  {t("playlist.typeLabel")}
+                </label>
                 <select
                   value={row.trackType}
                   onChange={(e) =>
@@ -987,14 +1101,18 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
                 >
                   {TRACK_TYPE_OPTIONS.map((opt) => (
                     <option key={opt} value={opt}>
-                      {trackTypeLabelMap[opt as keyof typeof trackTypeLabelMap] || opt}
+                      {trackTypeLabelMap[
+                        opt as keyof typeof trackTypeLabelMap
+                      ] || opt}
                     </option>
                   ))}
                 </select>
               </div>
 
               <div className="flex-1 min-w-[200px]">
-                <label className="block text-xs text-gray-500 mb-1">{t("playlist.ageLabel")}</label>
+                <label className="block text-xs text-gray-500 mb-1">
+                  {t("playlist.ageLabel")}
+                </label>
                 <select
                   value={row.ageGroup}
                   onChange={(e) =>
@@ -1013,7 +1131,9 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
               </div>
 
               <div className="w-24">
-                <label className="block text-xs text-gray-500 mb-1">{t("playlist.countLabel")}</label>
+                <label className="block text-xs text-gray-500 mb-1">
+                  {t("playlist.countLabel")}
+                </label>
                 <input
                   type="number"
                   min={1}
@@ -1033,7 +1153,7 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
                   value={
                     row.useGlobalLimits !== false
                       ? minArtistGapMinutes
-                      : row.artistGapMinutes ?? 0
+                      : (row.artistGapMinutes ?? 0)
                   }
                   onChange={(e) =>
                     updateRow(row.id, {
@@ -1053,7 +1173,7 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
                   value={
                     row.useGlobalLimits !== false
                       ? minTrackGapMinutes
-                      : row.trackGapMinutes ?? 0
+                      : (row.trackGapMinutes ?? 0)
                   }
                   onChange={(e) =>
                     updateRow(row.id, {
@@ -1111,7 +1231,9 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
               type="number"
               min={0}
               value={minArtistGapMinutes}
-              onChange={(e) => setMinArtistGapMinutes(Number(e.target.value) || 0)}
+              onChange={(e) =>
+                setMinArtistGapMinutes(Number(e.target.value) || 0)
+              }
               className="w-32 rounded border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1 text-sm"
             />
           </div>
@@ -1123,7 +1245,9 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
               type="number"
               min={0}
               value={minTrackGapMinutes}
-              onChange={(e) => setMinTrackGapMinutes(Number(e.target.value) || 0)}
+              onChange={(e) =>
+                setMinTrackGapMinutes(Number(e.target.value) || 0)
+              }
               className="w-32 rounded border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1 text-sm"
             />
           </div>
@@ -1144,7 +1268,11 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
                 className="mt-1 min-w-[180px] rounded border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1 text-sm"
               />
             </label>
-            <button type="button" onClick={generate} className="btn btn-primary text-sm">
+            <button
+              type="button"
+              onClick={generate}
+              className="btn btn-primary text-sm"
+            >
               {t("playlist.generate")}
             </button>
             <button
@@ -1231,9 +1359,14 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
           </p>
         )}
         {uploadError && (
-          <p className="text-sm text-red-600 dark:text-red-400 mb-3">
-            {uploadError}
-          </p>
+          <ErrorDetails
+            title={t("playlist.uploadErrorDetailsTitle")}
+            message={uploadError}
+            details={uploadErrorDetails ?? undefined}
+            copyLabel={t("playlist.copyDebugDetails")}
+            copySuccessLabel={t("playlist.copyDebugDetailsSuccess")}
+            copyErrorLabel={t("playlist.copyDebugDetailsError")}
+          />
         )}
 
         <div className="text-sm text-gray-600 dark:text-gray-400 mb-3">

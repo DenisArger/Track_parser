@@ -1,21 +1,34 @@
 import { NextResponse } from "next/server";
+import { buildErrorReport, logServerError } from "@/lib/utils/errorReporter";
 
 /**
  * Обрабатывает ошибки и возвращает стандартизированный ответ
  */
 export function handleApiError(
   error: unknown,
-  defaultMessage: string = "An error occurred"
+  defaultMessage: string = "An error occurred",
+  context: {
+    operation?: string;
+    endpoint?: string;
+    statusCode?: number;
+  } = {},
 ): NextResponse {
+  const report = buildErrorReport(error, {
+    operation: context.operation,
+    endpoint: context.endpoint,
+    statusCode: context.statusCode,
+  });
+
+  logServerError(report);
+
   const message = error instanceof Error ? error.message : defaultMessage;
-  console.error("API Error:", error);
 
   return NextResponse.json(
     {
       error: message,
       success: false,
     },
-    { status: 500 }
+    { status: context.statusCode ?? 500 },
   );
 }
 
@@ -28,7 +41,7 @@ export function handleValidationError(message: string): NextResponse {
       error: message,
       success: false,
     },
-    { status: 400 }
+    { status: 400 },
   );
 }
 
@@ -36,13 +49,13 @@ export function handleValidationError(message: string): NextResponse {
  * Обрабатывает ошибки "не найдено"
  */
 export function handleNotFoundError(
-  message: string = "Resource not found"
+  message: string = "Resource not found",
 ): NextResponse {
   return NextResponse.json(
     {
       error: message,
       success: false,
     },
-    { status: 404 }
+    { status: 404 },
   );
 }

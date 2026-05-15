@@ -6,8 +6,8 @@ import { I18nProvider } from "./I18nProvider";
 import { getMessages } from "@/lib/i18n/getMessages";
 
 const mockDownloadTrackAction = vi.fn();
-const mockGetUserFacingErrorMessage = vi.fn(
-  (e: unknown, fallback: string) => (e instanceof Error ? e.message : fallback)
+const mockGetUserFacingErrorMessage = vi.fn((e: unknown, fallback: string) =>
+  e instanceof Error ? e.message : fallback,
 );
 const mockFetch = vi.fn();
 
@@ -31,7 +31,7 @@ describe("DownloadTrack", () => {
     render(
       <I18nProvider locale="en" messages={getMessages("en")}>
         {ui}
-      </I18nProvider>
+      </I18nProvider>,
     );
 
   const baseTracks = [
@@ -64,21 +64,21 @@ describe("DownloadTrack", () => {
 
   it("renders track sections and validates empty URL", async () => {
     renderWithI18n(
-      <DownloadTrack onTracksUpdate={vi.fn()} tracks={baseTracks} />
+      <DownloadTrack onTracksUpdate={vi.fn()} tracks={baseTracks} />,
     );
 
     expect(screen.getByText("Download Tracks")).toBeInTheDocument();
     expect(screen.getByText("Downloading Tracks")).toBeInTheDocument();
     expect(screen.getByText("Recently Downloaded")).toBeInTheDocument();
 
-    const downloadButton = screen.getByRole("button", { name: "Download Track" });
+    const downloadButton = screen.getByRole("button", {
+      name: "Download Track",
+    });
     expect(downloadButton).toBeDisabled();
   });
 
   it("rejects playlist urls before calling download action", async () => {
-    renderWithI18n(
-      <DownloadTrack onTracksUpdate={vi.fn()} tracks={[]} />
-    );
+    renderWithI18n(<DownloadTrack onTracksUpdate={vi.fn()} tracks={[]} />);
 
     fireEvent.change(screen.getByLabelText("Track URL"), {
       target: { value: "https://youtube.com/playlist?list=abc123" },
@@ -86,7 +86,9 @@ describe("DownloadTrack", () => {
     fireEvent.click(screen.getByRole("button", { name: "Download Track" }));
 
     await waitFor(() => {
-      expect(screen.getByText(/Плейлисты не поддерживаются/)).toBeInTheDocument();
+      expect(
+        screen.getAllByText(/Плейлисты не поддерживаются/)[0],
+      ).toBeInTheDocument();
     });
     expect(mockDownloadTrackAction).not.toHaveBeenCalled();
   });
@@ -98,7 +100,7 @@ describe("DownloadTrack", () => {
       track: { id: "new-1" },
     });
     renderWithI18n(
-      <DownloadTrack onTracksUpdate={onTracksUpdate} tracks={[]} />
+      <DownloadTrack onTracksUpdate={onTracksUpdate} tracks={[]} />,
     );
 
     fireEvent.change(screen.getByLabelText("Track URL"), {
@@ -109,7 +111,7 @@ describe("DownloadTrack", () => {
     await waitFor(() => {
       expect(mockDownloadTrackAction).toHaveBeenCalledWith(
         "https://youtube.com/watch?v=123",
-        undefined
+        undefined,
       );
     });
     expect(onTracksUpdate).toHaveBeenCalledTimes(1);
@@ -118,7 +120,7 @@ describe("DownloadTrack", () => {
   it("uploads local file via signed url flow and calls onTracksUpdate", async () => {
     const onTracksUpdate = vi.fn();
     renderWithI18n(
-      <DownloadTrack onTracksUpdate={onTracksUpdate} tracks={[]} />
+      <DownloadTrack onTracksUpdate={onTracksUpdate} tracks={[]} />,
     );
 
     mockFetch
@@ -128,19 +130,19 @@ describe("DownloadTrack", () => {
             signedUrl: "https://storage.example.com/signed",
             trackId: "t-local-1",
           }),
-          { status: 200, headers: { "Content-Type": "application/json" } }
-        )
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
       )
       .mockResolvedValueOnce(new Response("", { status: 200 }))
       .mockResolvedValueOnce(
         new Response(JSON.stringify({ ok: true }), {
           status: 200,
           headers: { "Content-Type": "application/json" },
-        })
+        }),
       );
 
     const input = document.querySelector(
-      'input[type="file"]'
+      'input[type="file"]',
     ) as HTMLInputElement;
     const file = new File(["abc"], "local.mp3", { type: "audio/mpeg" });
     fireEvent.change(input, { target: { files: [file] } });
@@ -154,20 +156,22 @@ describe("DownloadTrack", () => {
   it("deletes track and calls onTracksUpdate", async () => {
     const onTracksUpdate = vi.fn();
     renderWithI18n(
-      <DownloadTrack onTracksUpdate={onTracksUpdate} tracks={baseTracks} />
+      <DownloadTrack onTracksUpdate={onTracksUpdate} tracks={baseTracks} />,
     );
 
     mockFetch.mockResolvedValue(
       new Response(JSON.stringify({ ok: true }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
-      })
+      }),
     );
 
     fireEvent.click(screen.getAllByRole("button", { name: "Delete" })[0]);
 
     await waitFor(() => {
-      expect(mockFetch).toHaveBeenCalledWith("/api/tracks/p1", { method: "DELETE" });
+      expect(mockFetch).toHaveBeenCalledWith("/api/tracks/p1", {
+        method: "DELETE",
+      });
     });
     expect(onTracksUpdate).toHaveBeenCalledTimes(1);
   });
@@ -184,8 +188,12 @@ describe("DownloadTrack", () => {
     await waitFor(() => {
       expect(screen.getByText("Failed to fetch")).toBeInTheDocument();
       expect(screen.getByText("Debug details")).toBeInTheDocument();
-      expect(screen.getByText(/operation: download-track-action-threw/)).toBeInTheDocument();
-      expect(screen.getByText(/online:/)).toBeInTheDocument();
+      expect(
+        screen.getByText(/"operation": "download-track-action-threw"/),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(/"component": "DownloadTrack"/),
+      ).toBeInTheDocument();
     });
   });
 });

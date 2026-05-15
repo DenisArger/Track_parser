@@ -97,7 +97,11 @@
   "errorPage": {
     "title": "Что-то пошло не так",
     "subtitle": "Произошла ошибка при отображении страницы. Попробуйте еще раз.",
+    "reportHint": "Скопируйте детали ниже и отправьте их разработчику.",
     "errorId": "ID ошибки",
+    "copyDetails": "Скопировать детали ошибки",
+    "copySuccess": "Данные скопированы",
+    "copyFailed": "Не удалось скопировать. Скопируйте вручную.",
     "tryAgain": "Повторить"
   },
   "theme": {
@@ -149,7 +153,11 @@
       "storageUploadFailed": "Ошибка загрузки в хранилище",
       "trackIdRequired": "Нужен ID трека",
       "deleteFailed": "Ошибка удаления"
-    }
+    },
+    "errorDetailsTitle": "Отладочные данные",
+    "copyDebugDetails": "Скопировать отладочные данные",
+    "copyDebugDetailsSuccess": "Скопировано",
+    "copyDebugDetailsError": "Не удалось скопировать. Скопируйте вручную."
   },
   "player": {
     "title": "Прослушивание и оценка",
@@ -340,7 +348,12 @@
     "groupDefaultName": "Группа",
     "groupsLoadError": "Не удалось загрузить группы",
     "groupsSaved": "Группы сохранены",
-    "groupsSaveError": "Ошибка сохранения групп"
+    "groupsSaveError": "Ошибка сохранения групп",
+    "errorDetailsTitle": "Детали ошибки плейлиста",
+    "uploadErrorDetailsTitle": "Детали ошибки загрузки",
+    "copyDebugDetails": "Скопировать отладочные данные",
+    "copyDebugDetailsSuccess": "Скопировано",
+    "copyDebugDetailsError": "Не удалось скопировать. Скопируйте вручную."
   },
   "schedule": {
     "title": "Сетка вещания",
@@ -433,6 +446,10 @@
       "load": "Не удалось загрузить сетку",
       "save": "Не удалось сохранить событие",
       "delete": "Не удалось удалить событие"
-    }
+    },
+    "errorDetailsTitle": "Детали ошибки сетки",
+    "copyDebugDetails": "Скопировать отладочные данные",
+    "copyDebugDetailsSuccess": "Скопировано",
+    "copyDebugDetailsError": "Не удалось скопировать. Скопируйте вручную."
   }
 }

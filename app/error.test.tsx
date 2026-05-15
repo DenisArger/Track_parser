@@ -11,11 +11,14 @@ describe("app error page", () => {
       <ErrorPage
         error={Object.assign(new Error("boom"), { digest: "abc123" })}
         reset={reset}
-      />
+      />,
     );
 
     expect(screen.getByText("Something went wrong!")).toBeInTheDocument();
     expect(screen.getByText("Error ID: abc123")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Copy error details" }),
+    ).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
     expect(reset).toHaveBeenCalledTimes(1);
   });

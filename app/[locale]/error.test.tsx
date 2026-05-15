@@ -16,11 +16,14 @@ describe("locale error page", () => {
           error={Object.assign(new Error("boom"), { digest: "id-42" })}
           reset={reset}
         />
-      </I18nProvider>
+      </I18nProvider>,
     );
 
     expect(screen.getByText("Something went wrong")).toBeInTheDocument();
-    expect(screen.getByText(/Error ID/)).toBeInTheDocument();
+    expect(screen.getByText("Error ID: id-42")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Copy error details" }),
+    ).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
     expect(reset).toHaveBeenCalledTimes(1);
   });

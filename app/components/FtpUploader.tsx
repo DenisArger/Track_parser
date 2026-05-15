@@ -3,8 +3,13 @@
 import { useState, useEffect } from "react";
 import { Track, FtpConfig } from "@/types/track";
 import { getUserFacingErrorMessage } from "@/lib/utils/errorMessage";
+import {
+  formatErrorReportForCopy,
+  reportClientError,
+} from "@/lib/utils/errorReporter";
 import { useI18n } from "./I18nProvider";
 import Spinner from "./Spinner";
+import ErrorDetails from "./ErrorDetails";
 
 interface FtpUploaderProps {
   onTracksUpdate: () => void;
@@ -28,9 +33,14 @@ export default function FtpUploader({
   });
   const [isConfigLoading, setIsConfigLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
-  const [hiddenTrackIds, setHiddenTrackIds] = useState<Record<string, boolean>>({});
+  const [uploadProgress, setUploadProgress] = useState<Record<string, number>>(
+    {},
+  );
+  const [hiddenTrackIds, setHiddenTrackIds] = useState<Record<string, boolean>>(
+    {},
+  );
   const [error, setError] = useState("");
+  const [errorDetails, setErrorDetails] = useState<string | null>(null);
 
   useEffect(() => {
     const loadFtpConfig = async () => {
@@ -95,6 +105,7 @@ export default function FtpUploader({
   const handleUploadTrack = async (trackId: string) => {
     setIsUploading(true);
     setError("");
+    setErrorDetails(null);
     try {
       const response = await fetch("/api/upload-ftp", {
         method: "POST",
@@ -102,11 +113,33 @@ export default function FtpUploader({
         body: JSON.stringify({ trackId, ftpConfig }),
       });
       const responseData = await response.json();
-      if (!response.ok) throw new Error(responseData.error || t("ftp.errors.uploadFailed"));
+      if (!response.ok) {
+        const err = new Error(
+          responseData.error || t("ftp.errors.uploadFailed"),
+        );
+        const report = reportClientError(err, {
+          operation: "upload-track",
+          component: "FtpUploader",
+          endpoint: "/api/upload-ftp",
+          trackId,
+        });
+        setError(getUserFacingErrorMessage(err, t("ftp.errors.uploadFailed")));
+        setErrorDetails(formatErrorReportForCopy(report));
+        return;
+      }
       setHiddenTrackIds((prev) => ({ ...prev, [trackId]: true }));
       onTracksUpdate();
     } catch (err) {
-      setError(getUserFacingErrorMessage(err, t("ftp.errors.uploadFailed")));
+      if (!error) {
+        const report = reportClientError(err, {
+          operation: "upload-track",
+          component: "FtpUploader",
+          endpoint: "/api/upload-ftp",
+          trackId,
+        });
+        setError(getUserFacingErrorMessage(err, t("ftp.errors.uploadFailed")));
+        setErrorDetails(formatErrorReportForCopy(report));
+      }
     } finally {
       setIsUploading(false);
     }
@@ -120,25 +153,56 @@ export default function FtpUploader({
     const confirmed = window.confirm(t("download.deleteConfirm"));
     if (!confirmed) return;
     setError("");
+    setErrorDetails(null);
     try {
-      const response = await fetch(`/api/tracks/${trackId}`, { method: "DELETE" });
+      const response = await fetch(`/api/tracks/${trackId}`, {
+        method: "DELETE",
+      });
       const result = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(result?.error || t("download.errors.deleteFailed"));
+      if (!response.ok) {
+        const err = new Error(
+          result?.error || t("download.errors.deleteFailed"),
+        );
+        const report = reportClientError(err, {
+          operation: "delete-track",
+          component: "FtpUploader",
+          endpoint: `/api/tracks/${trackId}`,
+          trackId,
+        });
+        setError(
+          getUserFacingErrorMessage(err, t("download.errors.deleteFailed")),
+        );
+        setErrorDetails(formatErrorReportForCopy(report));
+        return;
+      }
       setHiddenTrackIds((prev) => ({ ...prev, [trackId]: true }));
       onTracksUpdate();
     } catch (err) {
-      setError(getUserFacingErrorMessage(err, t("download.errors.deleteFailed")));
+      if (!error) {
+        const report = reportClientError(err, {
+          operation: "delete-track",
+          component: "FtpUploader",
+          endpoint: `/api/tracks/${trackId}`,
+          trackId,
+        });
+        setError(
+          getUserFacingErrorMessage(err, t("download.errors.deleteFailed")),
+        );
+        setErrorDetails(formatErrorReportForCopy(report));
+      }
     }
   };
 
   const handleUploadAll = async () => {
     if (processedTracks.length === 0) {
       setError(t("ftp.errors.noTracks"));
+      setErrorDetails(null);
       return;
     }
 
     setIsUploading(true);
     setError("");
+    setErrorDetails(null);
     try {
       for (const track of processedTracks) {
         setUploadProgress((prev) => ({ ...prev, [track.id]: 0 }));
@@ -150,19 +214,38 @@ export default function FtpUploader({
           });
           const responseData = await response.json();
           if (!response.ok) {
-            throw new Error(
+            const trackError = new Error(
               `${t("ftp.errors.uploadFailedFor")} ${track.metadata.title}: ${responseData.error || t("ftp.errors.uploadFailed")}`,
             );
+            const report = reportClientError(trackError, {
+              operation: "upload-all-track",
+              component: "FtpUploader",
+              endpoint: "/api/upload-ftp",
+              trackId: track.id,
+            });
+            setUploadProgress((prev) => ({ ...prev, [track.id]: 0 }));
+            setError(trackError.message);
+            setErrorDetails(formatErrorReportForCopy(report));
+            continue;
           }
           setUploadProgress((prev) => ({ ...prev, [track.id]: 100 }));
           setHiddenTrackIds((prev) => ({ ...prev, [track.id]: true }));
         } catch (trackError) {
+          const report = reportClientError(trackError, {
+            operation: "upload-all-track",
+            component: "FtpUploader",
+            endpoint: "/api/upload-ftp",
+            trackId: track.id,
+          });
           setUploadProgress((prev) => ({ ...prev, [track.id]: 0 }));
           setError(
             `${t("ftp.errors.uploadFailedFor")} ${track.metadata.title}: ${
-              trackError instanceof Error ? trackError.message : String(trackError)
+              trackError instanceof Error
+                ? trackError.message
+                : String(trackError)
             }`,
           );
+          setErrorDetails(formatErrorReportForCopy(report));
         }
       }
       onTracksUpdate();
@@ -175,16 +258,36 @@ export default function FtpUploader({
   };
 
   const handleTestConnection = async () => {
+    setError("");
+    setErrorDetails(null);
     try {
       const response = await fetch("/api/test-ftp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(ftpConfig),
       });
-      if (!response.ok) throw new Error(t("ftp.errors.connectionFailed"));
+      if (!response.ok) {
+        const err = new Error(t("ftp.errors.connectionFailed"));
+        const report = reportClientError(err, {
+          operation: "test-ftp-connection",
+          component: "FtpUploader",
+          endpoint: "/api/test-ftp",
+        });
+        setError(t("ftp.errors.connectionFailedHint"));
+        setErrorDetails(formatErrorReportForCopy(report));
+        return;
+      }
       alert(t("ftp.connectionSuccess"));
-    } catch {
-      setError(t("ftp.errors.connectionFailedHint"));
+    } catch (err) {
+      if (!error) {
+        const report = reportClientError(err, {
+          operation: "test-ftp-connection",
+          component: "FtpUploader",
+          endpoint: "/api/test-ftp",
+        });
+        setError(t("ftp.errors.connectionFailedHint"));
+        setErrorDetails(formatErrorReportForCopy(report));
+      }
     }
   };
 
@@ -223,9 +326,14 @@ export default function FtpUploader({
         <div>
           <h3 className="text-lg font-medium mb-3">{t("ftp.uploadTitle")}</h3>
           {error && (
-            <div className="bg-danger-50 border border-danger-200 rounded-lg p-3 mb-4">
-              <p className="text-danger-700 text-sm">{error}</p>
-            </div>
+            <ErrorDetails
+              title="FTP error"
+              message={error}
+              details={errorDetails ?? undefined}
+              copyLabel={t("errorPage.copyDetails")}
+              copySuccessLabel={t("errorPage.copySuccess")}
+              copyErrorLabel={t("errorPage.copyFailed")}
+            />
           )}
           {processedTracks.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
@@ -247,7 +355,12 @@ export default function FtpUploader({
             <div className="space-y-4">
               <button
                 onClick={handleUploadAll}
-                disabled={isUploading || isConfigLoading || !ftpConfig.host || !ftpConfig.user}
+                disabled={
+                  isUploading ||
+                  isConfigLoading ||
+                  !ftpConfig.host ||
+                  !ftpConfig.user
+                }
                 className="btn btn-primary w-full disabled:opacity-50"
               >
                 {isUploading ? (
@@ -262,13 +375,18 @@ export default function FtpUploader({
 
               <div className="space-y-2 max-h-96 overflow-y-auto">
                 {processedTracks.map((track) => (
-                  <div key={track.id} className="border rounded-lg p-3 bg-gray-50">
+                  <div
+                    key={track.id}
+                    className="border rounded-lg p-3 bg-gray-50"
+                  >
                     <div className="flex items-center gap-4">
                       <div className="w-[260px] shrink-0">
                         <h4 className="font-medium text-gray-900 truncate">
                           {track.metadata.title}
                         </h4>
-                        <p className="text-sm text-gray-600">{track.metadata.artist}</p>
+                        <p className="text-sm text-gray-600">
+                          {track.metadata.artist}
+                        </p>
                       </div>
                       <audio
                         controls

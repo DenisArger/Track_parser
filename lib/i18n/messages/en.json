@@ -75,7 +75,11 @@
     "passwordMismatch": "Passwords do not match",
     "signupEmailSent": "We sent a confirmation link to your email. Follow it and then log in. Check your spam folder as well.",
     "genericError": "Something went wrong",
-    "signupAlready": "Already have an account? Sign in"
+    "signupAlready": "Already have an account? Sign in",
+    "errorDetailsTitle": "Authentication error details",
+    "copyDebugDetails": "Copy debug details",
+    "copyDebugDetailsSuccess": "Copied",
+    "copyDebugDetailsError": "Unable to copy debug details. Please copy manually."
   },
   "status": {
     "downloading": "Downloading",
@@ -97,7 +101,11 @@
   "errorPage": {
     "title": "Something went wrong",
     "subtitle": "An error occurred while rendering the page. Please try again.",
+    "reportHint": "Copy the details below and send them to the developer.",
     "errorId": "Error ID",
+    "copyDetails": "Copy error details",
+    "copySuccess": "Copied",
+    "copyFailed": "Unable to copy. Please copy manually.",
     "tryAgain": "Try again"
   },
   "theme": {
@@ -149,7 +157,11 @@
       "storageUploadFailed": "Upload to Storage failed",
       "trackIdRequired": "Track ID is required",
       "deleteFailed": "Delete failed"
-    }
+    },
+    "errorDetailsTitle": "Debug details",
+    "copyDebugDetails": "Copy debug details",
+    "copyDebugDetailsSuccess": "Copied",
+    "copyDebugDetailsError": "Unable to copy debug details. Please copy manually."
   },
   "player": {
     "title": "Listen & Review Tracks",
@@ -340,7 +352,12 @@
     "groupDefaultName": "Group",
     "groupsLoadError": "Failed to load groups",
     "groupsSaved": "Groups saved",
-    "groupsSaveError": "Failed to save groups"
+    "groupsSaveError": "Failed to save groups",
+    "errorDetailsTitle": "Playlist error details",
+    "uploadErrorDetailsTitle": "Upload error details",
+    "copyDebugDetails": "Copy debug details",
+    "copyDebugDetailsSuccess": "Copied",
+    "copyDebugDetailsError": "Unable to copy debug details. Please copy manually."
   },
   "schedule": {
     "title": "Broadcast grid",
@@ -433,6 +450,10 @@
       "load": "Failed to load grid",
       "save": "Failed to save event",
       "delete": "Failed to delete event"
-    }
+    },
+    "errorDetailsTitle": "Grid error details",
+    "copyDebugDetails": "Copy debug details",
+    "copyDebugDetailsSuccess": "Copied",
+    "copyDebugDetailsError": "Unable to copy debug details. Please copy manually."
   }
 }

@@ -1,8 +1,17 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { buildDateRange, type GridEvent, type GridEventInput } from "@/lib/radio/streamingCenterGridClient";
+import {
+  buildDateRange,
+  type GridEvent,
+  type GridEventInput,
+} from "@/lib/radio/streamingCenterGridClient";
 import { useI18n } from "./I18nProvider";
+import {
+  formatErrorReportForCopy,
+  reportClientError,
+} from "@/lib/utils/errorReporter";
+import ErrorDetails from "./ErrorDetails";
 
 type FormState = {
   id?: number;
@@ -151,8 +160,14 @@ function fromEvent(event: GridEvent): FormState {
     finish_date: String(event.finish_date ?? today),
     finish_time: String(event.finish_time ?? "09:00:00"),
     playlist: event.playlist == null ? "" : String(event.playlist),
-    playlist_after_radioshow: event.playlist_after_radioshow == null ? "" : String(event.playlist_after_radioshow),
-    rotation_after_radioshow: event.rotation_after_radioshow == null ? "" : String(event.rotation_after_radioshow),
+    playlist_after_radioshow:
+      event.playlist_after_radioshow == null
+        ? ""
+        : String(event.playlist_after_radioshow),
+    rotation_after_radioshow:
+      event.rotation_after_radioshow == null
+        ? ""
+        : String(event.rotation_after_radioshow),
     dj: event.dj == null ? "" : String(event.dj),
     rotation: event.rotation == null ? "" : String(event.rotation),
     local_time: String(event.local_time ?? "08:00:00"),
@@ -190,7 +205,9 @@ function formatTs(value: number | null | undefined, locale: string): string {
 export default function RadioScheduleManager() {
   const { locale, t } = useI18n();
   const [server, setServer] = useState("1");
-  const [startDate, setStartDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [startDate, setStartDate] = useState(() =>
+    new Date().toISOString().slice(0, 10),
+  );
   const [days, setDays] = useState("7");
   const [castTypeFilter, setCastTypeFilter] = useState("all");
   const [events, setEvents] = useState<GridEvent[]>([]);
@@ -199,22 +216,52 @@ export default function RadioScheduleManager() {
   const [loading, setLoading] = useState(false);
   const [playlistsLoading, setPlaylistsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorDetails, setErrorDetails] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm());
   const [saving, setSaving] = useState(false);
-  const range = useMemo(() => buildDateRange(startDate, Number.parseInt(days, 10) || 7), [startDate, days]);
+  const range = useMemo(
+    () => buildDateRange(startDate, Number.parseInt(days, 10) || 7),
+    [startDate, days],
+  );
   const filteredPlaylists = useMemo(() => {
     const query = playlistSearch.trim().toLowerCase();
     if (!query) return playlists;
     return playlists.filter((playlist) => {
-      const haystack = [String(playlist.id), playlist.name, playlist.created_at ?? ""].join(" ").toLowerCase();
+      const haystack = [
+        String(playlist.id),
+        playlist.name,
+        playlist.created_at ?? "",
+      ]
+        .join(" ")
+        .toLowerCase();
       return haystack.includes(query);
     });
   }, [playlistSearch, playlists]);
 
+  const setDetailedError = (
+    userMessage: string,
+    operation: string,
+    err?: unknown,
+    extras: Record<string, unknown> = {},
+  ) => {
+    setError(userMessage);
+    const report = reportClientError(err ?? userMessage, {
+      operation,
+      component: "RadioScheduleManager",
+      server,
+      startDate,
+      days,
+      ...extras,
+    });
+
+    setErrorDetails(formatErrorReportForCopy(report));
+  };
+
   const loadEvents = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setErrorDetails(null);
     try {
       const params = new URLSearchParams({
         server,
@@ -230,7 +277,14 @@ export default function RadioScheduleManager() {
       setEvents(Array.isArray(data.results) ? data.results : []);
     } catch (e) {
       setEvents([]);
-      setError(e instanceof Error ? e.message : String(e));
+      setDetailedError(
+        e instanceof Error ? e.message : String(e),
+        "load-events",
+        e,
+        {
+          endpoint: `/api/radio/grid?${new URLSearchParams({ server, start_ts: String(range.startTs), end_ts: String(range.endTs), utc: "1" }).toString()}`,
+        },
+      );
     } finally {
       setLoading(false);
     }
@@ -247,12 +301,21 @@ export default function RadioScheduleManager() {
       const items = Array.isArray(data.playlists) ? data.playlists : [];
       setPlaylists(
         items
-          .map((item: { id?: number | null; name?: string | null; created_at?: string | null }) => ({
-            id: Number(item.id),
-            name: String(item.name ?? ""),
-            created_at: item.created_at ?? null,
-          }))
-          .filter((item: PlaylistOption) => Number.isFinite(item.id) && item.name.trim().length > 0)
+          .map(
+            (item: {
+              id?: number | null;
+              name?: string | null;
+              created_at?: string | null;
+            }) => ({
+              id: Number(item.id),
+              name: String(item.name ?? ""),
+              created_at: item.created_at ?? null,
+            }),
+          )
+          .filter(
+            (item: PlaylistOption) =>
+              Number.isFinite(item.id) && item.name.trim().length > 0,
+          ),
       );
     } catch {
       setPlaylists([]);
@@ -274,6 +337,7 @@ export default function RadioScheduleManager() {
   const submit = async () => {
     setSaving(true);
     setError(null);
+    setErrorDetails(null);
     setMessage(null);
     try {
       const payload = toPayload(form);
@@ -295,14 +359,18 @@ export default function RadioScheduleManager() {
         rotation: payload.rotation ?? null,
         timezone: payload.timezone ?? null,
         break_track: payload.break_track ?? null,
-        start_playlist_from_beginning: payload.start_playlist_from_beginning ?? null,
+        start_playlist_from_beginning:
+          payload.start_playlist_from_beginning ?? null,
       });
-      const response = await fetch(form.id ? `/api/radio/grid/${form.id}` : "/api/radio/grid", {
-        method: form.id ? "PUT" : "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      const response = await fetch(
+        form.id ? `/api/radio/grid/${form.id}` : "/api/radio/grid",
+        {
+          method: form.id ? "PUT" : "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        },
+      );
       const data = await response.json();
       console.info("[radio schedule] submit response", {
         ok: response.ok,
@@ -311,11 +379,23 @@ export default function RadioScheduleManager() {
         bodyKeys: data && typeof data === "object" ? Object.keys(data) : [],
       });
       if (!response.ok) throw new Error(data.error || String(response.status));
-      setMessage(form.id ? t("schedule.messages.updated") : t("schedule.messages.created"));
+      setMessage(
+        form.id
+          ? t("schedule.messages.updated")
+          : t("schedule.messages.created"),
+      );
       resetForm();
       await loadEvents();
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setDetailedError(
+        e instanceof Error ? e.message : String(e),
+        form.id ? "update-event" : "create-event",
+        e,
+        {
+          eventId: form.id,
+          endpoint: form.id ? `/api/radio/grid/${form.id}` : "/api/radio/grid",
+        },
+      );
     } finally {
       setSaving(false);
     }
@@ -324,6 +404,7 @@ export default function RadioScheduleManager() {
   const remove = async (id: number) => {
     if (!confirm(t("schedule.confirmDelete"))) return;
     setError(null);
+    setErrorDetails(null);
     setMessage(null);
     try {
       const response = await fetch(`/api/radio/grid/${id}`, {
@@ -336,7 +417,12 @@ export default function RadioScheduleManager() {
       await loadEvents();
       if (form.id === id) resetForm();
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setDetailedError(
+        e instanceof Error ? e.message : String(e),
+        "delete-event",
+        e,
+        { eventId: id, endpoint: `/api/radio/grid/${id}` },
+      );
     }
   };
 
@@ -365,17 +451,23 @@ export default function RadioScheduleManager() {
         label,
         items: eventGroups.filter((event) => {
           if (!event.start_ts) return false;
-          return new Date(event.start_ts * 1000).toISOString().slice(0, 10) === key;
+          return (
+            new Date(event.start_ts * 1000).toISOString().slice(0, 10) === key
+          );
         }),
       };
     });
   }, [days, eventGroups, locale, startDate]);
 
   const castTypeStyles: Record<string, string> = {
-    playlist: "border-emerald-300 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/30",
-    radioshow: "border-indigo-300 bg-indigo-50 dark:border-indigo-800 dark:bg-indigo-950/30",
-    relay: "border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30",
-    rotation: "border-rose-300 bg-rose-50 dark:border-rose-800 dark:bg-rose-950/30",
+    playlist:
+      "border-emerald-300 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/30",
+    radioshow:
+      "border-indigo-300 bg-indigo-50 dark:border-indigo-800 dark:bg-indigo-950/30",
+    relay:
+      "border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30",
+    rotation:
+      "border-rose-300 bg-rose-50 dark:border-rose-800 dark:bg-rose-950/30",
   };
 
   const castTypeLabels: Record<string, string> = {
@@ -411,11 +503,17 @@ export default function RadioScheduleManager() {
 
   const checkboxOptions: Array<[CheckboxKey, string]> = [
     ["break_track", t("schedule.checkboxes.breakTrack")],
-    ["start_playlist_from_beginning", t("schedule.checkboxes.startPlaylistFromBeginning")],
+    [
+      "start_playlist_from_beginning",
+      t("schedule.checkboxes.startPlaylistFromBeginning"),
+    ],
     ["allow_jingles", t("schedule.checkboxes.allowJingles")],
     ["allow_song_requests", t("schedule.checkboxes.allowSongRequests")],
     ["allow_jingles_after", t("schedule.checkboxes.allowJinglesAfter")],
-    ["allow_song_requests_after", t("schedule.checkboxes.allowSongRequestsAfter")],
+    [
+      "allow_song_requests_after",
+      t("schedule.checkboxes.allowSongRequestsAfter"),
+    ],
     ["wd_mon", t("schedule.weekday.mon")],
     ["wd_tue", t("schedule.weekday.tue")],
     ["wd_wed", t("schedule.weekday.wed")],
@@ -429,13 +527,17 @@ export default function RadioScheduleManager() {
     ["week_4", t("schedule.week.4")],
   ];
 
-  const checkboxKeys = new Set<CheckboxKey>(checkboxOptions.map(([key]) => key));
+  const checkboxKeys = new Set<CheckboxKey>(
+    checkboxOptions.map(([key]) => key),
+  );
 
   return (
     <div className="space-y-6">
       <div className="grid gap-4 lg:grid-cols-[1fr_1fr_1.2fr]">
         <label className="space-y-2">
-          <span className="block text-sm font-medium text-gray-700 dark:text-gray-300">{t("schedule.serverId")}</span>
+          <span className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+            {t("schedule.serverId")}
+          </span>
           <input
             value={server}
             onChange={(e) => setServer(e.target.value)}
@@ -443,7 +545,9 @@ export default function RadioScheduleManager() {
           />
         </label>
         <label className="space-y-2">
-          <span className="block text-sm font-medium text-gray-700 dark:text-gray-300">{t("schedule.startDate")}</span>
+          <span className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+            {t("schedule.startDate")}
+          </span>
           <input
             type="date"
             value={startDate}
@@ -452,7 +556,9 @@ export default function RadioScheduleManager() {
           />
         </label>
         <label className="space-y-2">
-          <span className="block text-sm font-medium text-gray-700 dark:text-gray-300">{t("schedule.days")}</span>
+          <span className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+            {t("schedule.days")}
+          </span>
           <input
             type="number"
             min="1"
@@ -465,18 +571,37 @@ export default function RadioScheduleManager() {
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <button type="button" onClick={loadEvents} className="btn btn-secondary">
+        <button
+          type="button"
+          onClick={loadEvents}
+          className="btn btn-secondary"
+        >
           {loading ? t("schedule.loading") : t("schedule.refresh")}
         </button>
         <button type="button" onClick={resetForm} className="btn btn-secondary">
           {t("schedule.newEvent")}
         </button>
-        {message && <span className="text-sm text-green-600 dark:text-green-400">{message}</span>}
-        {error && <span className="text-sm text-red-600 dark:text-red-400">{error}</span>}
+        {message && (
+          <span className="text-sm text-green-600 dark:text-green-400">
+            {message}
+          </span>
+        )}
+        {error && (
+          <ErrorDetails
+            title={t("schedule.errorDetailsTitle")}
+            message={error}
+            details={errorDetails ?? undefined}
+            copyLabel={t("schedule.copyDebugDetails")}
+            copySuccessLabel={t("schedule.copyDebugDetailsSuccess")}
+            copyErrorLabel={t("schedule.copyDebugDetailsError")}
+          />
+        )}
       </div>
 
       <div className="flex flex-wrap items-center gap-2 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 px-3 py-2">
-        <span className="text-sm font-medium text-gray-600 dark:text-gray-300">{t("schedule.filter")}:</span>
+        <span className="text-sm font-medium text-gray-600 dark:text-gray-300">
+          {t("schedule.filter")}:
+        </span>
         {["all", "playlist", "radioshow", "relay", "rotation"].map((type) => (
           <button
             key={type}
@@ -494,23 +619,30 @@ export default function RadioScheduleManager() {
       </div>
 
       <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-        <span className="font-medium text-gray-600 dark:text-gray-300">{t("schedule.legend")}:</span>
-        {(["playlist", "radioshow", "relay", "rotation"] as const).map((type) => (
-          <span
-            key={type}
-            className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 ${castTypeStyles[type] || ""}`}
-          >
-            <span className="h-2.5 w-2.5 rounded-full bg-current opacity-70" />
-            {castTypeLabels[type]}
-          </span>
-        ))}
+        <span className="font-medium text-gray-600 dark:text-gray-300">
+          {t("schedule.legend")}:
+        </span>
+        {(["playlist", "radioshow", "relay", "rotation"] as const).map(
+          (type) => (
+            <span
+              key={type}
+              className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 ${castTypeStyles[type] || ""}`}
+            >
+              <span className="h-2.5 w-2.5 rounded-full bg-current opacity-70" />
+              {castTypeLabels[type]}
+            </span>
+          ),
+        )}
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
         <div className="space-y-4">
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {daysView.map((day) => (
-              <div key={day.key} className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 overflow-hidden">
+              <div
+                key={day.key}
+                className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 overflow-hidden"
+              >
                 <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900">
                   <div className="text-sm font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">
                     {day.label}
@@ -519,25 +651,35 @@ export default function RadioScheduleManager() {
                 </div>
                 <div className="p-3 space-y-2 min-h-28">
                   {day.items.length === 0 ? (
-                    <div className="text-sm text-gray-500">{t("schedule.emptyDay")}</div>
+                    <div className="text-sm text-gray-500">
+                      {t("schedule.emptyDay")}
+                    </div>
                   ) : (
                     day.items.map((event) => (
                       <button
-                        key={String(event.id ?? `${event.name}-${event.start_ts}`)}
+                        key={String(
+                          event.id ?? `${event.name}-${event.start_ts}`,
+                        )}
                         type="button"
                         onClick={() => setForm(fromEvent(event))}
                         className={`w-full rounded-lg border px-3 py-2 text-left transition-colors hover:opacity-95 ${
-                          castTypeStyles[(event.cast_type || "") as string] || "border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900"
+                          castTypeStyles[(event.cast_type || "") as string] ||
+                          "border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900"
                         }`}
                       >
                         <div className="flex items-center justify-between gap-2">
-                          <div className="font-medium text-sm line-clamp-1">{event.name || t("schedule.createTitle")}</div>
+                          <div className="font-medium text-sm line-clamp-1">
+                            {event.name || t("schedule.createTitle")}
+                          </div>
                           <span className="rounded-full bg-white/70 dark:bg-black/20 px-2 py-0.5 text-[11px] uppercase tracking-wide text-gray-700 dark:text-gray-200">
-                            {castTypeLabels[event.cast_type || ""] || t("schedule.badges.type")}
+                            {castTypeLabels[event.cast_type || ""] ||
+                              t("schedule.badges.type")}
                           </span>
                         </div>
                         <div className="text-xs text-gray-500 mt-1">
-                          {formatTs(event.start_ts, locale)} · {castTypeLabels[event.cast_type || ""] || event.cast_type}
+                          {formatTs(event.start_ts, locale)} ·{" "}
+                          {castTypeLabels[event.cast_type || ""] ||
+                            event.cast_type}
                         </div>
                       </button>
                     ))
@@ -554,7 +696,9 @@ export default function RadioScheduleManager() {
           </div>
           <div className="divide-y divide-gray-200 dark:divide-gray-800">
             {eventGroups.length === 0 ? (
-              <div className="p-4 text-sm text-gray-500">{loading ? t("schedule.loading") : t("schedule.empty")}</div>
+              <div className="p-4 text-sm text-gray-500">
+                {loading ? t("schedule.loading") : t("schedule.empty")}
+              </div>
             ) : (
               eventGroups.map((event) => (
                 <button
@@ -565,10 +709,17 @@ export default function RadioScheduleManager() {
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <div className="font-medium">{event.name || t("schedule.createTitle")}</div>
+                      <div className="font-medium">
+                        {event.name || t("schedule.createTitle")}
+                      </div>
                       <div className="text-sm text-gray-500">
-                        {castTypeLabels[event.cast_type || ""] || event.cast_type || "—"} ·{" "}
-                        {periodicityLabels[event.periodicity || ""] || event.periodicity || "—"}
+                        {castTypeLabels[event.cast_type || ""] ||
+                          event.cast_type ||
+                          "—"}{" "}
+                        ·{" "}
+                        {periodicityLabels[event.periodicity || ""] ||
+                          event.periodicity ||
+                          "—"}
                       </div>
                     </div>
                     <div className="text-right text-sm text-gray-500">
@@ -581,14 +732,22 @@ export default function RadioScheduleManager() {
                       {t("schedule.badges.id")}: {String(event.id ?? "—")}
                     </span>
                     <span className="rounded-full bg-gray-100 dark:bg-gray-800 px-2 py-1 text-xs">
-                      {t("schedule.badges.type")}: {castTypeLabels[event.cast_type || ""] || event.cast_type || "—"}
+                      {t("schedule.badges.type")}:{" "}
+                      {castTypeLabels[event.cast_type || ""] ||
+                        event.cast_type ||
+                        "—"}
                     </span>
                     <span className="rounded-full bg-gray-100 dark:bg-gray-800 px-2 py-1 text-xs">
-                      {t("schedule.serverInstance", { n: String(event.server ?? "—") })}
+                      {t("schedule.serverInstance", {
+                        n: String(event.server ?? "—"),
+                      })}
                     </span>
                     {event.color && (
                       <span className="inline-flex items-center gap-2 rounded-full border bg-white dark:bg-gray-900 px-2 py-1 text-xs">
-                        <span className="h-2.5 w-2.5 rounded-full border border-gray-300" style={{ backgroundColor: event.color }} />
+                        <span
+                          className="h-2.5 w-2.5 rounded-full border border-gray-300"
+                          style={{ backgroundColor: event.color }}
+                        />
                         {t("schedule.badges.color")}
                       </span>
                     )}
@@ -601,41 +760,92 @@ export default function RadioScheduleManager() {
 
         <div className="rounded-xl border border-gray-200 dark:border-gray-800 p-4 space-y-4">
           <div>
-            <h3 className="font-semibold">{form.id ? t("schedule.editTitle") : t("schedule.createTitle")}</h3>
+            <h3 className="font-semibold">
+              {form.id ? t("schedule.editTitle") : t("schedule.createTitle")}
+            </h3>
             <p className="text-sm text-gray-500">{t("schedule.description")}</p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="space-y-1">
               <span className="text-sm">{t("schedule.fields.name")}</span>
-              <input className="w-full rounded-lg border px-3 py-2 bg-white dark:bg-gray-900" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+              <input
+                className="w-full rounded-lg border px-3 py-2 bg-white dark:bg-gray-900"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+              />
             </label>
             <label className="space-y-1">
               <span className="text-sm">{t("schedule.fields.castType")}</span>
-              <select className="w-full rounded-lg border px-3 py-2 bg-white dark:bg-gray-900" value={form.cast_type} onChange={(e) => setForm({ ...form, cast_type: e.target.value as FormState["cast_type"] })}>
-                <option value="playlist">{t("schedule.castTypes.playlist")}</option>
-                <option value="radioshow">{t("schedule.castTypes.radioshow")}</option>
+              <select
+                className="w-full rounded-lg border px-3 py-2 bg-white dark:bg-gray-900"
+                value={form.cast_type}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    cast_type: e.target.value as FormState["cast_type"],
+                  })
+                }
+              >
+                <option value="playlist">
+                  {t("schedule.castTypes.playlist")}
+                </option>
+                <option value="radioshow">
+                  {t("schedule.castTypes.radioshow")}
+                </option>
                 <option value="relay">{t("schedule.castTypes.relay")}</option>
-                <option value="rotation">{t("schedule.castTypes.rotation")}</option>
+                <option value="rotation">
+                  {t("schedule.castTypes.rotation")}
+                </option>
               </select>
             </label>
             <label className="space-y-1">
-              <span className="text-sm">{t("schedule.fields.periodicity")}</span>
-              <select className="w-full rounded-lg border px-3 py-2 bg-white dark:bg-gray-900" value={form.periodicity} onChange={(e) => setForm({ ...form, periodicity: e.target.value as FormState["periodicity"] })}>
+              <span className="text-sm">
+                {t("schedule.fields.periodicity")}
+              </span>
+              <select
+                className="w-full rounded-lg border px-3 py-2 bg-white dark:bg-gray-900"
+                value={form.periodicity}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    periodicity: e.target.value as FormState["periodicity"],
+                  })
+                }
+              >
                 <option value="onetime">onetime</option>
                 <option value="periodic">periodic</option>
               </select>
             </label>
             <label className="space-y-1">
               <span className="text-sm">{t("schedule.fields.server")}</span>
-              <input className="w-full rounded-lg border px-3 py-2 bg-white dark:bg-gray-900" value={form.server} onChange={(e) => setForm({ ...form, server: e.target.value })} />
+              <input
+                className="w-full rounded-lg border px-3 py-2 bg-white dark:bg-gray-900"
+                value={form.server}
+                onChange={(e) => setForm({ ...form, server: e.target.value })}
+              />
             </label>
             <label className="space-y-1">
               <span className="text-sm">{t("schedule.fields.startDate")}</span>
-              <input type="date" className="w-full rounded-lg border px-3 py-2 bg-white dark:bg-gray-900" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} />
+              <input
+                type="date"
+                className="w-full rounded-lg border px-3 py-2 bg-white dark:bg-gray-900"
+                value={form.start_date}
+                onChange={(e) =>
+                  setForm({ ...form, start_date: e.target.value })
+                }
+              />
             </label>
             <label className="space-y-1">
               <span className="text-sm">{t("schedule.fields.startTime")}</span>
-              <input type="time" step="1" className="w-full rounded-lg border px-3 py-2 bg-white dark:bg-gray-900" value={form.start_time} onChange={(e) => setForm({ ...form, start_time: e.target.value })} />
+              <input
+                type="time"
+                step="1"
+                className="w-full rounded-lg border px-3 py-2 bg-white dark:bg-gray-900"
+                value={form.start_time}
+                onChange={(e) =>
+                  setForm({ ...form, start_time: e.target.value })
+                }
+              />
             </label>
             <label className="flex items-center gap-2 sm:col-span-2">
               <input
@@ -656,7 +866,9 @@ export default function RadioScheduleManager() {
                 type="date"
                 className="w-full rounded-lg border px-3 py-2 bg-white dark:bg-gray-900 disabled:opacity-50"
                 value={form.finish_date}
-                onChange={(e) => setForm({ ...form, finish_date: e.target.value })}
+                onChange={(e) =>
+                  setForm({ ...form, finish_date: e.target.value })
+                }
                 disabled={!form.has_finish}
               />
             </label>
@@ -667,7 +879,9 @@ export default function RadioScheduleManager() {
                 step="1"
                 className="w-full rounded-lg border px-3 py-2 bg-white dark:bg-gray-900 disabled:opacity-50"
                 value={form.finish_time}
-                onChange={(e) => setForm({ ...form, finish_time: e.target.value })}
+                onChange={(e) =>
+                  setForm({ ...form, finish_time: e.target.value })
+                }
                 disabled={!form.has_finish}
               />
             </label>
@@ -685,7 +899,11 @@ export default function RadioScheduleManager() {
                 onChange={(e) => setForm({ ...form, playlist: e.target.value })}
                 disabled={playlistsLoading && playlists.length === 0}
               >
-                <option value="">{playlistsLoading ? t("schedule.loadingPlaylists") : t("schedule.playlistPlaceholder")}</option>
+                <option value="">
+                  {playlistsLoading
+                    ? t("schedule.loadingPlaylists")
+                    : t("schedule.playlistPlaceholder")}
+                </option>
                 {filteredPlaylists.map((playlist) => (
                   <option key={playlist.id} value={playlist.id}>
                     {playlist.id} · {playlist.name}
@@ -693,23 +911,48 @@ export default function RadioScheduleManager() {
                 ))}
               </select>
               {playlistSearch.trim() && filteredPlaylists.length === 0 && (
-                <p className="text-xs text-gray-500">{t("schedule.playlistSearchEmpty")}</p>
+                <p className="text-xs text-gray-500">
+                  {t("schedule.playlistSearchEmpty")}
+                </p>
               )}
-              <p className="text-xs text-gray-500">{t("schedule.playlistHint")}</p>
+              <p className="text-xs text-gray-500">
+                {t("schedule.playlistHint")}
+              </p>
             </label>
           </div>
 
           <details className="rounded-lg border border-dashed border-gray-300 dark:border-gray-700 p-3">
-            <summary className="cursor-pointer text-sm font-medium">{t("schedule.showAdvanced")}</summary>
+            <summary className="cursor-pointer text-sm font-medium">
+              {t("schedule.showAdvanced")}
+            </summary>
             <div className="mt-4 space-y-4">
               <div className="grid gap-3 sm:grid-cols-2">
                 <label className="flex items-center gap-2">
-                  <input type="checkbox" checked={form.break_track} onChange={(e) => setForm({ ...form, break_track: e.target.checked })} />
-                  <span className="text-sm">{t("schedule.checkboxes.breakTrack")}</span>
+                  <input
+                    type="checkbox"
+                    checked={form.break_track}
+                    onChange={(e) =>
+                      setForm({ ...form, break_track: e.target.checked })
+                    }
+                  />
+                  <span className="text-sm">
+                    {t("schedule.checkboxes.breakTrack")}
+                  </span>
                 </label>
                 <label className="flex items-center gap-2">
-                  <input type="checkbox" checked={form.start_playlist_from_beginning} onChange={(e) => setForm({ ...form, start_playlist_from_beginning: e.target.checked })} />
-                  <span className="text-sm">{t("schedule.checkboxes.startPlaylistFromBeginning")}</span>
+                  <input
+                    type="checkbox"
+                    checked={form.start_playlist_from_beginning}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        start_playlist_from_beginning: e.target.checked,
+                      })
+                    }
+                  />
+                  <span className="text-sm">
+                    {t("schedule.checkboxes.startPlaylistFromBeginning")}
+                  </span>
                 </label>
               </div>
 
@@ -718,7 +961,9 @@ export default function RadioScheduleManager() {
                   <label key={key} className="flex items-center gap-2">
                     <input
                       type="checkbox"
-                      checked={checkboxKeys.has(key) ? Boolean(form[key]) : false}
+                      checked={
+                        checkboxKeys.has(key) ? Boolean(form[key]) : false
+                      }
                       onChange={(e) =>
                         setForm({
                           ...form,
@@ -734,15 +979,32 @@ export default function RadioScheduleManager() {
           </details>
 
           <div className="flex flex-wrap gap-3">
-            <button type="button" onClick={submit} disabled={saving} className="btn btn-primary disabled:opacity-50">
-              {saving ? t("schedule.loading") : form.id ? t("schedule.save") : t("schedule.create")}
+            <button
+              type="button"
+              onClick={submit}
+              disabled={saving}
+              className="btn btn-primary disabled:opacity-50"
+            >
+              {saving
+                ? t("schedule.loading")
+                : form.id
+                  ? t("schedule.save")
+                  : t("schedule.create")}
             </button>
             {form.id && (
-              <button type="button" onClick={() => remove(form.id!)} className="btn btn-secondary">
+              <button
+                type="button"
+                onClick={() => remove(form.id!)}
+                className="btn btn-secondary"
+              >
                 {t("schedule.delete")}
               </button>
             )}
-            <button type="button" onClick={resetForm} className="btn btn-secondary">
+            <button
+              type="button"
+              onClick={resetForm}
+              className="btn btn-secondary"
+            >
               {t("schedule.reset")}
             </button>
           </div>

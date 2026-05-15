@@ -93,7 +93,8 @@ describe("Auth pages", () => {
     fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
 
     await waitFor(() => {
-      expect(screen.getByText("invalid credentials")).toBeInTheDocument();
+      expect(screen.getByText("Произошла ошибка")).toBeInTheDocument();
+      expect(screen.getByText(/invalid credentials/)).toBeInTheDocument();
     });
   });
 

@@ -7,9 +7,14 @@ import {
   getDownloadedTracks,
 } from "@/lib/utils/trackFilters";
 import { getUserFacingErrorMessage } from "@/lib/utils/errorMessage";
+import {
+  formatErrorReportForCopy,
+  reportClientError,
+} from "@/lib/utils/errorReporter";
 import { downloadTrackAction } from "@/lib/actions/trackActions";
 import { useI18n } from "./I18nProvider";
 import Spinner from "./Spinner";
+import ErrorDetails from "./ErrorDetails";
 
 interface DownloadTrackProps {
   onTracksUpdate: () => void;
@@ -45,23 +50,25 @@ export default function DownloadTrack({
   const { t } = useI18n();
   const [url, setUrl] = useState("");
   const [source, setSource] = useState<"youtube" | "youtube-music" | "auto">(
-    "auto"
+    "auto",
   );
   const [isDownloading, setIsDownloading] = useState(false);
   const [isUploadingLocal, setIsUploadingLocal] = useState(false);
   const [isDragActive, setIsDragActive] = useState(false);
   const [deletingIds, setDeletingIds] = useState<Record<string, boolean>>({});
   const [hiddenTrackIds, setHiddenTrackIds] = useState<Record<string, boolean>>(
-    {}
+    {},
   );
   const [error, setError] = useState("");
-  const [errorDiagnostics, setErrorDiagnostics] = useState<ErrorDiagnostics | null>(null);
+  const [errorDiagnostics, setErrorDiagnostics] =
+    useState<ErrorDiagnostics | null>(null);
+  const [errorDetails, setErrorDetails] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const visibleDownloadingTracks = getDownloadingTracks(tracks).filter(
-    (track) => !hiddenTrackIds[track.id]
+    (track) => !hiddenTrackIds[track.id],
   );
   const visibleDownloadedTracks = getDownloadedTracks(tracks).filter(
-    (track) => !hiddenTrackIds[track.id]
+    (track) => !hiddenTrackIds[track.id],
   );
   const placeholderBySource = {
     auto: t("download.placeholder.auto"),
@@ -73,9 +80,21 @@ export default function DownloadTrack({
     userMessage: string,
     operation: string,
     err?: unknown,
-    extras: Partial<ErrorDiagnostics> = {}
+    extras: Partial<ErrorDiagnostics> = {},
   ) => {
     setError(userMessage);
+    const report = reportClientError(err ?? userMessage, {
+      operation,
+      component: "DownloadTrack",
+      endpoint: extras.endpoint,
+      stage: extras.stage,
+      url: url || undefined,
+      source,
+      ...extras,
+    });
+
+    setErrorDetails(formatErrorReportForCopy(report));
+
     const errorName = err instanceof Error ? err.name : typeof err;
     const errorMessage = err instanceof Error ? err.message : String(err ?? "");
     const stack =
@@ -89,25 +108,13 @@ export default function DownloadTrack({
       urlInput: url || undefined,
       source,
       online: typeof navigator !== "undefined" ? navigator.onLine : undefined,
-      userAgent: typeof navigator !== "undefined" ? navigator.userAgent : undefined,
+      userAgent:
+        typeof navigator !== "undefined" ? navigator.userAgent : undefined,
       errorName,
       errorMessage,
       stack,
       ...extras,
     });
-
-    const logPayload = {
-      userMessage,
-      operation,
-      errorName,
-      errorMessage,
-      ...extras,
-    };
-    if (err instanceof Error || errorMessage) {
-      console.error("[DownloadTrack] UI error", logPayload);
-    } else {
-      console.warn("[DownloadTrack] UI warning", logPayload);
-    }
   };
 
   const isPlaylistUrl = (value: string) => {
@@ -117,7 +124,10 @@ export default function DownloadTrack({
 
   const handleDownload = async () => {
     if (!url.trim()) {
-      setDetailedError(t("download.errors.invalidUrl"), "validate-download-url");
+      setDetailedError(
+        t("download.errors.invalidUrl"),
+        "validate-download-url",
+      );
       return;
     }
 
@@ -126,7 +136,7 @@ export default function DownloadTrack({
         "Плейлисты не поддерживаются. Вставьте ссылку на один трек (watch?v=...).",
         "validate-download-url",
         undefined,
-        { urlInput: url }
+        { urlInput: url },
       );
       return;
     }
@@ -134,6 +144,7 @@ export default function DownloadTrack({
     setIsDownloading(true);
     setError("");
     setErrorDiagnostics(null);
+    setErrorDetails(null);
 
     try {
       const sourceParam = source === "auto" ? undefined : source;
@@ -151,7 +162,7 @@ export default function DownloadTrack({
       setDetailedError(
         getUserFacingErrorMessage(err, t("download.errors.downloadFailed")),
         "download-track-action-threw",
-        err
+        err,
       );
     } finally {
       setIsDownloading(false);
@@ -162,6 +173,7 @@ export default function DownloadTrack({
     setUrl(e.target.value);
     setError("");
     setErrorDiagnostics(null);
+    setErrorDetails(null);
   };
 
   const handleSourceChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -172,6 +184,7 @@ export default function DownloadTrack({
     setIsUploadingLocal(true);
     setError("");
     setErrorDiagnostics(null);
+    setErrorDetails(null);
     let currentStage: ErrorDiagnostics["stage"] = "unknown";
     let currentEndpoint: string | undefined;
     let currentHttpStatus: number | undefined;
@@ -195,13 +208,11 @@ export default function DownloadTrack({
 
       const signContentType = signResponse.headers.get("content-type") || "";
       const signText = await signResponse.text();
-      let signResult:
-        | {
-            error?: string;
-            signedUrl?: string;
-            trackId?: string;
-          }
-        | null = null;
+      let signResult: {
+        error?: string;
+        signedUrl?: string;
+        trackId?: string;
+      } | null = null;
 
       if (signContentType.includes("application/json")) {
         try {
@@ -217,7 +228,9 @@ export default function DownloadTrack({
 
       if (!signResponse.ok) {
         const rawMessage =
-          signResult?.error || signText || t("download.errors.localUploadFailed");
+          signResult?.error ||
+          signText ||
+          t("download.errors.localUploadFailed");
         const lowered = rawMessage.toLowerCase();
         const isTooLarge =
           signResponse.status === 413 ||
@@ -227,7 +240,7 @@ export default function DownloadTrack({
         throw new Error(
           isTooLarge
             ? t("download.errors.fileTooLarge")
-            : `${rawMessage} (HTTP ${signResponse.status}, /api/upload-local/signed)`
+            : `${rawMessage} (HTTP ${signResponse.status}, /api/upload-local/signed)`,
         );
       }
 
@@ -259,7 +272,7 @@ export default function DownloadTrack({
         throw new Error(
           `${uploadText || t("download.errors.storageUploadFailed")} (HTTP ${
             uploadResponse.status
-          }, signed upload)`
+          }, signed upload)`,
         );
       }
 
@@ -289,7 +302,9 @@ export default function DownloadTrack({
 
       if (!completeResponse.ok) {
         const rawMessage =
-          completeResult?.error || completeText || t("download.errors.localUploadFailed");
+          completeResult?.error ||
+          completeText ||
+          t("download.errors.localUploadFailed");
         const lowered = rawMessage.toLowerCase();
         const isTooLarge =
           completeResponse.status === 413 ||
@@ -299,7 +314,7 @@ export default function DownloadTrack({
         throw new Error(
           isTooLarge
             ? t("download.errors.fileTooLarge")
-            : `${rawMessage} (HTTP ${completeResponse.status}, /api/upload-local/complete)`
+            : `${rawMessage} (HTTP ${completeResponse.status}, /api/upload-local/complete)`,
         );
       }
 
@@ -313,9 +328,12 @@ export default function DownloadTrack({
         likelyCorsOnSignedUpload
           ? `${getUserFacingErrorMessage(
               err,
-              t("download.errors.localUploadFailed")
+              t("download.errors.localUploadFailed"),
             )}. Вероятно блокировка запроса браузером/расширением (signed upload URL Supabase Storage).`
-          : getUserFacingErrorMessage(err, t("download.errors.localUploadFailed")),
+          : getUserFacingErrorMessage(
+              err,
+              t("download.errors.localUploadFailed"),
+            ),
         "local-file-upload",
         err,
         {
@@ -328,7 +346,7 @@ export default function DownloadTrack({
           fileName: file.name,
           fileType: file.type || "audio/mpeg",
           fileSize: file.size,
-        }
+        },
       );
     } finally {
       setIsUploadingLocal(false);
@@ -336,7 +354,7 @@ export default function DownloadTrack({
   };
 
   const handleFileInputChange = async (
-    e: React.ChangeEvent<HTMLInputElement>
+    e: React.ChangeEvent<HTMLInputElement>,
   ) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -368,17 +386,19 @@ export default function DownloadTrack({
 
   const handleDeleteTrack = async (trackId: string) => {
     if (!trackId || trackId === "undefined" || trackId === "null") {
-      setDetailedError(t("download.errors.trackIdRequired"), "validate-track-id-for-delete");
+      setDetailedError(
+        t("download.errors.trackIdRequired"),
+        "validate-track-id-for-delete",
+      );
       return;
     }
-    const confirmed = window.confirm(
-      t("download.deleteConfirm")
-    );
+    const confirmed = window.confirm(t("download.deleteConfirm"));
     if (!confirmed) return;
 
     setDeletingIds((prev) => ({ ...prev, [trackId]: true }));
     setError("");
     setErrorDiagnostics(null);
+    setErrorDetails(null);
     try {
       setHiddenTrackIds((prev) => ({ ...prev, [trackId]: true }));
       const response = await fetch(`/api/tracks/${trackId}`, {
@@ -392,7 +412,7 @@ export default function DownloadTrack({
           return next;
         });
         throw new Error(
-          `${result?.error || "Delete failed"} (HTTP ${response.status}, /api/tracks/${trackId})`
+          `${result?.error || "Delete failed"} (HTTP ${response.status}, /api/tracks/${trackId})`,
         );
       }
       onTracksUpdate();
@@ -401,7 +421,7 @@ export default function DownloadTrack({
         getUserFacingErrorMessage(err, t("download.errors.deleteFailed")),
         "delete-track",
         err,
-        { endpoint: `/api/tracks/${trackId}` }
+        { endpoint: `/api/tracks/${trackId}` },
       );
     } finally {
       setDeletingIds((prev) => ({ ...prev, [trackId]: false }));
@@ -412,9 +432,7 @@ export default function DownloadTrack({
     <div className="space-y-6">
       <div>
         <h2 className="text-xl font-semibold mb-4">{t("download.title")}</h2>
-        <p className="text-gray-600 mb-6">
-          {t("download.description")}
-        </p>
+        <p className="text-gray-600 mb-6">{t("download.description")}</p>
       </div>
 
       <div className="space-y-4">
@@ -456,7 +474,9 @@ export default function DownloadTrack({
             disabled={isDownloading || isUploadingLocal}
           />
           {isUploadingLocal && (
-            <p className="text-sm text-gray-600 mt-2">{t("download.uploadingFile")}</p>
+            <p className="text-sm text-gray-600 mt-2">
+              {t("download.uploadingFile")}
+            </p>
           )}
         </div>
 
@@ -477,7 +497,9 @@ export default function DownloadTrack({
           >
             <option value="auto">{t("download.source.auto")}</option>
             <option value="youtube">{t("download.source.youtube")}</option>
-            <option value="youtube-music">{t("download.source.youtubeMusic")}</option>
+            <option value="youtube-music">
+              {t("download.source.youtubeMusic")}
+            </option>
           </select>
         </div>
 
@@ -502,41 +524,22 @@ export default function DownloadTrack({
 
         {/* Error Display */}
         {error && (
-          <div className="bg-danger-50 border border-danger-200 rounded-lg p-3">
-            <p className="text-danger-700 text-sm">{error}</p>
-            {errorDiagnostics && (
-              <div className="mt-3 p-3 rounded border border-danger-200 bg-white">
-                {errorDiagnostics.isLikelyBrowserBlock && (
-                  <div className="mb-3 rounded border border-amber-300 bg-amber-50 p-2 text-xs text-amber-800">
-                    Похоже, браузер блокирует upload-запрос к Supabase.
-                    Проверьте расширения/блокировщики, отключите Protect и повторите в режиме
-                    инкогнито (Chrome) без расширений.
-                  </div>
-                )}
-                <p className="text-xs font-semibold text-gray-700 mb-1">Debug details</p>
-                <pre className="text-xs text-gray-700 whitespace-pre-wrap break-all">
-{`operation: ${errorDiagnostics.operation}
-stage: ${errorDiagnostics.stage || "-"}
-time: ${errorDiagnostics.timestamp}
-urlInput: ${errorDiagnostics.urlInput || "-"}
-source: ${errorDiagnostics.source || "-"}
-endpoint: ${errorDiagnostics.endpoint || "-"}
-signedUrlHost: ${errorDiagnostics.signedUrlHost || "-"}
-httpStatus: ${errorDiagnostics.httpStatus ?? "-"}
-fileName: ${errorDiagnostics.fileName || "-"}
-fileType: ${errorDiagnostics.fileType || "-"}
-fileSize: ${errorDiagnostics.fileSize ?? "-"}
-online: ${errorDiagnostics.online === undefined ? "-" : String(errorDiagnostics.online)}
-isLikelyCors: ${errorDiagnostics.isLikelyCors === undefined ? "-" : String(errorDiagnostics.isLikelyCors)}
-isLikelyBrowserBlock: ${errorDiagnostics.isLikelyBrowserBlock === undefined ? "-" : String(errorDiagnostics.isLikelyBrowserBlock)}
-userAgent: ${errorDiagnostics.userAgent || "-"}
-errorName: ${errorDiagnostics.errorName || "-"}
-errorMessage: ${errorDiagnostics.errorMessage || "-"}
-stack:
-${errorDiagnostics.stack || "-"}`}
-                </pre>
+          <div className="space-y-3">
+            {errorDiagnostics?.isLikelyBrowserBlock && (
+              <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-800">
+                Похоже, браузер блокирует upload-запрос к Supabase. Проверьте
+                расширения/блокировщики, отключите Protect и повторите в режиме
+                инкогнито (Chrome) без расширений.
               </div>
             )}
+            <ErrorDetails
+              title={t("download.errorDetailsTitle")}
+              message={error}
+              details={errorDetails ?? undefined}
+              copyLabel={t("download.copyDebugDetails")}
+              copySuccessLabel={t("download.copyDebugDetailsSuccess")}
+              copyErrorLabel={t("download.copyDebugDetailsError")}
+            />
           </div>
         )}
 
@@ -560,7 +563,9 @@ ${errorDiagnostics.stack || "-"}`}
       {/* Downloading Tracks */}
       {visibleDownloadingTracks.length > 0 && (
         <div className="mt-6">
-          <h3 className="text-lg font-medium mb-3">{t("download.downloadingTitle")}</h3>
+          <h3 className="text-lg font-medium mb-3">
+            {t("download.downloadingTitle")}
+          </h3>
           <div className="space-y-3">
             {visibleDownloadingTracks.map((track) => (
               <div key={track.id} className="border rounded-lg p-4 bg-blue-50">
@@ -589,7 +594,9 @@ ${errorDiagnostics.stack || "-"}`}
                     disabled={!!deletingIds[track.id]}
                     className="btn btn-secondary text-sm disabled:opacity-50"
                   >
-                    {deletingIds[track.id] ? t("download.deleting") : t("download.delete")}
+                    {deletingIds[track.id]
+                      ? t("download.deleting")
+                      : t("download.delete")}
                   </button>
                 </div>
               </div>
@@ -601,42 +608,44 @@ ${errorDiagnostics.stack || "-"}`}
       {/* Recently Downloaded Tracks */}
       {visibleDownloadedTracks.length > 0 && (
         <div className="mt-6">
-          <h3 className="text-lg font-medium mb-3">{t("download.recentlyDownloaded")}</h3>
+          <h3 className="text-lg font-medium mb-3">
+            {t("download.recentlyDownloaded")}
+          </h3>
           <div className="space-y-2">
-            {visibleDownloadedTracks
-              .slice(0, 5)
-              .map((track) => (
-                <div
-                  key={track.id}
-                  className="grid items-center gap-3 p-2 bg-green-50 rounded-lg grid-cols-[220px_1fr_auto]"
-                >
-                  <div className="min-w-0">
-                    <p className="font-medium text-gray-900">
-                      {track.metadata.title}
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      {track.metadata.artist}
-                    </p>
-                  </div>
-                  <audio
-                    controls
-                    className="audio-light w-full h-8"
-                    src={`/api/audio/${track.id}`}
-                  />
-                  <div className="flex items-center space-x-3">
-                    <span className="text-sm text-green-600 font-medium">
-                      {t("download.readyForProcessing")}
-                    </span>
-                    <button
-                      onClick={() => handleDeleteTrack(track.id)}
-                      disabled={!!deletingIds[track.id]}
-                      className="btn btn-secondary text-sm disabled:opacity-50"
-                    >
-                      {deletingIds[track.id] ? t("download.deleting") : t("download.delete")}
-                    </button>
-                  </div>
+            {visibleDownloadedTracks.slice(0, 5).map((track) => (
+              <div
+                key={track.id}
+                className="grid items-center gap-3 p-2 bg-green-50 rounded-lg grid-cols-[220px_1fr_auto]"
+              >
+                <div className="min-w-0">
+                  <p className="font-medium text-gray-900">
+                    {track.metadata.title}
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    {track.metadata.artist}
+                  </p>
                 </div>
-              ))}
+                <audio
+                  controls
+                  className="audio-light w-full h-8"
+                  src={`/api/audio/${track.id}`}
+                />
+                <div className="flex items-center space-x-3">
+                  <span className="text-sm text-green-600 font-medium">
+                    {t("download.readyForProcessing")}
+                  </span>
+                  <button
+                    onClick={() => handleDeleteTrack(track.id)}
+                    disabled={!!deletingIds[track.id]}
+                    className="btn btn-secondary text-sm disabled:opacity-50"
+                  >
+                    {deletingIds[track.id]
+                      ? t("download.deleting")
+                      : t("download.delete")}
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}

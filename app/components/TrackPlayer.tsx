@@ -4,8 +4,13 @@ import { useEffect, useState, useRef } from "react";
 import { Track } from "@/types/track";
 import TrackList from "./shared/TrackList";
 import { getUserFacingErrorMessage } from "@/lib/utils/errorMessage";
+import {
+  formatErrorReportForCopy,
+  reportClientError,
+} from "@/lib/utils/errorReporter";
 import { useI18n } from "./I18nProvider";
 import Spinner from "./Spinner";
+import ErrorDetails from "./ErrorDetails";
 
 interface TrackPlayerProps {
   onTracksUpdate: () => void;
@@ -22,9 +27,13 @@ export default function TrackPlayer({
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
   const [isAccepting, setIsAccepting] = useState(false);
   const [isRejecting, setIsRejecting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [errorDetails, setErrorDetails] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
 
-  const downloadedTracks = tracks.filter((track) => track.status === "downloaded");
+  const downloadedTracks = tracks.filter(
+    (track) => track.status === "downloaded",
+  );
 
   useEffect(() => {
     if (!currentTrack) return;
@@ -47,13 +56,21 @@ export default function TrackPlayer({
   };
 
   const handleAudioError = (error: unknown) => {
-    console.error("Audio error:", error);
-    alert(t("player.audioError"));
+    const report = reportClientError(error, {
+      operation: "audio-playback",
+      component: "TrackPlayer",
+      endpoint: `/api/audio/${currentTrack?.id}`,
+      trackId: currentTrack?.id,
+    });
+    setError(t("player.audioError"));
+    setErrorDetails(formatErrorReportForCopy(report));
   };
 
   const handleAccept = async () => {
     if (!currentTrack) return;
 
+    setError(null);
+    setErrorDetails(null);
     console.warn("Accepting track:", currentTrack.id);
     setIsAccepting(true);
 
@@ -61,20 +78,25 @@ export default function TrackPlayer({
       const { processTrackAction } = await import("@/lib/actions/trackActions");
       const result = await processTrackAction(
         currentTrack.id,
-        currentTrack.metadata
+        currentTrack.metadata,
       );
       console.warn("Process track success:", result);
 
       onTracksUpdate();
       setCurrentTrack(null);
-    } catch (error) {
-      console.error("Error processing track:", error);
-      alert(
-        `${t("player.processError")}: ${getUserFacingErrorMessage(
-          error,
-          t("player.unknownError")
-        )}`
-      );
+    } catch (err) {
+      const report = reportClientError(err, {
+        operation: "process-track",
+        component: "TrackPlayer",
+        endpoint: "processTrackAction",
+        trackId: currentTrack.id,
+      });
+      const message = `${t("player.processError")}: ${getUserFacingErrorMessage(
+        err,
+        t("player.unknownError"),
+      )}`;
+      setError(message);
+      setErrorDetails(formatErrorReportForCopy(report));
     } finally {
       setIsAccepting(false);
     }
@@ -86,6 +108,8 @@ export default function TrackPlayer({
     const confirmed = window.confirm(t("download.deleteConfirm"));
     if (!confirmed) return;
 
+    setError(null);
+    setErrorDetails(null);
     console.warn("Deleting track via reject button:", currentTrack.id);
     setIsRejecting(true);
 
@@ -96,14 +120,19 @@ export default function TrackPlayer({
 
       onTracksUpdate();
       setCurrentTrack(null);
-    } catch (error) {
-      console.error("Error rejecting track:", error);
-      alert(
-        `${t("player.rejectError")}: ${getUserFacingErrorMessage(
-          error,
-          t("download.errors.deleteFailed")
-        )}`
-      );
+    } catch (err) {
+      const report = reportClientError(err, {
+        operation: "reject-track",
+        component: "TrackPlayer",
+        endpoint: "deleteTrackAction",
+        trackId: currentTrack.id,
+      });
+      const message = `${t("player.rejectError")}: ${getUserFacingErrorMessage(
+        err,
+        t("download.errors.deleteFailed"),
+      )}`;
+      setError(message);
+      setErrorDetails(formatErrorReportForCopy(report));
     } finally {
       setIsRejecting(false);
     }
@@ -113,15 +142,15 @@ export default function TrackPlayer({
     <div className="space-y-6">
       <div>
         <h2 className="text-xl font-semibold mb-4">{t("player.title")}</h2>
-        <p className="text-gray-600 mb-6">
-          {t("player.description")}
-        </p>
+        <p className="text-gray-600 mb-6">{t("player.description")}</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Track List */}
         <div>
-          <h3 className="text-lg font-medium mb-3">{t("player.downloadedTitle")}</h3>
+          <h3 className="text-lg font-medium mb-3">
+            {t("player.downloadedTitle")}
+          </h3>
           <TrackList
             tracks={downloadedTracks}
             onTrackSelect={handleTrackSelect}
@@ -135,7 +164,9 @@ export default function TrackPlayer({
 
         {/* Audio Player */}
         <div>
-          <h3 className="text-lg font-medium mb-3">{t("player.audioPlayer")}</h3>
+          <h3 className="text-lg font-medium mb-3">
+            {t("player.audioPlayer")}
+          </h3>
           {currentTrack ? (
             <div className="space-y-4">
               <div className="bg-gray-50 rounded-lg p-4">
@@ -149,12 +180,23 @@ export default function TrackPlayer({
                   ref={audioRef}
                   controls
                   className="audio-light w-full"
-                  src={
-                    `/api/audio/${currentTrack.id}`
-                  }
+                  src={`/api/audio/${currentTrack.id}`}
                   onError={handleAudioError}
                   preload="metadata"
                 />
+
+                {error ? (
+                  <div className="mt-4">
+                    <ErrorDetails
+                      title="Error"
+                      message={error}
+                      details={errorDetails ?? undefined}
+                      copyLabel={t("errorPage.copyDetails")}
+                      copySuccessLabel={t("errorPage.copySuccess")}
+                      copyErrorLabel={t("errorPage.copyFailed")}
+                    />
+                  </div>
+                ) : null}
 
                 {/* Action Buttons */}
                 <div className="flex space-x-3 mt-4">
@@ -231,7 +273,6 @@ export default function TrackPlayer({
           )}
         </div>
       </div>
-
     </div>
   );
 }

@@ -6,8 +6,13 @@ import TrackList from "./shared/TrackList";
 import { getProcessedTracks } from "@/lib/utils/trackFilters";
 import { formatTime } from "@/lib/utils/timeFormatter";
 import { getUserFacingErrorMessage } from "@/lib/utils/errorMessage";
+import {
+  formatErrorReportForCopy,
+  reportClientError,
+} from "@/lib/utils/errorReporter";
 import { useI18n } from "./I18nProvider";
 import Spinner from "./Spinner";
+import ErrorDetails from "./ErrorDetails";
 
 interface MetadataEditorProps {
   onTracksUpdate: () => void;
@@ -32,13 +37,15 @@ export default function MetadataEditor({
   });
   const [isSaving, setIsSaving] = useState(false);
   const [artistSuggestions, setArtistSuggestions] = useState<string[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [errorDetails, setErrorDetails] = useState<string | null>(null);
   const processedTracks = getProcessedTracks(tracks);
   const trackTypes: TrackType[] = ["Быстрый", "Средний", "Медленный", "Модерн"];
   const trackTypeLabels: Record<TrackType, string> = {
-    "Быстрый": t("trackTypes.fast"),
-    "Средний": t("trackTypes.mid"),
-    "Медленный": t("trackTypes.slow"),
-    "Модерн": t("trackTypes.modern"),
+    Быстрый: t("trackTypes.fast"),
+    Средний: t("trackTypes.mid"),
+    Медленный: t("trackTypes.slow"),
+    Модерн: t("trackTypes.modern"),
   };
 
   useEffect(() => {
@@ -74,7 +81,7 @@ export default function MetadataEditor({
 
   const handleMetadataChange = (
     field: keyof TrackMetadata,
-    value: string | number
+    value: string | number,
   ) => {
     setMetadata((prev) => ({
       ...prev,
@@ -86,11 +93,12 @@ export default function MetadataEditor({
     if (!selectedTrack) return;
 
     setIsSaving(true);
+    setError(null);
+    setErrorDetails(null);
 
     try {
-      const { updateMetadataAction } = await import(
-        "@/lib/actions/trackActions"
-      );
+      const { updateMetadataAction } =
+        await import("@/lib/actions/trackActions");
       const result = await updateMetadataAction(selectedTrack.id, metadata);
       console.warn("Metadata updated successfully:", result);
 
@@ -104,14 +112,20 @@ export default function MetadataEditor({
         rating: 5,
         year: 2025,
       });
-    } catch (error) {
-      console.error("Error updating metadata:", error);
-      alert(
+    } catch (err) {
+      const report = reportClientError(err, {
+        operation: "update-metadata",
+        component: "MetadataEditor",
+        endpoint: "updateMetadataAction",
+        trackId: selectedTrack?.id,
+      });
+      setError(
         `${t("metadata.errors.update")}: ${getUserFacingErrorMessage(
-          error,
-          t("metadata.errors.unknown")
-        )}`
+          err,
+          t("metadata.errors.unknown"),
+        )}`,
       );
+      setErrorDetails(formatErrorReportForCopy(report));
     } finally {
       setIsSaving(false);
     }
@@ -127,7 +141,9 @@ export default function MetadataEditor({
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Track List */}
         <div>
-          <h3 className="text-lg font-medium mb-3">{t("metadata.processedTitle")}</h3>
+          <h3 className="text-lg font-medium mb-3">
+            {t("metadata.processedTitle")}
+          </h3>
           <TrackList
             tracks={processedTracks}
             onTrackSelect={handleTrackSelect}
@@ -141,9 +157,21 @@ export default function MetadataEditor({
 
         {/* Metadata Editor */}
         <div>
-          <h3 className="text-lg font-medium mb-3">{t("metadata.editorTitle")}</h3>
+          <h3 className="text-lg font-medium mb-3">
+            {t("metadata.editorTitle")}
+          </h3>
           {selectedTrack ? (
             <div className="space-y-4">
+              {error ? (
+                <ErrorDetails
+                  title={t("metadata.errors.title") || "Error"}
+                  message={error}
+                  details={errorDetails ?? undefined}
+                  copyLabel={t("errorPage.copyDetails")}
+                  copySuccessLabel={t("errorPage.copySuccess")}
+                  copyErrorLabel={t("errorPage.copyFailed")}
+                />
+              ) : null}
               <div className="bg-gray-50 rounded-lg p-4">
                 <h4 className="font-medium text-gray-900 mb-4">
                   {t("metadata.editing")}: {selectedTrack.metadata.title}
@@ -229,7 +257,7 @@ export default function MetadataEditor({
                       onChange={(e) =>
                         handleMetadataChange(
                           "genre",
-                          e.target.value as TrackType
+                          e.target.value as TrackType,
                         )
                       }
                       className="input"
