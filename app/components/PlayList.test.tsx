@@ -162,6 +162,11 @@ describe("PlayList", () => {
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Generate" })).toBeInTheDocument();
     });
+    await waitFor(() => {
+      expect(
+        screen.getByText("Total tracks: 2, old: 1, new: 1")
+      ).toBeInTheDocument();
+    });
 
     fireEvent.click(screen.getByRole("button", { name: "Generate" }));
 
