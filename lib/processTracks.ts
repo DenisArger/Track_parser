@@ -240,6 +240,13 @@ export async function downloadTrack(
       filePath = result.filePath;
       apiTitle = result.title;
       storagePath = result.storagePath || result.filePath;
+      console.log("[processTracks:downloadTrack] rapidapi result", {
+        trackId,
+        filePath,
+        storagePath,
+        apiTitle,
+        source,
+      });
     } catch (error) {
       const { isServerlessEnvironment } = await import("./utils/environment");
       // РќР° Vercel/Netlify yt-dlp РЅРµРґРѕСЃС‚СѓРїРµРЅ вЂ” РЅРµ РїСЂРѕР±СѓРµРј, СЃСЂР°Р·Сѓ РґР°С‘Рј СЃСЃС‹Р»РєСѓ РЅР° RapidAPI
@@ -276,6 +283,13 @@ export async function downloadTrack(
         filePath = result.filePath;
         apiTitle = result.title;
         storagePath = result.filePath;
+        console.log("[processTracks:downloadTrack] ytdlp result", {
+          trackId,
+          filePath,
+          storagePath,
+          apiTitle,
+          source,
+        });
       } catch (ytDlpError) {
         const rapidApiError = error instanceof Error ? error.message : String(error);
         const ytDlpErrorMessage = ytDlpError instanceof Error ? ytDlpError.message : String(ytDlpError);
@@ -298,6 +312,13 @@ export async function downloadTrack(
       filePath = result.filePath;
       apiTitle = result.title;
       storagePath = result.storagePath || result.filePath;
+      console.log("[processTracks:downloadTrack] rapidapi result", {
+        trackId,
+        filePath,
+        storagePath,
+        apiTitle,
+        source,
+      });
     } catch (error) {
       const { isServerlessEnvironment } = await import("./utils/environment");
       if (isServerlessEnvironment()) {
@@ -312,6 +333,13 @@ export async function downloadTrack(
         filePath = result.filePath;
         apiTitle = result.title;
         storagePath = result.filePath;
+        console.log("[processTracks:downloadTrack] ytdlp result", {
+          trackId,
+          filePath,
+          storagePath,
+          apiTitle,
+          source,
+        });
       } catch (ytDlpError) {
         const rapidApiError = error instanceof Error ? error.message : String(error);
         const ytDlpErr = ytDlpError instanceof Error ? ytDlpError.message : String(ytDlpError);

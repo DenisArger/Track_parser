@@ -130,6 +130,18 @@ export async function downloadTrackAction(
 
     const detectedSource = source || detectSourceFromUrl(url);
     const track = await downloadTrackFromLib(url, detectedSource);
+    console.log("[downloadTrackAction] track returned from lib", {
+      trackId: track.id,
+      status: track.status,
+      originalPath: track.originalPath,
+      processedPath: track.processedPath,
+      filename: track.filename,
+      metadata: {
+        title: track.metadata?.title,
+        artist: track.metadata?.artist,
+        sourceType: track.metadata?.sourceType,
+      },
+    });
     return { ok: true, track };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -465,6 +477,12 @@ export async function changeTrackStatusAction(
     }
 
     await setTrack(trackId, track);
+    console.log("[changeTrackStatusAction] persisted", {
+      trackId,
+      newStatus,
+      originalPath: track.originalPath,
+      processedPath: track.processedPath,
+    });
 
     console.log(`Track ${trackId} status changed from ${oldStatus} to ${newStatus}`);
     return track;
