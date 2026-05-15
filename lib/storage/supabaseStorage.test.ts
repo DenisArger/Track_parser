@@ -9,6 +9,8 @@ import {
   getBucketForOriginalPath,
   getPublicUrl,
   isStoragePath,
+  listBucketInventory,
+  listStorageInventory,
   sanitizeFilenameForStorage,
   uploadFileToStorage,
 } from "./supabaseStorage";
@@ -18,9 +20,9 @@ const mockFrom = vi.fn();
 const mockUpload = vi.fn();
 const mockGetPublicUrl = vi.fn();
 const mockCreateSignedUrl = vi.fn();
-const mockDownload = vi.fn();
-const mockRemove = vi.fn();
-const mockList = vi.fn();
+  const mockDownload = vi.fn();
+  const mockRemove = vi.fn();
+  const mockList = vi.fn();
 
 vi.mock("@/lib/supabase/server", () => ({
   createSupabaseServerClient: (...args: unknown[]) =>
@@ -209,5 +211,34 @@ describe("supabaseStorage", () => {
     const second = mockRemove.mock.calls[1][0] as string[];
     expect(first).toHaveLength(500);
     expect(second).toHaveLength(1);
+  });
+
+  it("listBucketInventory returns count and paths", async () => {
+    mockList.mockImplementation((prefix: string) => {
+      const map: Record<string, Array<{ name: string }>> = {
+        "": [{ name: "a.mp3" }, { name: "dir" }],
+        dir: [{ name: "b.mp3" }],
+        "dir/b.mp3": [],
+        "a.mp3": [],
+      };
+      return Promise.resolve({ data: map[prefix] ?? [], error: null });
+    });
+
+    await expect(listBucketInventory(STORAGE_BUCKETS.downloads)).resolves.toEqual({
+      bucket: STORAGE_BUCKETS.downloads,
+      count: 2,
+      paths: ["a.mp3", "dir/b.mp3"],
+    });
+  });
+
+  it("listStorageInventory returns all buckets in order", async () => {
+    mockList.mockResolvedValue({ data: [], error: null });
+
+    const result = await listStorageInventory([STORAGE_BUCKETS.downloads, STORAGE_BUCKETS.processed]);
+
+    expect(result).toEqual([
+      { bucket: STORAGE_BUCKETS.downloads, count: 0, paths: [] },
+      { bucket: STORAGE_BUCKETS.processed, count: 0, paths: [] },
+    ]);
   });
 });

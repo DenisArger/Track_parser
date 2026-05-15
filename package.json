@@ -15,6 +15,7 @@
     "check": "node scripts/check-ffmpeg.js",
     "migrate:tracks": "tsx scripts/migrate-tracks-to-supabase.ts",
     "migrate:files": "tsx scripts/migrate-files-to-storage.ts",
+    "storage:inventory": "tsx scripts/storage-inventory.ts",
     "prepare": "husky"
   },
   "dependencies": {

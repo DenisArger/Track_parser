@@ -24,7 +24,7 @@ export default function TrackManager({
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [messageType, setMessageType] = useState<"success" | "error" | null>(null);
-  const [isCleaningUploadedRadio, setIsCleaningUploadedRadio] = useState(false);
+  const [isCleaningUnusedStorage, setIsCleaningUnusedStorage] = useState(false);
 
   const loadStats = async () => {
     setIsLoading(true);
@@ -62,31 +62,35 @@ export default function TrackManager({
     }
   };
 
-  const cleanupUploadedRadioTracks = async () => {
+  const cleanupUnusedStorageFiles = async () => {
     if (
       !window.confirm(
-        t("manager.cleanupUploadedRadioConfirm")
+        t("manager.cleanupUnusedStorageConfirm")
       )
     ) {
       return;
     }
 
-    setIsCleaningUploadedRadio(true);
+    setIsCleaningUnusedStorage(true);
     try {
-      const { cleanupUploadedRadioTracksAction } = await import(
+      const { cleanupUnusedStorageFilesAction } = await import(
         "@/lib/actions/trackActions"
       );
-      const data = await cleanupUploadedRadioTracksAction();
+      const data = await cleanupUnusedStorageFilesAction();
       setMessage(
-        t("manager.cleanupUploadedRadioSuccess", { cleaned: data.cleaned })
+        t("manager.cleanupUnusedStorageSuccess", {
+          cleaned: data.cleaned,
+          byStatus: JSON.stringify(data.byStatus),
+          previewsCleared: data.previewsCleared,
+        })
       );
       setMessageType("success");
       onTracksUpdate?.();
     } catch {
-      setMessage(t("manager.cleanupUploadedRadioError"));
+      setMessage(t("manager.cleanupUnusedStorageError"));
       setMessageType("error");
     } finally {
-      setIsCleaningUploadedRadio(false);
+      setIsCleaningUnusedStorage(false);
     }
   };
 
@@ -235,23 +239,23 @@ export default function TrackManager({
 
         {/* Radio cleanup */}
         <div className="card border-slate-200 bg-slate-50/70">
-          <h3 className="text-lg font-medium mb-4">{t("manager.cleanupUploadedRadioTitle")}</h3>
+          <h3 className="text-lg font-medium mb-4">{t("manager.cleanupUnusedStorageTitle")}</h3>
           <p className="text-sm text-gray-600 mb-4">
-            {t("manager.cleanupUploadedRadioDescription")}
+            {t("manager.cleanupUnusedStorageDescription")}
           </p>
 
           <button
-            onClick={cleanupUploadedRadioTracks}
-            disabled={isLoading || isCleaningUploadedRadio}
+            onClick={cleanupUnusedStorageFiles}
+            disabled={isLoading || isCleaningUnusedStorage}
             className="btn w-full disabled:opacity-50 bg-slate-900 hover:bg-slate-800 text-white"
           >
-            {isCleaningUploadedRadio ? (
+            {isCleaningUnusedStorage ? (
               <span className="inline-flex items-center justify-center gap-2">
-                <Spinner label={t("manager.cleaningUploadedRadio")} />
-                {t("manager.cleaningUploadedRadio")}
+                <Spinner label={t("manager.cleaningUnusedStorage")} />
+                {t("manager.cleaningUnusedStorage")}
               </span>
             ) : (
-              t("manager.cleanupUploadedRadioAction")
+              t("manager.cleanupUnusedStorageAction")
             )}
           </button>
         </div>

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   cleanupTracksAction,
-  cleanupUploadedRadioTracksAction,
+  cleanupUnusedStorageFilesAction,
   deleteTrackAction,
   getTrackStatsAction,
   processTrackAction,
@@ -36,6 +36,7 @@ const mockDownloadFileFromStorage = vi.fn();
 const mockUploadFileToStorage = vi.fn();
 const mockProcessAudioFile = vi.fn();
 const mockWriteTrackTags = vi.fn();
+const mockClearBucket = vi.fn();
 
 vi.mock("@/lib/supabase/server", () => ({
   requireAuth: (...args: unknown[]) => mockRequireAuth(...args),
@@ -71,6 +72,7 @@ vi.mock("@/lib/utils/environment", () => ({
 vi.mock("@/lib/storage/supabaseStorage", () => ({
   downloadFileFromStorage: (...args: unknown[]) => mockDownloadFileFromStorage(...args),
   uploadFileToStorage: (...args: unknown[]) => mockUploadFileToStorage(...args),
+  clearBucket: (...args: unknown[]) => mockClearBucket(...args),
   STORAGE_BUCKETS: {
     downloads: "downloads",
     previews: "previews",
@@ -99,6 +101,7 @@ describe("trackActions additional coverage", () => {
     mockRequireAuth.mockResolvedValue({ id: "u1" });
     mockReadFile.mockResolvedValue(Buffer.from("file"));
     mockDownloadFileFromStorage.mockResolvedValue(Buffer.from("in"));
+    mockClearBucket.mockResolvedValue(4);
   });
 
   it("uploadLocalTrackAction validates file and uploads", async () => {
@@ -249,16 +252,17 @@ describe("trackActions additional coverage", () => {
     );
   });
 
-  it("cleanupUploadedRadioTracksAction removes storage files for uploaded radio tracks", async () => {
+  it("cleanupUnusedStorageFilesAction removes storage files and previews", async () => {
     mockGetAllTracksFromLib.mockResolvedValueOnce([
       { id: "a", status: "uploaded_radio" },
       { id: "b", status: "downloaded" },
-      { id: "c", status: "uploaded_radio" },
+      { id: "c", status: "reviewed_rejected" },
     ] as any);
 
-    const result = await cleanupUploadedRadioTracksAction();
+    const result = await cleanupUnusedStorageFilesAction();
 
     expect(result.cleaned).toBe(2);
+    expect(result.previewsCleared).toBe(4);
     expect(mockDeleteTrackStorageFiles).toHaveBeenCalledWith("a");
     expect(mockDeleteTrackStorageFiles).toHaveBeenCalledWith("c");
     expect(mockDeleteTrackStorageFiles).not.toHaveBeenCalledWith("b");

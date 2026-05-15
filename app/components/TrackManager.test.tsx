@@ -7,13 +7,13 @@ import TrackManager from "./TrackManager";
 import { getMessages } from "@/lib/i18n/getMessages";
 
 const mockCleanupTracksAction = vi.fn();
-const mockCleanupUploadedRadioTracksAction = vi.fn();
+const mockCleanupUnusedStorageFilesAction = vi.fn();
 
 vi.mock("@/lib/actions/trackActions", () => ({
   getTrackStatsAction: vi.fn(),
   cleanupTracksAction: (...args: unknown[]) => mockCleanupTracksAction(...args),
-  cleanupUploadedRadioTracksAction: (...args: unknown[]) =>
-    mockCleanupUploadedRadioTracksAction(...args),
+  cleanupUnusedStorageFilesAction: (...args: unknown[]) =>
+    mockCleanupUnusedStorageFilesAction(...args),
   resetAllDataAction: vi.fn(),
 }));
 
@@ -31,17 +31,25 @@ describe("TrackManager", () => {
     mockCleanupTracksAction.mockResolvedValue({
       statsAfter: { total: 0, downloaded: 0, processed: 0, rejected: 0 },
     });
-    mockCleanupUploadedRadioTracksAction.mockResolvedValue({ cleaned: 3 });
+    mockCleanupUnusedStorageFilesAction.mockResolvedValue({
+      cleaned: 3,
+      byStatus: { uploaded_radio: 2, reviewed_rejected: 1 },
+      previewsCleared: 5,
+    });
   });
 
   it("shows cleanup uploaded_radio action for admins", async () => {
     renderWithI18n(<TrackManager />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Clean uploaded_radio files" }));
+    fireEvent.click(screen.getByRole("button", { name: "Clean unused files" }));
 
     await waitFor(() => {
-      expect(mockCleanupUploadedRadioTracksAction).toHaveBeenCalled();
-      expect(screen.getByText("Removed Storage files for 3 uploaded_radio tracks")).toBeInTheDocument();
+      expect(mockCleanupUnusedStorageFilesAction).toHaveBeenCalled();
+      expect(
+        screen.getByText(
+          "Removed Storage files for 3 tracks, cleared 5 preview files. Breakdown: {\"uploaded_radio\":2,\"reviewed_rejected\":1}"
+        )
+      ).toBeInTheDocument();
     });
   });
 });

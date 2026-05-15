@@ -18,6 +18,7 @@ import {
   deleteTrackStorageFiles,
   deleteAllTracks,
 } from "@/lib/storage/trackStorage";
+import { clearBucket, STORAGE_BUCKETS } from "@/lib/storage/supabaseStorage";
 import {
   Track,
   TrackMetadata,
@@ -425,30 +426,40 @@ export async function cleanupTracksAction(): Promise<{
 }
 
 /**
- * Удалить из Storage файлы всех треков, которые уже помечены как uploaded_radio.
+ * Удалить из Storage файлы треков, которые уже не нужны для работы:
+ * - uploaded_radio: оригинал и processed
+ * - reviewed_rejected: оригинал
  * Записи в БД не удаляются.
  */
-export async function cleanupUploadedRadioTracksAction(): Promise<{
+export async function cleanupUnusedStorageFilesAction(): Promise<{
   cleaned: number;
+  byStatus: Record<string, number>;
+  previewsCleared: number;
 }> {
   try {
     await requireAuth();
     const tracks = await getAllTracksFromLib();
-    const uploadedRadioTracks = tracks.filter((track) => track.status === "uploaded_radio");
+    const candidates = tracks.filter(
+      (track) => track.status === "uploaded_radio" || track.status === "reviewed_rejected"
+    );
 
-    for (const track of uploadedRadioTracks) {
+    const byStatus: Record<string, number> = {};
+    for (const track of candidates) {
       await deleteTrackStorageFiles(String(track.id));
+      byStatus[track.status] = (byStatus[track.status] || 0) + 1;
     }
 
-    return { cleaned: uploadedRadioTracks.length };
+    const previewsCleared = await clearBucket(STORAGE_BUCKETS.previews);
+
+    return { cleaned: candidates.length, byStatus, previewsCleared };
   } catch (error) {
     console.error(
-      "[cleanupUploadedRadioTracksAction] Error:",
+      "[cleanupUnusedStorageFilesAction] Error:",
       error instanceof Error ? error.message : String(error),
       (error as Error)?.stack
     );
     throw new Error(
-      `Cleanup uploaded radio tracks failed: ${
+      `Cleanup unused storage files failed: ${
         error instanceof Error ? error.message : String(error)
       }`
     );

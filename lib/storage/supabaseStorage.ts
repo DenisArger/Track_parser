@@ -290,6 +290,32 @@ async function listAllPaths(
   return paths;
 }
 
+export type BucketInventory = {
+  bucket: string;
+  count: number;
+  paths: string[];
+};
+
+export async function listBucketInventory(bucket: string): Promise<BucketInventory> {
+  const supabase = createSupabaseServerClient();
+  const paths = await listAllPaths(supabase, bucket, "");
+  return {
+    bucket,
+    count: paths.length,
+    paths,
+  };
+}
+
+export async function listStorageInventory(
+  buckets: readonly string[]
+): Promise<BucketInventory[]> {
+  const result: BucketInventory[] = [];
+  for (const bucket of buckets) {
+    result.push(await listBucketInventory(bucket));
+  }
+  return result;
+}
+
 /**
  * Очищает все файлы в bucket.
  */
