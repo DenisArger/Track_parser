@@ -263,6 +263,34 @@ export async function deleteTrack(trackId: string): Promise<void> {
 }
 
 /**
+ * Удаляет только файлы трека из Storage, не трогая запись в БД.
+ * Используется после подтверждения, что трек уже оказался на радио.
+ */
+export async function deleteTrackStorageFiles(trackId: string): Promise<void> {
+  const track = await getTrack(trackId);
+  if (!track) {
+    return;
+  }
+
+  if (track.originalPath && isStoragePath(track.originalPath)) {
+    try {
+      const bucket = getBucketForOriginalPath(track.status);
+      await deleteFileFromStorage(bucket, track.originalPath);
+    } catch (e) {
+      console.warn("Error deleting original file from Storage (ignored):", e);
+    }
+  }
+
+  if (track.processedPath && isStoragePath(track.processedPath)) {
+    try {
+      await deleteFileFromStorage(STORAGE_BUCKETS.processed, track.processedPath);
+    } catch (e) {
+      console.warn("Error deleting processed file from Storage (ignored):", e);
+    }
+  }
+}
+
+/**
  * Удаляет все треки (БД) и очищает бакеты Storage: downloads, processed, rejected, previews.
  */
 export async function deleteAllTracks(): Promise<{

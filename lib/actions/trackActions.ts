@@ -15,6 +15,7 @@ import {
   getTrack as getTrackFromStorage,
   setTrack,
   deleteTrack as deleteTrackFromStorage,
+  deleteTrackStorageFiles,
   deleteAllTracks,
 } from "@/lib/storage/trackStorage";
 import {
@@ -417,6 +418,37 @@ export async function cleanupTracksAction(): Promise<{
     console.error("[cleanupTracksAction] Error:", error instanceof Error ? error.message : String(error), (error as Error)?.stack);
     throw new Error(
       `Cleanup failed: ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    );
+  }
+}
+
+/**
+ * Удалить из Storage файлы всех треков, которые уже помечены как uploaded_radio.
+ * Записи в БД не удаляются.
+ */
+export async function cleanupUploadedRadioTracksAction(): Promise<{
+  cleaned: number;
+}> {
+  try {
+    await requireAuth();
+    const tracks = await getAllTracksFromLib();
+    const uploadedRadioTracks = tracks.filter((track) => track.status === "uploaded_radio");
+
+    for (const track of uploadedRadioTracks) {
+      await deleteTrackStorageFiles(String(track.id));
+    }
+
+    return { cleaned: uploadedRadioTracks.length };
+  } catch (error) {
+    console.error(
+      "[cleanupUploadedRadioTracksAction] Error:",
+      error instanceof Error ? error.message : String(error),
+      (error as Error)?.stack
+    );
+    throw new Error(
+      `Cleanup uploaded radio tracks failed: ${
         error instanceof Error ? error.message : String(error)
       }`
     );

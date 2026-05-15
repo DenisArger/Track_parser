@@ -5,6 +5,9 @@ import { POST } from "./route";
 const mockGetAuthUser = vi.fn();
 const mockGetRadioTrackNamesSet = vi.fn();
 const mockCheckTracksOnRadio = vi.fn();
+const mockGetStoredTrack = vi.fn();
+const mockSetTrack = vi.fn();
+const mockDeleteTrackStorageFiles = vi.fn();
 
 vi.mock("@/lib/supabase/server", () => ({
   getAuthUser: (...args: unknown[]) => mockGetAuthUser(...args),
@@ -31,9 +34,18 @@ vi.mock("@/lib/radio/streamingCenterClient", () => ({
   },
 }));
 
+vi.mock("@/lib/storage/trackStorage", () => ({
+  getTrack: (...args: unknown[]) => mockGetStoredTrack(...args),
+  setTrack: (...args: unknown[]) => mockSetTrack(...args),
+  deleteTrackStorageFiles: (...args: unknown[]) => mockDeleteTrackStorageFiles(...args),
+}));
+
 beforeEach(() => {
   vi.clearAllMocks();
   vi.spyOn(console, "error").mockImplementation(() => {});
+  vi.spyOn(console, "warn").mockImplementation(() => {});
+  mockSetTrack.mockResolvedValue(undefined);
+  mockDeleteTrackStorageFiles.mockResolvedValue(undefined);
 });
 
 describe("POST /api/radio/check-batch", () => {
@@ -98,6 +110,34 @@ describe("POST /api/radio/check-batch", () => {
       ],
       radioSet
     );
+  });
+
+  it("deletes storage files after persisting uploaded_radio status", async () => {
+    mockGetAuthUser.mockResolvedValue({ id: "u-1" });
+    mockGetRadioTrackNamesSet.mockResolvedValue(new Set(["abba - dancing queen"]));
+    mockCheckTracksOnRadio.mockReturnValue({ trk1: true });
+    mockGetStoredTrack.mockResolvedValue({
+      id: "trk1",
+      status: "uploaded_ftp",
+      originalPath: "downloads/trk1.mp3",
+      processedPath: "processed/trk1.mp3",
+      metadata: { title: "Dancing Queen", artist: "ABBA" },
+    });
+
+    const req = new NextRequest("http://localhost/api/radio/check-batch", {
+      method: "POST",
+      body: JSON.stringify({
+        tracks: [{ id: "trk1", metadata: { artist: "ABBA", title: "Dancing Queen" } }],
+      }),
+    });
+    const res = await POST(req);
+
+    expect(res.status).toBe(200);
+    expect(mockSetTrack).toHaveBeenCalledWith(
+      "trk1",
+      expect.objectContaining({ status: "uploaded_radio" })
+    );
+    expect(mockDeleteTrackStorageFiles).toHaveBeenCalledWith("trk1");
   });
 
   it("returns 502 on internal error", async () => {

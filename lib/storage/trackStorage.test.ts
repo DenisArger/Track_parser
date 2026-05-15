@@ -6,6 +6,7 @@ import {
   getAllTracks,
   getTrack,
   setTrack,
+  deleteTrackStorageFiles,
 } from "./trackStorage";
 
 const mockCreateSupabaseServerClient = vi.fn();
@@ -219,6 +220,16 @@ describe("trackStorage", () => {
 
     expect(console.warn).toHaveBeenCalled();
     expect(mockDeleteEq).toHaveBeenCalledWith("id", "t4");
+  });
+
+  it("deleteTrackStorageFiles removes files without deleting DB row", async () => {
+    mockSingle.mockResolvedValueOnce({ data: sampleTrackRow("t5"), error: null });
+
+    await deleteTrackStorageFiles("t5");
+
+    expect(mockDeleteFileFromStorage).toHaveBeenCalledWith("downloads", "downloads/t5.mp3");
+    expect(mockDeleteFileFromStorage).toHaveBeenCalledWith("processed", "processed/t5.mp3");
+    expect(mockDeleteEq).not.toHaveBeenCalled();
   });
 
   it("deleteAllTracks deletes all tracks and clears buckets", async () => {

@@ -24,6 +24,7 @@ export default function TrackManager({
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [messageType, setMessageType] = useState<"success" | "error" | null>(null);
+  const [isCleaningUploadedRadio, setIsCleaningUploadedRadio] = useState(false);
 
   const loadStats = async () => {
     setIsLoading(true);
@@ -58,6 +59,34 @@ export default function TrackManager({
       setMessageType("error");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const cleanupUploadedRadioTracks = async () => {
+    if (
+      !window.confirm(
+        t("manager.cleanupUploadedRadioConfirm")
+      )
+    ) {
+      return;
+    }
+
+    setIsCleaningUploadedRadio(true);
+    try {
+      const { cleanupUploadedRadioTracksAction } = await import(
+        "@/lib/actions/trackActions"
+      );
+      const data = await cleanupUploadedRadioTracksAction();
+      setMessage(
+        t("manager.cleanupUploadedRadioSuccess", { cleaned: data.cleaned })
+      );
+      setMessageType("success");
+      onTracksUpdate?.();
+    } catch {
+      setMessage(t("manager.cleanupUploadedRadioError"));
+      setMessageType("error");
+    } finally {
+      setIsCleaningUploadedRadio(false);
     }
   };
 
@@ -200,6 +229,29 @@ export default function TrackManager({
               </span>
             ) : (
               t("manager.resetAction")
+            )}
+          </button>
+        </div>
+
+        {/* Radio cleanup */}
+        <div className="card border-slate-200 bg-slate-50/70">
+          <h3 className="text-lg font-medium mb-4">{t("manager.cleanupUploadedRadioTitle")}</h3>
+          <p className="text-sm text-gray-600 mb-4">
+            {t("manager.cleanupUploadedRadioDescription")}
+          </p>
+
+          <button
+            onClick={cleanupUploadedRadioTracks}
+            disabled={isLoading || isCleaningUploadedRadio}
+            className="btn w-full disabled:opacity-50 bg-slate-900 hover:bg-slate-800 text-white"
+          >
+            {isCleaningUploadedRadio ? (
+              <span className="inline-flex items-center justify-center gap-2">
+                <Spinner label={t("manager.cleaningUploadedRadio")} />
+                {t("manager.cleaningUploadedRadio")}
+              </span>
+            ) : (
+              t("manager.cleanupUploadedRadioAction")
             )}
           </button>
         </div>

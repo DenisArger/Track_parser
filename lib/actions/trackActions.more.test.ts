@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   cleanupTracksAction,
+  cleanupUploadedRadioTracksAction,
   deleteTrackAction,
   getTrackStatsAction,
   processTrackAction,
@@ -15,11 +16,13 @@ const mockUploadLocalTrack = vi.fn();
 const mockProcessTrack = vi.fn();
 const mockRejectTrack = vi.fn();
 const mockGetTrackFromLib = vi.fn();
+const mockGetAllTracksFromLib = vi.fn();
 const mockUploadToFtp = vi.fn();
 
 const mockGetTrackFromStorage = vi.fn();
 const mockSetTrack = vi.fn();
 const mockDeleteTrack = vi.fn();
+const mockDeleteTrackStorageFiles = vi.fn();
 
 const mockGetTrackStats = vi.fn();
 const mockCleanupTrackStatuses = vi.fn();
@@ -39,7 +42,7 @@ vi.mock("@/lib/supabase/server", () => ({
 }));
 
 vi.mock("@/lib/processTracks", () => ({
-  getAllTracks: vi.fn(),
+  getAllTracks: (...args: unknown[]) => mockGetAllTracksFromLib(...args),
   downloadTrack: vi.fn(),
   uploadLocalTrack: (...args: unknown[]) => mockUploadLocalTrack(...args),
   processTrack: (...args: unknown[]) => mockProcessTrack(...args),
@@ -52,6 +55,7 @@ vi.mock("@/lib/storage/trackStorage", () => ({
   getTrack: (...args: unknown[]) => mockGetTrackFromStorage(...args),
   setTrack: (...args: unknown[]) => mockSetTrack(...args),
   deleteTrack: (...args: unknown[]) => mockDeleteTrack(...args),
+  deleteTrackStorageFiles: (...args: unknown[]) => mockDeleteTrackStorageFiles(...args),
   deleteAllTracks: vi.fn(),
 }));
 
@@ -243,5 +247,20 @@ describe("trackActions additional coverage", () => {
     await expect(uploadTrackAction("", null as any)).rejects.toThrow(
       "FTP upload failed: Track ID and FTP config are required"
     );
+  });
+
+  it("cleanupUploadedRadioTracksAction removes storage files for uploaded radio tracks", async () => {
+    mockGetAllTracksFromLib.mockResolvedValueOnce([
+      { id: "a", status: "uploaded_radio" },
+      { id: "b", status: "downloaded" },
+      { id: "c", status: "uploaded_radio" },
+    ] as any);
+
+    const result = await cleanupUploadedRadioTracksAction();
+
+    expect(result.cleaned).toBe(2);
+    expect(mockDeleteTrackStorageFiles).toHaveBeenCalledWith("a");
+    expect(mockDeleteTrackStorageFiles).toHaveBeenCalledWith("c");
+    expect(mockDeleteTrackStorageFiles).not.toHaveBeenCalledWith("b");
   });
 });

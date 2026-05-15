@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/supabase/server";
 import { getRadioTrackNamesSet } from "@/lib/radio/radioTracks";
 import { checkTracksOnRadio, debugTrackMatchKeys } from "@/lib/radio/streamingCenterClient";
-import { getTrack as getStoredTrack, setTrack } from "@/lib/storage/trackStorage";
+import {
+  deleteTrackStorageFiles,
+  getTrack as getStoredTrack,
+  setTrack,
+} from "@/lib/storage/trackStorage";
 
 export async function POST(request: NextRequest) {
   try {
@@ -82,8 +86,11 @@ export async function POST(request: NextRequest) {
               track.status = "uploaded_radio";
               await setTrack(trackId, track);
               console.log("[radio check-batch] persist status done", { trackId });
+              await deleteTrackStorageFiles(trackId);
+              console.log("[radio check-batch] storage files deleted", { trackId });
             } else {
               console.log("[radio check-batch] already uploaded_radio", { trackId });
+              await deleteTrackStorageFiles(trackId);
             }
           } catch (trackError) {
             const trackErrorMessage =
