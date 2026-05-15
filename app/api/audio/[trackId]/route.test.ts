@@ -119,7 +119,7 @@ describe("GET /api/audio/[trackId]", () => {
     expect(res.headers.get("location")).toBe("https://storage.example.com/signed-url");
     expect(mockCreateSignedUrl).toHaveBeenCalledWith(
       "processed-bucket",
-      "t1/Artist - Song.mp3",
+      "processed/t1/Artist - Song.mp3",
       3600
     );
   });
@@ -140,7 +140,7 @@ describe("GET /api/audio/[trackId]", () => {
     expect(res.headers.get("content-length")).toBe("3");
     expect(mockDownloadFileFromStorage).toHaveBeenCalledWith(
       "downloads-bucket",
-      "t1/Artist - Song.mp3"
+      "downloads/t1/Artist - Song.mp3"
     );
   });
 

@@ -108,6 +108,21 @@ describe("POST /api/upload-local/complete", () => {
     );
   });
 
+  it("accepts legacy bucket-prefixed original paths", async () => {
+    mockGetAuthUser.mockResolvedValue({ id: "u1" });
+    mockGetTrack.mockResolvedValue({
+      id: "t1",
+      originalPath: "downloads/t1/a.mp3",
+      status: "downloading",
+    });
+    mockFileExistsInStorage.mockResolvedValue(true);
+
+    const res = await POST(jsonRequest({ trackId: "t1" }));
+
+    expect(res.status).toBe(200);
+    expect(mockFileExistsInStorage).toHaveBeenCalledWith("downloads", "downloads/t1/a.mp3");
+  });
+
   it("returns 500 on unexpected error", async () => {
     mockGetAuthUser.mockResolvedValue({ id: "u1" });
     mockGetTrack.mockRejectedValue(new Error("db failed"));

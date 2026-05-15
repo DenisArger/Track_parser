@@ -112,12 +112,46 @@ describe("supabaseStorage", () => {
     );
   });
 
+  it("createSignedUrl retries with normalized bucket path when needed", async () => {
+    mockCreateSignedUrl.mockResolvedValueOnce({
+      data: null,
+      error: new Error("missing"),
+    });
+    mockCreateSignedUrl.mockResolvedValueOnce({
+      data: { signedUrl: "https://signed/normalized.mp3" },
+      error: null,
+    });
+
+    await expect(
+      createSignedUrl(STORAGE_BUCKETS.downloads, "downloads/a.mp3", 60)
+    ).resolves.toBe("https://signed/normalized.mp3");
+    expect(mockCreateSignedUrl).toHaveBeenNthCalledWith(1, "downloads/a.mp3", 60);
+    expect(mockCreateSignedUrl).toHaveBeenNthCalledWith(2, "a.mp3", 60);
+  });
+
   it("downloadFileFromStorage returns a buffer and deleteFileFromStorage removes file", async () => {
     const buffer = await downloadFileFromStorage(STORAGE_BUCKETS.downloads, "a.mp3");
     expect(buffer).toEqual(Buffer.from([1, 2, 3]));
 
     await deleteFileFromStorage(STORAGE_BUCKETS.downloads, "a.mp3");
     expect(mockRemove).toHaveBeenCalledWith(["a.mp3"]);
+  });
+
+  it("downloadFileFromStorage retries with normalized bucket path when needed", async () => {
+    mockDownload.mockResolvedValueOnce({ data: null, error: new Error("missing") });
+    mockDownload.mockResolvedValueOnce({
+      data: new Blob([new Uint8Array([9, 8])]),
+      error: null,
+    });
+
+    const buffer = await downloadFileFromStorage(
+      STORAGE_BUCKETS.downloads,
+      "downloads/a.mp3"
+    );
+
+    expect(buffer).toEqual(Buffer.from([9, 8]));
+    expect(mockDownload).toHaveBeenNthCalledWith(1, "downloads/a.mp3");
+    expect(mockDownload).toHaveBeenNthCalledWith(2, "a.mp3");
   });
 
   it("fileExistsInStorage checks file names and handles list errors", async () => {

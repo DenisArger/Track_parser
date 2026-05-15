@@ -39,6 +39,23 @@ export function isStoragePath(p: string): boolean {
 }
 
 /**
+ * Нормализует путь внутри bucket.
+ * Убирает префикс bucket-name, если он уже случайно сохранён в БД.
+ */
+export function normalizeBucketPath(
+  bucket: string,
+  path: string
+): string {
+  const prefix = `${bucket}/`;
+  return path.startsWith(prefix) ? path.slice(prefix.length) : path;
+}
+
+function getCandidateBucketPaths(bucket: string, path: string): string[] {
+  const normalized = normalizeBucketPath(bucket, path);
+  return normalized === path ? [path] : [path, normalized];
+}
+
+/**
  * Возвращает bucket для originalPath в зависимости от status.
  * rejected → rejected, иначе → downloads.
  */
@@ -96,17 +113,21 @@ export async function createSignedUrl(
   expiresIn: number = 3600
 ): Promise<string> {
   const supabase = createSupabaseServerClient();
+  let lastError: unknown;
 
-  const { data, error } = await supabase.storage
-    .from(bucket)
-    .createSignedUrl(path, expiresIn);
+  for (const candidate of getCandidateBucketPaths(bucket, path)) {
+    const { data, error } = await supabase.storage
+      .from(bucket)
+      .createSignedUrl(candidate, expiresIn);
 
-  if (error) {
-    console.error(`Error creating signed URL for ${bucket}/${path}:`, error);
-    throw error;
+    if (!error && data?.signedUrl) {
+      return data.signedUrl;
+    }
+    lastError = error;
   }
 
-  return data.signedUrl;
+  console.error(`Error creating signed URL for ${bucket}/${path}:`, lastError);
+  throw lastError;
 }
 
 /**
@@ -117,19 +138,22 @@ export async function downloadFileFromStorage(
   path: string
 ): Promise<Buffer> {
   const supabase = createSupabaseServerClient();
+  let lastError: unknown;
 
-  const { data, error } = await supabase.storage
-    .from(bucket)
-    .download(path);
+  for (const candidate of getCandidateBucketPaths(bucket, path)) {
+    const { data, error } = await supabase.storage
+      .from(bucket)
+      .download(candidate);
 
-  if (error) {
-    console.error(`Error downloading file from ${bucket}/${path}:`, error);
-    throw error;
+    if (!error && data) {
+      const arrayBuffer = await data.arrayBuffer();
+      return Buffer.from(arrayBuffer);
+    }
+    lastError = error;
   }
 
-  // Преобразуем Blob в Buffer
-  const arrayBuffer = await data.arrayBuffer();
-  return Buffer.from(arrayBuffer);
+  console.error(`Error downloading file from ${bucket}/${path}:`, lastError);
+  throw lastError;
 }
 
 /**
@@ -140,7 +164,6 @@ export async function deleteFileFromStorage(
   path: string
 ): Promise<void> {
   const supabase = createSupabaseServerClient();
-
   const { error } = await supabase.storage.from(bucket).remove([path]);
 
   if (error) {
@@ -157,19 +180,20 @@ export async function fileExistsInStorage(
   path: string
 ): Promise<boolean> {
   const supabase = createSupabaseServerClient();
+  for (const candidate of getCandidateBucketPaths(bucket, path)) {
+    const { data, error } = await supabase.storage
+      .from(bucket)
+      .list(candidate.split("/").slice(0, -1).join("/") || "", {
+        limit: 1000,
+      });
 
-  const { data, error } = await supabase.storage
-    .from(bucket)
-    .list(path.split("/").slice(0, -1).join("/") || "", {
-      limit: 1000,
-    });
+    if (error) continue;
 
-  if (error) {
-    return false;
+    const fileName = candidate.split("/").pop();
+    if (data?.some((file) => file.name === fileName)) return true;
   }
 
-  const fileName = path.split("/").pop();
-  return data?.some((file) => file.name === fileName) ?? false;
+  return false;
 }
 
 /**

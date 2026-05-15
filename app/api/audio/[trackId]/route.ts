@@ -39,10 +39,7 @@ export async function GET(
     let storageBucket: string = STORAGE_BUCKETS.downloads;
     if (bucket === "processed" || filePath.startsWith("processed/")) storageBucket = STORAGE_BUCKETS.processed;
     else if (bucket === "rejected" || filePath.startsWith("rejected/")) storageBucket = STORAGE_BUCKETS.rejected;
-    let storagePath = filePath;
-    if (storagePath.startsWith("downloads/")) storagePath = storagePath.replace("downloads/", "");
-    else if (storagePath.startsWith("processed/")) storagePath = storagePath.replace("processed/", "");
-    else if (storagePath.startsWith("rejected/")) storagePath = storagePath.replace("rejected/", "");
+    const storagePath = filePath;
 
     const rangeHeader = request.headers.get("range");
 
