@@ -147,6 +147,20 @@ describe("trackActions", () => {
     }
   });
 
+  it("downloadTrackAction normalizes playlist errors to a user-friendly message", async () => {
+    mockDownloadTrackFromLib.mockRejectedValue(
+      new Error("Плейлисты не поддерживаются. Вставьте ссылку на один трек (Watch).")
+    );
+
+    const result = await downloadTrackAction("https://youtube.com/playlist?list=1");
+
+    expect(result).toEqual({
+      ok: false,
+      error:
+        "Плейлисты не поддерживаются. Вставьте ссылку на один трек (YouTube watch?v=...).",
+    });
+  });
+
   it("changeTrackStatusAction updates status and clears error", async () => {
     mockGetTrackFromStorage.mockResolvedValue({
       id: "t1",

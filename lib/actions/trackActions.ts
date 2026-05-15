@@ -165,6 +165,18 @@ export async function downloadTrackAction(
       };
     }
 
+    if (
+      errorMessage.includes("Плейлисты не поддерживаются") ||
+      errorMessage.includes("playlist") ||
+      errorMessage.includes("youtube:tab")
+    ) {
+      return {
+        ok: false,
+        error:
+          "Плейлисты не поддерживаются. Вставьте ссылку на один трек (YouTube watch?v=...).",
+      };
+    }
+
     if (/Missing Supabase|SUPABASE_SERVICE_ROLE|NEXT_PUBLIC_SUPABASE/i.test(errorMessage)) {
       return {
         ok: false,
@@ -319,6 +331,12 @@ export async function updateMetadataAction(
       track.status = "ready_for_upload";
     }
 
+    console.log("[updateMetadataAction] about to persist", {
+      trackId,
+      status: track.status,
+      originalPath: track.originalPath,
+      processedPath: track.processedPath,
+    });
     await setTrack(trackId, track);
 
     return track;

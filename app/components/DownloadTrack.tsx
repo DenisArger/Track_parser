@@ -96,18 +96,38 @@ export default function DownloadTrack({
       ...extras,
     });
 
-    console.error("[DownloadTrack] UI error", {
+    const logPayload = {
       userMessage,
       operation,
       errorName,
       errorMessage,
-      extras,
-    });
+      ...extras,
+    };
+    if (err instanceof Error || errorMessage) {
+      console.error("[DownloadTrack] UI error", logPayload);
+    } else {
+      console.warn("[DownloadTrack] UI warning", logPayload);
+    }
+  };
+
+  const isPlaylistUrl = (value: string) => {
+    const lower = value.toLowerCase();
+    return lower.includes("list=") || lower.includes("/playlist");
   };
 
   const handleDownload = async () => {
     if (!url.trim()) {
       setDetailedError(t("download.errors.invalidUrl"), "validate-download-url");
+      return;
+    }
+
+    if (isPlaylistUrl(url)) {
+      setDetailedError(
+        "Плейлисты не поддерживаются. Вставьте ссылку на один трек (watch?v=...).",
+        "validate-download-url",
+        undefined,
+        { urlInput: url }
+      );
       return;
     }
 

@@ -75,6 +75,22 @@ describe("DownloadTrack", () => {
     expect(downloadButton).toBeDisabled();
   });
 
+  it("rejects playlist urls before calling download action", async () => {
+    renderWithI18n(
+      <DownloadTrack onTracksUpdate={vi.fn()} tracks={[]} />
+    );
+
+    fireEvent.change(screen.getByLabelText("Track URL"), {
+      target: { value: "https://youtube.com/playlist?list=abc123" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Download Track" }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Плейлисты не поддерживаются/)).toBeInTheDocument();
+    });
+    expect(mockDownloadTrackAction).not.toHaveBeenCalled();
+  });
+
   it("downloads track by URL and calls onTracksUpdate", async () => {
     const onTracksUpdate = vi.fn();
     mockDownloadTrackAction.mockResolvedValue({
