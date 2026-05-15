@@ -308,125 +308,103 @@ export default function HomePage() {
         <ActiveComponent onTracksUpdate={fetchTracks} tracks={tracks} onRadioMap={onRadioMap} />
       </div>
 
-      {tracks.length > 0 && (
-        <div className="card">
-          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-            <h3 className="text-lg font-semibold">{t("overview.title")}</h3>
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={syncRadioTracks}
-                disabled={isSyncingRadio}
-                className="btn btn-secondary text-sm disabled:opacity-50"
-                title={t("overview.syncRadio")}
-              >
-                {isSyncingRadio ? t("overview.syncing") : t("overview.syncRadio")}
-              </button>
-            </div>
+      <div className="card">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <h3 className="text-lg font-semibold">{t("overview.title")}</h3>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={syncRadioTracks}
+              disabled={isSyncingRadio}
+              className="btn btn-secondary text-sm disabled:opacity-50"
+              title={t("overview.syncRadio")}
+            >
+              {isSyncingRadio ? t("overview.syncing") : t("overview.syncRadio")}
+            </button>
           </div>
-          {syncRadioError && (
-            <p className="text-sm text-danger-600 dark:text-danger-400 mb-2">{syncRadioError}</p>
-          )}
-          {syncRadioMessage && (
-            <p className="text-sm text-green-600 dark:text-green-400 mb-2">{syncRadioMessage}</p>
-          )}
-          <div className="flex flex-wrap gap-2 mb-4">
-            {overviewTabs.map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setOverviewFilter(tab.id)}
-                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                  overviewFilter === tab.id
-                    ? "bg-primary-600 text-white"
-                    : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-          <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-              <thead className="bg-gray-50 dark:bg-gray-800">
+        </div>
+        {syncRadioError && (
+          <p className="text-sm text-danger-600 dark:text-danger-400 mb-2">{syncRadioError}</p>
+        )}
+        {syncRadioMessage && (
+          <p className="text-sm text-green-600 dark:text-green-400 mb-2">{syncRadioMessage}</p>
+        )}
+        <div className="flex flex-wrap gap-2 mb-4">
+          {overviewTabs.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setOverviewFilter(tab.id)}
+              className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                overviewFilter === tab.id
+                  ? "bg-primary-600 text-white"
+                  : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+        <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
+          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead className="bg-gray-50 dark:bg-gray-800">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">
+                  {t("overview.table.track")}
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">
+                  {t("overview.table.artist")}
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">
+                  {t("overview.table.status")}
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">
+                  {t("overview.table.actions")}
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-900">
+              {overviewTracks.length === 0 ? (
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">
-                    {t("overview.table.track")}
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">
-                    {t("overview.table.artist")}
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">
-                    {t("overview.table.status")}
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">
-                    {t("overview.table.actions")}
-                  </th>
+                  <td colSpan={4} className="px-4 py-8 text-center text-sm text-gray-500">
+                    {t("trackList.emptyDefault")}
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-900">
-                {overviewTracks.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="px-4 py-8 text-center text-sm text-gray-500">
-                      {t("trackList.emptyDefault")}
+              ) : (
+                overviewTracks.map((track) => (
+                  <tr key={track.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/60">
+                    <td className="px-4 py-3 align-top">
+                      <div className="font-medium text-gray-900 dark:text-gray-100">
+                        {track.metadata.title}
+                      </div>
                     </td>
-                  </tr>
-                ) : (
-                  overviewTracks.map((track) => (
-                    <tr key={track.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/60">
-                      <td className="px-4 py-3 align-top">
-                        <div className="font-medium text-gray-900 dark:text-gray-100">
-                          {track.metadata.title}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 align-top text-sm text-gray-600 dark:text-gray-300">
-                        {track.metadata.artist}
-                      </td>
-                      <td className="px-4 py-3 align-top">
-                        {track.error ? (
-                          <div className="space-y-2">
-                            <TrackStatusBadge status={track.status} />
-                            <p className="text-xs text-danger-600 dark:text-danger-400 max-w-xs">
-                              {t("overview.errorLabel")}: {track.error}
-                            </p>
-                          </div>
-                        ) : (
+                    <td className="px-4 py-3 align-top text-sm text-gray-600 dark:text-gray-300">
+                      {track.metadata.artist}
+                    </td>
+                    <td className="px-4 py-3 align-top">
+                      {track.error ? (
+                        <div className="space-y-2">
                           <TrackStatusBadge status={track.status} />
-                        )}
-                      </td>
-                      <td className="px-4 py-3 align-top">
-                        <div className="flex flex-wrap gap-2">
-                          {track.status !== "uploaded_ftp" &&
-                            OVERVIEW_STATUS_TRANSITIONS[track.status]?.map((transition) => (
-                              <button
-                                key={transition.status}
-                                type="button"
-                                onClick={async () => {
-                                  if (clearingErrorId) return;
-                                  setClearingErrorId(track.id);
-                                  try {
-                                    await updateTrackStatus(track.id, transition.status);
-                                  } finally {
-                                    setClearingErrorId(null);
-                                  }
-                                }}
-                                disabled={!!clearingErrorId}
-                                className="text-xs px-2 py-1 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 disabled:opacity-50"
-                              >
-                                {clearingErrorId === track.id ? "…" : t(transition.labelKey)}
-                              </button>
-                            ))}
-                          {track.error && track.status !== "uploaded_ftp" && (
+                          <p className="text-xs text-danger-600 dark:text-danger-400 max-w-xs">
+                            {t("overview.errorLabel")}: {track.error}
+                          </p>
+                        </div>
+                      ) : (
+                        <TrackStatusBadge status={track.status} />
+                      )}
+                    </td>
+                    <td className="px-4 py-3 align-top">
+                      <div className="flex flex-wrap gap-2">
+                        {track.status !== "uploaded_ftp" &&
+                          OVERVIEW_STATUS_TRANSITIONS[track.status]?.map((transition) => (
                             <button
+                              key={transition.status}
                               type="button"
                               onClick={async () => {
                                 if (clearingErrorId) return;
                                 setClearingErrorId(track.id);
                                 try {
-                                  await updateTrackStatus(
-                                    track.id,
-                                    track.processedPath ? "ready_for_upload" : "downloaded"
-                                  );
+                                  await updateTrackStatus(track.id, transition.status);
                                 } finally {
                                   setClearingErrorId(null);
                                 }
@@ -434,19 +412,39 @@ export default function HomePage() {
                               disabled={!!clearingErrorId}
                               className="text-xs px-2 py-1 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 disabled:opacity-50"
                             >
-                              {clearingErrorId === track.id ? "…" : t("overview.clearError")}
+                              {clearingErrorId === track.id ? "…" : t(transition.labelKey)}
                             </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                          ))}
+                        {track.error && track.status !== "uploaded_ftp" && (
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              if (clearingErrorId) return;
+                              setClearingErrorId(track.id);
+                              try {
+                                await updateTrackStatus(
+                                  track.id,
+                                  track.processedPath ? "ready_for_upload" : "downloaded"
+                                );
+                              } finally {
+                                setClearingErrorId(null);
+                              }
+                            }}
+                            disabled={!!clearingErrorId}
+                            className="text-xs px-2 py-1 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 disabled:opacity-50"
+                          >
+                            {clearingErrorId === track.id ? "…" : t("overview.clearError")}
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
-      )}
+      </div>
         </>
       )}
     </div>
