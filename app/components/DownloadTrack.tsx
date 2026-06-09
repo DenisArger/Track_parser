@@ -190,20 +190,41 @@ export default function DownloadTrack({
     let currentHttpStatus: number | undefined;
     let currentSignedUrlHost: string | undefined;
 
+    const postJson = async (path: string, payload: unknown) => {
+      const requestUrl =
+        typeof window !== "undefined"
+          ? new URL(path, window.location.origin).toString()
+          : path;
+
+      return fetch(requestUrl, {
+        method: "POST",
+        credentials: "same-origin",
+        cache: "no-store",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+    };
+
     try {
       currentStage = "sign-request";
       currentEndpoint = "/api/upload-local/signed";
       currentHttpStatus = undefined;
-      const signResponse = await fetch("/api/upload-local/signed", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
+      let signResponse: Response;
+      try {
+        signResponse = await postJson("/api/upload-local/signed", {
           filename: file.name,
           contentType: file.type || "audio/mpeg",
-        }),
-      });
+        });
+      } catch (requestError) {
+        signResponse = await postJson("/api/upload-local/signed", {
+          filename: file.name,
+          contentType: file.type || "audio/mpeg",
+        }).catch((retryError) => {
+          throw retryError instanceof Error ? retryError : requestError;
+        });
+      }
       currentHttpStatus = signResponse.status;
 
       const signContentType = signResponse.headers.get("content-type") || "";
@@ -236,11 +257,17 @@ export default function DownloadTrack({
           signResponse.status === 413 ||
           lowered.includes("request entity too large") ||
           lowered.includes("payload too large");
+        const isNetworkLike =
+          signResponse.status === 0 ||
+          lowered.includes("failed to fetch") ||
+          lowered.includes("network error");
 
         throw new Error(
           isTooLarge
             ? t("download.errors.fileTooLarge")
-            : `${rawMessage} (HTTP ${signResponse.status}, /api/upload-local/signed)`,
+            : isNetworkLike
+              ? `${t("download.errors.localUploadFailed")} (POST /api/upload-local/signed)`
+              : `${rawMessage} (HTTP ${signResponse.status}, /api/upload-local/signed)`,
         );
       }
 
