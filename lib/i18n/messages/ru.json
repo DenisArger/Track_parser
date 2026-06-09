@@ -143,6 +143,7 @@
     "recentlyDownloaded": "Недавно скачанные",
     "processed": "Обработан",
     "readyForProcessing": "Готов к обработке",
+    "uploadSuccess": "Трек успешно загружен",
     "deleteConfirm": "Удалить трек? Файл будет удалён из базы и Storage.",
     "errors": {
       "invalidUrl": "Введите корректную ссылку",

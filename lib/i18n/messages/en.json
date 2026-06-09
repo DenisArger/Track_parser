@@ -147,6 +147,7 @@
     "recentlyDownloaded": "Recently Downloaded",
     "processed": "Processed",
     "readyForProcessing": "Ready for processing",
+    "uploadSuccess": "Track uploaded successfully",
     "deleteConfirm": "Delete track? The file will be removed from the database and Storage.",
     "errors": {
       "invalidUrl": "Please enter a valid URL",

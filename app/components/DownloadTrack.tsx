@@ -63,7 +63,9 @@ export default function DownloadTrack({
   const [errorDiagnostics, setErrorDiagnostics] =
     useState<ErrorDiagnostics | null>(null);
   const [errorDetails, setErrorDetails] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const visibleDownloadingTracks = getDownloadingTracks(tracks).filter(
     (track) => !hiddenTrackIds[track.id],
   );
@@ -115,6 +117,18 @@ export default function DownloadTrack({
       stack,
       ...extras,
     });
+  };
+
+  const showToast = (message: string) => {
+    if (toastTimerRef.current) {
+      clearTimeout(toastTimerRef.current);
+    }
+
+    setToastMessage(message);
+    toastTimerRef.current = setTimeout(() => {
+      setToastMessage(null);
+      toastTimerRef.current = null;
+    }, 3500);
   };
 
   const isPlaylistUrl = (value: string) => {
@@ -346,6 +360,7 @@ export default function DownloadTrack({
       }
 
       onTracksUpdate();
+      showToast(t("download.uploadSuccess"));
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       const likelyCorsOnSignedUpload =
@@ -457,6 +472,15 @@ export default function DownloadTrack({
 
   return (
     <div className="space-y-6">
+      {toastMessage ? (
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed right-4 top-4 z-50 max-w-sm rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900 shadow-lg shadow-emerald-950/10 dark:border-emerald-900/60 dark:bg-emerald-950 dark:text-emerald-100"
+        >
+          {toastMessage}
+        </div>
+      ) : null}
       <div>
         <h2 className="text-xl font-semibold mb-4">{t("download.title")}</h2>
         <p className="text-gray-600 mb-6">{t("download.description")}</p>
