@@ -50,10 +50,13 @@ export default function MonthlyRubrics() {
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [year, setYear] = useState(now.getFullYear());
   const [relative, setRelative] = useState(false);
+  const [serverId, setServerId] = useState(1);
+  const [basePath, setBasePath] = useState("");
+  const [useWindows1251, setUseWindows1251] = useState(true);
+  const [isRandom, setIsRandom] = useState(false);
   const [busy, setBusy] = useState<null | "preview" | "send">(null);
   const [playlists, setPlaylists] = useState<MonthlyPlaylist[]>([]);
   const [sent, setSent] = useState<SendResult[] | null>(null);
-  const [destDir, setDestDir] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [errorDetails, setErrorDetails] = useState<string | null>(null);
 
@@ -83,12 +86,11 @@ export default function MonthlyRubrics() {
       setError(null);
       setErrorDetails(null);
       setSent(null);
-      setDestDir(null);
       try {
         const r = await fetch("/api/playlists/monthly", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ftpConfig, month, year, action, relative }),
+          body: JSON.stringify({ ftpConfig, month, year, action, relative, serverId, basePath, useWindows1251, isRandom }),
         });
         const d = await r.json();
         if (!r.ok) throw new Error(d.error || String(r.status));
@@ -96,7 +98,6 @@ export default function MonthlyRubrics() {
           setPlaylists(d.playlists as MonthlyPlaylist[]);
         } else {
           setSent(d.sent as SendResult[]);
-          setDestDir(d.destDir as string);
         }
       } catch (e) {
         setDetailedError(
@@ -108,7 +109,7 @@ export default function MonthlyRubrics() {
         setBusy(null);
       }
     },
-    [ftpConfig, month, year, relative],
+    [ftpConfig, month, year, relative, serverId, basePath, useWindows1251, isRandom],
   );
 
   const download = (pl: MonthlyPlaylist) => {
@@ -187,6 +188,42 @@ export default function MonthlyRubrics() {
             />
             {t("monthly.relative")}
           </label>
+          <label className="inline-flex items-center gap-2 text-xs text-gray-500">
+            <input
+              type="checkbox"
+              checked={useWindows1251}
+              onChange={(e) => setUseWindows1251(e.target.checked)}
+            />
+            {t("playlist.win1251")}
+          </label>
+          <label className="inline-flex items-center gap-2 text-xs text-gray-500">
+            <input
+              type="checkbox"
+              checked={isRandom}
+              onChange={(e) => setIsRandom(e.target.checked)}
+            />
+            {t("playlist.random")}
+          </label>
+          <label className="text-xs text-gray-500">
+            {t("playlist.serverId")}
+            <input
+              type="number"
+              min={1}
+              value={serverId}
+              onChange={(e) => setServerId(Number(e.target.value) || 1)}
+              className="mt-1 w-20 rounded border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1 text-sm"
+            />
+          </label>
+          <label className="text-xs text-gray-500">
+            {t("playlist.basePath")}
+            <input
+              type="text"
+              value={basePath}
+              onChange={(e) => setBasePath(e.target.value)}
+              placeholder={t("playlist.basePathPlaceholder")}
+              className="mt-1 min-w-[200px] rounded border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1 text-sm"
+            />
+          </label>
           <button
             type="button"
             onClick={() => run("preview")}
@@ -234,11 +271,6 @@ export default function MonthlyRubrics() {
       {sent && (
         <div className="card">
           <h3 className="text-lg font-medium mb-2">{t("monthly.sent")}</h3>
-          {destDir && (
-            <p className="text-xs text-gray-500 mb-3">
-              {t("monthly.destDir")}: {destDir}
-            </p>
-          )}
           <ul className="space-y-1 text-sm">
             {sent.map((s) => (
               <li key={s.fileName}>

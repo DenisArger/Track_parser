@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { FtpConfig } from "@/types/track";
-import { buildCatalogsOverFtp, sendM3uViaFtp } from "@/lib/playlists/ftpSource";
+import { buildCatalogsOverFtp } from "@/lib/playlists/ftpSource";
 import { serializeM3U } from "@/lib/playlists/playlistBuilder";
+import {
+  uploadPlaylistToStreamingCenter,
+  StreamingCenterTrack,
+} from "@/lib/radio/uploadPlaylistToStreamingCenter";
+
+export const runtime = "nodejs";
 
 function safeName(s: string): string {
   return s
@@ -17,6 +23,10 @@ export async function POST(req: NextRequest) {
     year?: number;
     action?: "preview" | "send";
     relative?: boolean;
+    serverId?: number;
+    isRandom?: boolean;
+    basePath?: string;
+    useWindows1251?: boolean;
   };
   try {
     body = await req.json();
@@ -24,7 +34,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Неверный JSON" }, { status: 400 });
   }
 
-  const { ftpConfig, month, year, action = "preview", relative } = body;
+  const {
+    ftpConfig,
+    month,
+    year,
+    action = "preview",
+    relative,
+    serverId,
+    isRandom,
+    basePath,
+    useWindows1251,
+  } = body;
 
   if (!ftpConfig || !ftpConfig.host || !ftpConfig.user) {
     return NextResponse.json(
@@ -47,7 +67,6 @@ export async function POST(req: NextRequest) {
   }
 
   const target = { month: monthNum, year: yearNum };
-  const ym = `${yearNum}-${String(monthNum).padStart(2, "0")}`;
 
   try {
     const results = await buildCatalogsOverFtp(ftpConfig, target);
@@ -71,17 +90,33 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, target: { month: monthNum, year: yearNum }, playlists });
     }
 
-    // action === "send": выгружаем каждый M3U в подпапку playlists/<YYYY-MM>
-    const destBase = (ftpConfig.remotePath || "").replace(/\/+$/, "");
-    const destDir = `${destBase}/playlists/${ym}`.replace(/\/+/g, "/");
-    const sendConfig: FtpConfig = { ...ftpConfig, remotePath: destDir };
-
-    const sent: { rubric: string; fileName: string; tracks: number; ok: boolean; error?: string }[] = [];
+    // action === "send": отправляем каждую рубрику в Streaming.Center
+    // по аналогии с вкладкой «Плейлист» (по одному плейлисту на рубрику).
+    const sent: {
+      rubric: string;
+      fileName: string;
+      tracks: number;
+      ok: boolean;
+      error?: string;
+    }[] = [];
     for (const r of results) {
       const fileName = `${safeName(r.profile.rubric)}.m3u`;
-      const content = serializeM3U(r.entries, { relative });
+      const tracks: StreamingCenterTrack[] = r.entries.map((e) => ({
+        raw_name: e.originalPath,
+        artist: r.profile.rubric,
+        title: e.title,
+      }));
       try {
-        await sendM3uViaFtp(sendConfig, fileName, content);
+        const res = await uploadPlaylistToStreamingCenter({
+          name: r.profile.rubric,
+          serverId,
+          isRandom,
+          basePath,
+          useWindows1251,
+          tracks,
+        });
+        if (res.status !== 200)
+          throw new Error((res.json as { error?: string })?.error || `HTTP ${res.status}`);
         sent.push({ rubric: r.profile.rubric, fileName, tracks: r.entries.length, ok: true });
       } catch (e) {
         sent.push({
@@ -93,7 +128,7 @@ export async function POST(req: NextRequest) {
         });
       }
     }
-    return NextResponse.json({ success: true, target: { month: monthNum, year: yearNum }, destDir, sent });
+    return NextResponse.json({ success: true, target: { month: monthNum, year: yearNum }, sent });
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     return NextResponse.json(
