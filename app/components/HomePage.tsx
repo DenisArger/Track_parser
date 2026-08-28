@@ -392,6 +392,23 @@ export default function HomePage() {
                       ) : (
                         <TrackStatusBadge status={track.status} />
                       )}
+                      {track.status === "ready_for_upload" && (
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                          {track.preparedAt && (
+                            <>
+                              {t("ftp.preparedAt", {
+                                date: new Date(track.preparedAt).toLocaleString(),
+                              })}
+                              {track.preparedBy && <> · </>}
+                            </>
+                          )}
+                          {track.preparedBy && (
+                            <span>
+                              {t("ftp.preparedBy", { user: track.preparedBy })}
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </td>
                     <td className="px-4 py-3 align-top">
                       <div className="flex flex-wrap gap-2">

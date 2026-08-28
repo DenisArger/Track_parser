@@ -335,6 +335,28 @@ export default function FtpUploader({
               copyErrorLabel={t("errorPage.copyFailed")}
             />
           )}
+          {(() => {
+            const recentlyUploaded = tracks.filter(
+              (track) => track.status === "uploaded_ftp"
+            );
+            return recentlyUploaded.length > 0 ? (
+              <div className="mb-6 space-y-2">
+                <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                  {t("ftp.recentlyUploaded")}
+                </h4>
+                {recentlyUploaded.map((track) => (
+                  <div
+                    key={track.id}
+                    className="border rounded-lg p-3 bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800"
+                  >
+                    <div className="font-medium text-gray-900 dark:text-gray-100">
+                      {track.metadata.title} — {track.metadata.artist}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : null;
+          })()}
           {processedTracks.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
               <p>{t("ftp.emptyTitle")}</p>

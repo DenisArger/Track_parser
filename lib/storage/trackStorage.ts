@@ -21,6 +21,8 @@ interface TrackRow {
   processing_progress: number | null;
   upload_progress: number | null;
   error: string | null;
+  prepared_at: string | null;
+  prepared_by: string | null;
   created_at?: string;
   updated_at?: string;
 }
@@ -51,6 +53,8 @@ function rowToTrack(row: TrackRow): Track {
     processingProgress: row.processing_progress ?? undefined,
     uploadProgress: row.upload_progress ?? undefined,
     error: row.error || undefined,
+    preparedAt: row.prepared_at || undefined,
+    preparedBy: row.prepared_by || undefined,
   };
 }
 
@@ -80,6 +84,8 @@ function trackToRow(track: Track): Omit<TrackRow, "created_at" | "updated_at"> {
     processing_progress: track.processingProgress ?? null,
     upload_progress: track.uploadProgress ?? null,
     error: track.error || null,
+    prepared_at: track.preparedAt || null,
+    prepared_by: track.preparedBy || null,
   };
 }
 

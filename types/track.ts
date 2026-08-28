@@ -24,6 +24,8 @@ export interface Track {
   processingProgress?: number;
   uploadProgress?: number;
   error?: string;
+  preparedAt?: string;
+  preparedBy?: string;
 }
 
 export type TrackStatus =

@@ -260,6 +260,8 @@
     "remove": "Remove from queue",
     "recentlyUploaded": "Recently Uploaded",
     "uploadedSuccess": "Uploaded successfully",
+    "preparedAt": "Prepared: {date}",
+    "preparedBy": "Prepared by: {user}",
     "connectionSuccess": "FTP connection successful!",
     "errors": {
       "uploadFailed": "Upload failed",

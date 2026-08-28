@@ -256,6 +256,8 @@
     "remove": "Убрать из очереди",
     "recentlyUploaded": "Недавно загруженные",
     "uploadedSuccess": "Успешно загружен",
+    "preparedAt": "Подготовлено: {date}",
+    "preparedBy": "Подготовил: {user}",
     "connectionSuccess": "FTP соединение установлено!",
     "errors": {
       "uploadFailed": "Ошибка загрузки",

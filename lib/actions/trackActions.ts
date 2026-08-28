@@ -97,6 +97,8 @@ export async function getAllTracks(): Promise<Track[]> {
             : undefined,
           uploadProgress: track.uploadProgress ? Number(track.uploadProgress) : undefined,
           error: track.error ? String(track.error) : undefined,
+          preparedAt: track.preparedAt ? String(track.preparedAt) : undefined,
+          preparedBy: track.preparedBy ? String(track.preparedBy) : undefined,
         };
         mappedTracks.push(mappedTrack);
       } catch (mapError) {
@@ -284,7 +286,7 @@ export async function updateMetadataAction(
   metadata: TrackMetadata
 ): Promise<Track> {
   try {
-    await requireAuth();
+    const user = await requireAuth();
     if (!trackId || !metadata) {
       throw new Error("Track ID and metadata are required");
     }
@@ -331,6 +333,8 @@ export async function updateMetadataAction(
       track.status !== "uploaded_radio"
     ) {
       track.status = "ready_for_upload";
+      track.preparedAt = new Date().toISOString();
+      track.preparedBy = user.email;
     }
 
     console.log("[updateMetadataAction] about to persist", {
@@ -519,7 +523,7 @@ export async function changeTrackStatusAction(
   newStatus: TrackStatus
 ): Promise<Track> {
   try {
-    await requireAuth();
+    const user = await requireAuth();
     if (!trackId || !newStatus) {
       throw new Error("Track ID and new status are required");
     }
@@ -531,6 +535,10 @@ export async function changeTrackStatusAction(
 
     const oldStatus = track.status;
     track.status = newStatus;
+    if (newStatus === "ready_for_upload") {
+      track.preparedAt = new Date().toISOString();
+      track.preparedBy = user.email;
+    }
     
     // Очищаем ошибку при изменении статуса
     if (track.error && newStatus !== "error") {

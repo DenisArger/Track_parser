@@ -731,7 +731,6 @@ export async function uploadToFtp(
 
     console.log("FTP upload completed successfully for track:", trackId);
 
-    // Update status to uploaded FTP
     track.status = "uploaded_ftp";
     await setTrack(trackId, track);
 
