@@ -65,6 +65,7 @@ export default function MonthlyRubrics() {
   const [customNames, setCustomNames] = useState<Record<string, string>>({});
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [singleResults, setSingleResults] = useState<Record<string, { ok: boolean; error?: string }>>({});
+  const [editedEntries, setEditedEntries] = useState<Record<string, MonthlyEntry[]>>({});
 
   useEffect(() => {
     const load = async () => {
@@ -149,7 +150,8 @@ export default function MonthlyRubrics() {
       setSingleResults((prev) => ({ ...prev, [pl.id]: { ok: false } }));
       try {
         const name = customNames[pl.id] || pl.rubric;
-        const tracks: StreamingCenterTrack[] = pl.entries.map((e) => ({
+        const entries = editedEntries[pl.id] ?? pl.entries;
+        const tracks: StreamingCenterTrack[] = entries.map((e) => ({
           raw_name: (e as MonthlyEntry & { originalPath?: string }).originalPath,
           artist: name,
           title: e.title,
@@ -179,10 +181,46 @@ export default function MonthlyRubrics() {
         setSendingId(null);
       }
     },
-    [customNames, serverId, isRandom, basePath, useWindows1251],
+    [customNames, editedEntries, serverId, isRandom, basePath, useWindows1251],
   );
 
-  const totalTracks = playlists.reduce((s, p) => s + p.tracks, 0);
+  const getEntries = useCallback(
+    (pl: MonthlyPlaylist): MonthlyEntry[] => {
+      return editedEntries[pl.id] ?? pl.entries;
+    },
+    [editedEntries],
+  );
+
+  const removeTrack = useCallback(
+    (plId: string, index: number) => {
+      setEditedEntries((prev) => {
+        const pl = playlists.find((p) => p.id === plId);
+        if (!pl) return prev;
+        const current = prev[plId] ?? pl.entries;
+        const next = current.filter((_, i) => i !== index);
+        return { ...prev, [plId]: next };
+      });
+    },
+    [playlists],
+  );
+
+  const moveTrack = useCallback(
+    (plId: string, index: number, direction: "up" | "down") => {
+      setEditedEntries((prev) => {
+        const pl = playlists.find((p) => p.id === plId);
+        if (!pl) return prev;
+        const current = prev[plId] ?? pl.entries;
+        const newIndex = direction === "up" ? index - 1 : index + 1;
+        if (newIndex < 0 || newIndex >= current.length) return prev;
+        const next = [...current];
+        [next[index], next[newIndex]] = [next[newIndex], next[index]];
+        return { ...prev, [plId]: next };
+      });
+    },
+    [playlists],
+  );
+
+  const totalTracks = playlists.reduce((s, p) => s + getEntries(p).length, 0);
 
   return (
     <div className="space-y-6">
@@ -363,9 +401,10 @@ export default function MonthlyRubrics() {
                 />
                 {pl.folder ? (
                   <p className="text-xs text-gray-500">
-                    {t("monthly.tracks")}: {pl.tracks}
+                    {t("monthly.tracks")}: {getEntries(pl).length}
                     {pl.otherMonths > 0 && ` · ${t("monthly.otherMonths")}: ${pl.otherMonths}`}
                     {pl.unmatched.length > 0 && ` · ${t("monthly.unmatched")}: ${pl.unmatched.length}`}
+                    {editedEntries[pl.id] && editedEntries[pl.id].length !== pl.entries.length && ` (${pl.entries.length})`}
                   </p>
                 ) : (
                   <p className="text-xs text-amber-600 dark:text-amber-400">
@@ -373,7 +412,7 @@ export default function MonthlyRubrics() {
                   </p>
                 )}
               </div>
-              {pl.tracks > 0 && singleResults[pl.id] && (
+              {getEntries(pl).length > 0 && singleResults[pl.id] && (
                 <span className={`text-sm ${singleResults[pl.id].ok ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
                   {singleResults[pl.id].ok
                     ? "✓"
@@ -381,7 +420,7 @@ export default function MonthlyRubrics() {
                 </span>
               )}
             </div>
-            {pl.tracks > 0 && (
+            {getEntries(pl).length > 0 && (
               <div className="flex flex-wrap items-center gap-2 mb-3">
                 <button
                   type="button"
@@ -408,19 +447,53 @@ export default function MonthlyRubrics() {
               </div>
             )}
 
-            {pl.tracks === 0 && pl.unmatched.length === 0 && (
+            {getEntries(pl).length === 0 && pl.unmatched.length === 0 && (
               <p className="text-sm text-gray-500">{t("monthly.empty")}</p>
             )}
 
-            {pl.entries.length > 0 && (
+            {getEntries(pl).length > 0 && (
               <ul className="divide-y divide-gray-200 dark:divide-gray-700 text-sm">
-                {pl.entries.map((e, i) => (
+                {getEntries(pl).map((e, i) => (
                   <li
                     key={`${e.dateYmd}-${i}`}
-                    className="flex items-center gap-3 py-1.5"
+                    className="flex items-center gap-2 py-1.5 group"
                   >
-                    <span className="text-gray-400 w-20">{e.dateYmd}</span>
-                    <span>{e.title}</span>
+                    <span className="text-gray-400 w-20 shrink-0">{e.dateYmd}</span>
+                    <span className="flex-1 truncate">{e.title}</span>
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        type="button"
+                        onClick={() => moveTrack(pl.id, i, "up")}
+                        disabled={i === 0}
+                        className="p-1 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 disabled:opacity-30 disabled:cursor-not-allowed"
+                        title="Вверх"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                        </svg>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => moveTrack(pl.id, i, "down")}
+                        disabled={i === getEntries(pl).length - 1}
+                        className="p-1 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 disabled:opacity-30 disabled:cursor-not-allowed"
+                        title="Вниз"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => removeTrack(pl.id, i)}
+                        className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400"
+                        title="Удалить"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -439,13 +512,15 @@ export default function MonthlyRubrics() {
               </details>
             )}
 
-            {pl.tracks > 0 && (
+            {getEntries(pl).length > 0 && (
               <details className="mt-3">
                 <summary className="text-xs text-gray-500 cursor-pointer">
                   {t("monthly.preview")}
                 </summary>
                 <pre className="mt-2 text-xs bg-gray-50 dark:bg-gray-800 rounded p-3 overflow-x-auto whitespace-pre-wrap">
-                  {pl.m3u}
+                  {getEntries(pl)
+                    .map((e) => e.originalPath || e.title)
+                    .join("\n")}
                 </pre>
               </details>
             )}
