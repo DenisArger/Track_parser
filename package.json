@@ -16,6 +16,7 @@
     "migrate:tracks": "tsx scripts/migrate-tracks-to-supabase.ts",
     "migrate:files": "tsx scripts/migrate-files-to-storage.ts",
     "storage:inventory": "tsx scripts/storage-inventory.ts",
+    "playlists": "tsx scripts/build-playlists.ts",
     "prepare": "husky"
   },
   "dependencies": {

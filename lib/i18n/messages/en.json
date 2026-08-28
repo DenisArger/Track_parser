@@ -14,6 +14,7 @@
     "upload": "FTP Upload",
     "manage": "Track Manager",
     "playlist": "Playlist",
+    "monthly": "Monthly Rubrics",
     "schedule": "Broadcast grid"
   },
   "overview": {
@@ -270,6 +271,29 @@
       "connectionFailed": "Connection failed",
       "connectionFailedHint": "FTP connection failed. Please check your settings."
     }
+  },
+  "monthly": {
+    "title": "Monthly Rubrics",
+    "description": "Build playlists for the 5 rubrics from server folders (/Server_1) over FTP. The engine parses the date from each track name and produces an M3U sorted by month days.",
+    "rootPath": "Server root (remotePath)",
+    "rootPathPlaceholder": "/Server_1",
+    "month": "Month",
+    "year": "Year",
+    "build": "Build (preview)",
+    "building": "Building…",
+    "send": "Send to server",
+    "sending": "Sending…",
+    "relative": "Relative paths in M3U",
+    "tracks": "Tracks",
+    "unmatched": "Unmatched (no date in name)",
+    "otherMonths": "Other month (skipped)",
+    "noFolder": "Folder not found",
+    "empty": "No tracks for the selected month",
+    "preview": "M3U preview",
+    "download": "Download M3U",
+    "sent": "Sent to server",
+    "sendError": "Send error",
+    "destDir": "Destination"
   },
   "playlist": {
     "title": "Playlist",

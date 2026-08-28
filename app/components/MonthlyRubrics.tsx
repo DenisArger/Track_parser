@@ -1,0 +1,334 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { FtpConfig } from "@/types/track";
+import { useI18n } from "./I18nProvider";
+import { formatErrorReportForCopy, reportClientError } from "@/lib/utils/errorReporter";
+import Spinner from "./Spinner";
+import ErrorDetails from "./ErrorDetails";
+
+interface MonthlyEntry {
+  day: number;
+  title: string;
+  dateYmd: string;
+}
+interface MonthlyPlaylist {
+  id: string;
+  rubric: string;
+  folder: string | null;
+  tracks: number;
+  entries: MonthlyEntry[];
+  unmatched: string[];
+  otherMonths: number;
+  m3u: string;
+  fileName: string;
+}
+interface SendResult {
+  rubric: string;
+  fileName: string;
+  tracks: number;
+  ok: boolean;
+  error?: string;
+}
+
+function safeName(s: string): string {
+  return s.replace(/[\\/:*?"<>|]+/g, "_") || "playlist";
+}
+
+export default function MonthlyRubrics() {
+  const { t } = useI18n();
+  const [ftpConfig, setFtpConfig] = useState<FtpConfig>({
+    host: "",
+    port: 21,
+    user: "",
+    password: "",
+    secure: false,
+    remotePath: "",
+  });
+  const [isConfigLoading, setIsConfigLoading] = useState(true);
+  const now = new Date();
+  const [month, setMonth] = useState(now.getMonth() + 1);
+  const [year, setYear] = useState(now.getFullYear());
+  const [relative, setRelative] = useState(false);
+  const [busy, setBusy] = useState<null | "preview" | "send">(null);
+  const [playlists, setPlaylists] = useState<MonthlyPlaylist[]>([]);
+  const [sent, setSent] = useState<SendResult[] | null>(null);
+  const [destDir, setDestDir] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [errorDetails, setErrorDetails] = useState<string | null>(null);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const r = await fetch("/api/ftp-config");
+        if (r.ok) setFtpConfig((await r.json()) as FtpConfig);
+      } catch {
+        // ignore
+      } finally {
+        setIsConfigLoading(false);
+      }
+    };
+    load();
+  }, []);
+
+  const setDetailedError = (userMessage: string, operation: string, err?: unknown) => {
+    setError(userMessage);
+    const report = reportClientError(err ?? userMessage, { operation, component: "MonthlyRubrics" });
+    setErrorDetails(formatErrorReportForCopy(report));
+  };
+
+  const run = useCallback(
+    async (action: "preview" | "send") => {
+      setBusy(action);
+      setError(null);
+      setErrorDetails(null);
+      setSent(null);
+      setDestDir(null);
+      try {
+        const r = await fetch("/api/playlists/monthly", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ftpConfig, month, year, action, relative }),
+        });
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error || String(r.status));
+        if (action === "preview") {
+          setPlaylists(d.playlists as MonthlyPlaylist[]);
+        } else {
+          setSent(d.sent as SendResult[]);
+          setDestDir(d.destDir as string);
+        }
+      } catch (e) {
+        setDetailedError(
+          e instanceof Error ? e.message : String(e),
+          `monthly-${action}`,
+          e,
+        );
+      } finally {
+        setBusy(null);
+      }
+    },
+    [ftpConfig, month, year, relative],
+  );
+
+  const download = (pl: MonthlyPlaylist) => {
+    const blob = new Blob([pl.m3u], { type: "audio/x-mpegurl;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = safeName(pl.fileName);
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const totalTracks = playlists.reduce((s, p) => s + p.tracks, 0);
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-xl font-semibold mb-2">{t("monthly.title")}</h2>
+        <p className="text-sm text-gray-600 dark:text-gray-400">
+          {t("monthly.description")}
+        </p>
+      </div>
+
+      <div className="card">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">
+              {t("monthly.rootPath")}
+            </label>
+            <input
+              type="text"
+              value={ftpConfig.remotePath || ""}
+              onChange={(e) =>
+                setFtpConfig((c) => ({ ...c, remotePath: e.target.value }))
+              }
+              placeholder={t("monthly.rootPathPlaceholder")}
+              className="w-full rounded border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1 text-sm"
+            />
+          </div>
+          <div className="flex items-end gap-3">
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">
+                {t("monthly.month")}
+              </label>
+              <input
+                type="number"
+                min={1}
+                max={12}
+                value={month}
+                onChange={(e) => setMonth(Number(e.target.value) || 1)}
+                className="w-20 rounded border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">
+                {t("monthly.year")}
+              </label>
+              <input
+                type="number"
+                min={2000}
+                max={2100}
+                value={year}
+                onChange={(e) => setYear(Number(e.target.value) || year)}
+                className="w-24 rounded border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1 text-sm"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3 mt-4">
+          <label className="inline-flex items-center gap-2 text-xs text-gray-500">
+            <input
+              type="checkbox"
+              checked={relative}
+              onChange={(e) => setRelative(e.target.checked)}
+            />
+            {t("monthly.relative")}
+          </label>
+          <button
+            type="button"
+            onClick={() => run("preview")}
+            disabled={busy !== null || isConfigLoading}
+            className="btn btn-secondary text-sm disabled:opacity-50"
+          >
+            {busy === "preview" ? (
+              <span className="inline-flex items-center justify-center gap-2">
+                <Spinner label={t("monthly.building")} />
+                <span>{t("monthly.building")}</span>
+              </span>
+            ) : (
+              t("monthly.build")
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={() => run("send")}
+            disabled={busy !== null || isConfigLoading}
+            className="btn btn-primary text-sm disabled:opacity-50"
+          >
+            {busy === "send" ? (
+              <span className="inline-flex items-center justify-center gap-2">
+                <Spinner label={t("monthly.sending")} />
+                <span>{t("monthly.sending")}</span>
+              </span>
+            ) : (
+              t("monthly.send")
+            )}
+          </button>
+        </div>
+      </div>
+
+      {error && (
+        <ErrorDetails
+          title={t("monthly.sendError")}
+          message={error}
+          details={errorDetails ?? undefined}
+          copyLabel={t("errorPage.copyDetails")}
+          copySuccessLabel={t("errorPage.copySuccess")}
+          copyErrorLabel={t("errorPage.copyFailed")}
+        />
+      )}
+
+      {sent && (
+        <div className="card">
+          <h3 className="text-lg font-medium mb-2">{t("monthly.sent")}</h3>
+          {destDir && (
+            <p className="text-xs text-gray-500 mb-3">
+              {t("monthly.destDir")}: {destDir}
+            </p>
+          )}
+          <ul className="space-y-1 text-sm">
+            {sent.map((s) => (
+              <li key={s.fileName}>
+                {s.ok ? "✓" : "✗"} {s.rubric} — {s.fileName} ({s.tracks})
+                {!s.ok && s.error ? `: ${s.error}` : ""}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {playlists.length > 0 && (
+        <p className="text-sm text-gray-600 dark:text-gray-400">
+          {t("monthly.tracks")}: {totalTracks}
+        </p>
+      )}
+
+      <div className="space-y-4">
+        {playlists.map((pl) => (
+          <div key={pl.id} className="card">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+              <div>
+                <h3 className="text-lg font-medium">{pl.rubric}</h3>
+                {pl.folder ? (
+                  <p className="text-xs text-gray-500">
+                    {t("monthly.tracks")}: {pl.tracks}
+                    {pl.otherMonths > 0 && ` · ${t("monthly.otherMonths")}: ${pl.otherMonths}`}
+                    {pl.unmatched.length > 0 && ` · ${t("monthly.unmatched")}: ${pl.unmatched.length}`}
+                  </p>
+                ) : (
+                  <p className="text-xs text-amber-600 dark:text-amber-400">
+                    {t("monthly.noFolder")}
+                  </p>
+                )}
+              </div>
+              {pl.tracks > 0 && (
+                <button
+                  type="button"
+                  onClick={() => download(pl)}
+                  className="btn btn-secondary text-sm"
+                >
+                  {t("monthly.download")}
+                </button>
+              )}
+            </div>
+
+            {pl.tracks === 0 && pl.unmatched.length === 0 && (
+              <p className="text-sm text-gray-500">{t("monthly.empty")}</p>
+            )}
+
+            {pl.entries.length > 0 && (
+              <ul className="divide-y divide-gray-200 dark:divide-gray-700 text-sm">
+                {pl.entries.map((e, i) => (
+                  <li
+                    key={`${e.dateYmd}-${i}`}
+                    className="flex items-center gap-3 py-1.5"
+                  >
+                    <span className="text-gray-400 w-20">{e.dateYmd}</span>
+                    <span>{e.title}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {pl.unmatched.length > 0 && (
+              <details className="mt-3">
+                <summary className="text-xs text-amber-600 dark:text-amber-400 cursor-pointer">
+                  {t("monthly.unmatched")}: {pl.unmatched.length}
+                </summary>
+                <ul className="mt-2 text-xs text-gray-500 space-y-1">
+                  {pl.unmatched.map((u) => (
+                    <li key={u}>{u}</li>
+                  ))}
+                </ul>
+              </details>
+            )}
+
+            {pl.tracks > 0 && (
+              <details className="mt-3">
+                <summary className="text-xs text-gray-500 cursor-pointer">
+                  {t("monthly.preview")}
+                </summary>
+                <pre className="mt-2 text-xs bg-gray-50 dark:bg-gray-800 rounded p-3 overflow-x-auto whitespace-pre-wrap">
+                  {pl.m3u}
+                </pre>
+              </details>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}

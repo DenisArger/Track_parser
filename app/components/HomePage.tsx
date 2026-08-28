@@ -9,6 +9,7 @@ import RadioScheduleManager from "./RadioScheduleManager";
 import TrackStatusBadge from "./shared/TrackStatusBadge";
 import TrackManager from "./TrackManager";
 import PlayList from "./PlayList";
+import MonthlyRubrics from "./MonthlyRubrics";
 import Spinner from "./Spinner";
 import { Track } from "@/types/track";
 import { getAllTracks, changeTrackStatusAction } from "@/lib/actions/trackActions";
@@ -216,17 +217,18 @@ export default function HomePage() {
     { id: "upload", label: t("tabs.upload"), component: FtpUploader },
     { id: "manage", label: t("tabs.manage"), component: TrackManager },
     { id: "playlist", label: t("tabs.playlist"), component: PlayList },
+    { id: "monthly", label: t("tabs.monthly"), component: MonthlyRubrics },
     { id: "schedule", label: t("tabs.schedule"), component: RadioScheduleManager },
   ];
 
   const tabs = isAdmin
     ? allTabs
-    : allTabs.filter((tab) => !["upload", "manage", "playlist", "schedule"].includes(tab.id));
+    : allTabs.filter((tab) => !["upload", "manage", "playlist", "monthly", "schedule"].includes(tab.id));
 
   useEffect(() => {
     if (
       !isAdmin &&
-      (activeTab === "upload" || activeTab === "manage" || activeTab === "playlist" || activeTab === "schedule")
+      (activeTab === "upload" || activeTab === "manage" || activeTab === "playlist" || activeTab === "monthly" || activeTab === "schedule")
     ) {
       setActiveTab("download");
     }
