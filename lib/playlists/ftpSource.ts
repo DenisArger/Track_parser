@@ -12,6 +12,7 @@ import { CATALOGS, CatalogProfile } from "./catalogs";
 import {
   buildCatalogPlaylistFromFiles,
   CatalogResult,
+  resolveCatalogFolderName,
   TargetMonth,
 } from "./playlistBuilder";
 
@@ -35,17 +36,8 @@ async function connect(ftpConfig: FtpConfig): Promise<Client> {
   return client;
 }
 
-function resolveFolderName(
-  dirs: string[],
-  profile: CatalogProfile,
-  target: TargetMonth,
-): string | null {
-  const filled = profile.folder
-    .replace("{MM}", String(target.month).padStart(2, "0"))
-    .replace("{YYYY}", String(target.year));
-  if (dirs.includes(filled)) return filled;
-  const kw = profile.matchKeyword.toLowerCase();
-  return dirs.find((n) => n.toLowerCase().includes(kw)) ?? null;
+async function listAll(client: Client, dir: string) {
+  return client.list(dir);
 }
 
 async function listDir(client: Client, dir: string): Promise<string[]> {
@@ -55,11 +47,6 @@ async function listDir(client: Client, dir: string): Promise<string[]> {
     .map((i) => i.name);
 }
 
-async function listSubdirs(client: Client, dir: string): Promise<string[]> {
-  const infos = await client.list(dir);
-  return infos.filter((i) => i.isDirectory).map((i) => i.name);
-}
-
 export async function fetchCatalogs(
   ftpConfig: FtpConfig,
   target: TargetMonth,
@@ -67,10 +54,15 @@ export async function fetchCatalogs(
   const root = (ftpConfig.remotePath || "").replace(/\/+$/, "") || "/";
   const client = await connect(ftpConfig);
   try {
-    const dirs = await listSubdirs(client, root);
+    const all = await listAll(client, root);
+    // Надёжно: некоторые FTP-серверы неверно помечают isDirectory.
+    const dirNames = all.filter((i) => i.isDirectory).map((i) => i.name);
+    const allNames = all.map((i) => i.name);
     const result: RemoteCatalog[] = [];
     for (const profile of CATALOGS) {
-      const folderName = resolveFolderName(dirs, profile, target);
+      const folderName =
+        resolveCatalogFolderName(dirNames, profile, target) ??
+        resolveCatalogFolderName(allNames, profile, target);
       if (!folderName) {
         result.push({ profile, folderLabel: null, files: [] });
         continue;

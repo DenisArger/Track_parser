@@ -6,6 +6,7 @@ import {
   buildAllPlaylists,
   buildCatalogPlaylist,
   buildCatalogPlaylistFromFiles,
+  resolveCatalogFolderName,
   writeM3U,
   CATALOGS,
 } from "./index";
@@ -194,5 +195,41 @@ describe("writeM3U / buildAllPlaylists", () => {
     expect(content.startsWith("#EXTM3U")).toBe(true);
     expect(content).toContain("#EXTINF:-1,Сегодняшнее чтение");
     expect(content).toContain("ODB_Podcast_09");
+  });
+});
+
+describe("resolveCatalogFolderName", () => {
+  const dirs = [
+    "ODB_Podcast_09",
+    "08 Доброе Духовное",
+    "69 Renner_podcast_09",
+    "90 Artur Simonyan_09",
+    "11 Joyce Meyer_podcast_09",
+  ];
+
+  it("находит Renner без года в имени папки", () => {
+    const name = resolveCatalogFolderName(dirs, profile("renner"), {
+      month: 9,
+      year: 2026,
+    });
+    expect(name).toBe("69 Renner_podcast_09");
+  });
+
+  it("находит Renner с годом, совпадающим с целевым", () => {
+    const withYear = ["69 Renner_podcast_09_2026", "ODB_Podcast_09"];
+    const name = resolveCatalogFolderName(withYear, profile("renner"), {
+      month: 9,
+      year: 2026,
+    });
+    expect(name).toBe("69 Renner_podcast_09_2026");
+  });
+
+  it("находит по ключевому слову, если шаблон не совпал", () => {
+    const alt = ["Renner_старое_09"];
+    const name = resolveCatalogFolderName(alt, profile("renner"), {
+      month: 9,
+      year: 2026,
+    });
+    expect(name).toBe("Renner_старое_09");
   });
 });

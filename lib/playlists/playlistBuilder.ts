@@ -49,6 +49,33 @@ function escapeRegExp(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+/**
+ * Находит имя папки каталога среди списка директорий.
+ * Порядок: точное совпадение шаблона -> шаблон без года -> поиск по ключевому слову.
+ * «Без года» нужен, т.к. Renner-шаблон содержит {YYYY}, а папка может быть
+ * названа без года (69 Renner_podcast_09).
+ */
+export function resolveCatalogFolderName(
+  dirs: string[],
+  profile: CatalogProfile,
+  target: TargetMonth,
+): string | null {
+  const mm = String(target.month).padStart(2, "0");
+  const filled = profile.folder.replace("{MM}", mm).replace("{YYYY}", String(target.year));
+  if (dirs.includes(filled)) return filled;
+
+  const filledNoYear = profile.folder
+    .replace("{MM}", mm)
+    .replace(/[_-]?\s*\{YYYY\}/, "")
+    .replace(/_+/g, "_")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (filledNoYear && dirs.includes(filledNoYear)) return filledNoYear;
+
+  const kw = profile.matchKeyword.toLowerCase();
+  return dirs.find((n) => n.toLowerCase().includes(kw)) ?? null;
+}
+
 function resolveFolder(
   root: string,
   profile: CatalogProfile,
@@ -65,8 +92,7 @@ function resolveFolder(
     .readdirSync(root, { withFileTypes: true })
     .filter((d) => d.isDirectory())
     .map((d) => d.name);
-  const kw = profile.matchKeyword.toLowerCase();
-  const hit = dirs.find((n) => n.toLowerCase().includes(kw));
+  const hit = resolveCatalogFolderName(dirs, profile, target);
   return hit ? path.join(root, hit) : null;
 }
 
