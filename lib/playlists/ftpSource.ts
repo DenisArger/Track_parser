@@ -108,8 +108,9 @@ function safeName(s: string): string {
 }
 
 /**
- * Записывает M3U во временный файл с нужным именем и отправляет на сервер
- * через существующий FTP-клиент (uploadToFtp). remotePath в ftpConfig
+ * Записывает M3U во временный файл и выгружает его на сервер напрямую через
+ * basic-ftp. НЕ использует uploadToFtp, т.к. тот считает любой путь с «/»
+ * ключом Storage и пытается скачать файл из Supabase. remotePath в ftpConfig
  * считается целевой папкой на сервере.
  */
 export async function sendM3uViaFtp(
@@ -120,12 +121,26 @@ export async function sendM3uViaFtp(
   const fs = await import("fs-extra");
   const path = await import("path");
   const os = await import("os");
-  const tmp = path.join(os.tmpdir(), safeName(fileName));
+  const tmp = path.join(
+    os.tmpdir(),
+    `m3u_${Date.now()}_${Math.random().toString(36).slice(2)}_${safeName(fileName)}`,
+  );
   await fs.writeFile(tmp, content, "utf8");
+
+  const client = new Client();
   try {
-    const { uploadToFtp } = await import("@/lib/upload/ftpUploader");
-    await uploadToFtp(tmp, ftpConfig);
+    await client.access({
+      host: ftpConfig.host,
+      port: ftpConfig.port || 21,
+      user: ftpConfig.user,
+      password: ftpConfig.password,
+      secure: ftpConfig.secure,
+    });
+    const remoteDir = (ftpConfig.remotePath || "").replace(/\/+$/, "") || "/";
+    await client.ensureDir(remoteDir);
+    await client.uploadFrom(tmp, safeName(fileName));
   } finally {
+    client.close();
     await fs.remove(tmp).catch(() => undefined);
   }
 }
