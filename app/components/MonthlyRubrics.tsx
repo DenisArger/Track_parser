@@ -47,8 +47,9 @@ export default function MonthlyRubrics() {
   });
   const [isConfigLoading, setIsConfigLoading] = useState(true);
   const now = new Date();
-  const [month, setMonth] = useState(now.getMonth() + 1);
-  const [year, setYear] = useState(now.getFullYear());
+  const next = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const [month, setMonth] = useState(next.getMonth() + 1);
+  const [year, setYear] = useState(next.getFullYear());
   const [relative, setRelative] = useState(false);
   const [serverId, setServerId] = useState(1);
   const [basePath, setBasePath] = useState("");
