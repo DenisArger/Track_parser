@@ -81,6 +81,7 @@ export async function POST(req: NextRequest) {
           day: e.day,
           title: e.title,
           dateYmd: e.dateYmd,
+          originalPath: e.originalPath,
         })),
         unmatched: r.unmatched,
         otherMonths: r.otherMonths,

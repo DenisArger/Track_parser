@@ -6,11 +6,13 @@ import { useI18n } from "./I18nProvider";
 import { formatErrorReportForCopy, reportClientError } from "@/lib/utils/errorReporter";
 import Spinner from "./Spinner";
 import ErrorDetails from "./ErrorDetails";
+import { StreamingCenterTrack } from "@/lib/radio/uploadPlaylistToStreamingCenter";
 
 interface MonthlyEntry {
   day: number;
   title: string;
   dateYmd: string;
+  originalPath?: string;
 }
 interface MonthlyPlaylist {
   id: string;
@@ -60,6 +62,9 @@ export default function MonthlyRubrics() {
   const [sent, setSent] = useState<SendResult[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [errorDetails, setErrorDetails] = useState<string | null>(null);
+  const [customNames, setCustomNames] = useState<Record<string, string>>({});
+  const [sendingId, setSendingId] = useState<string | null>(null);
+  const [singleResults, setSingleResults] = useState<Record<string, { ok: boolean; error?: string }>>({});
 
   useEffect(() => {
     const load = async () => {
@@ -122,6 +127,60 @@ export default function MonthlyRubrics() {
     a.click();
     URL.revokeObjectURL(url);
   };
+
+  useEffect(() => {
+    if (playlists.length === 0) return;
+    setCustomNames((prev) => {
+      const next: Record<string, string> = { ...prev };
+      let changed = false;
+      for (const pl of playlists) {
+        if (!next[pl.id]) {
+          next[pl.id] = pl.rubric;
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [playlists]);
+
+  const sendSingle = useCallback(
+    async (pl: MonthlyPlaylist) => {
+      setSendingId(pl.id);
+      setSingleResults((prev) => ({ ...prev, [pl.id]: { ok: false } }));
+      try {
+        const name = customNames[pl.id] || pl.rubric;
+        const tracks: StreamingCenterTrack[] = pl.entries.map((e) => ({
+          raw_name: (e as MonthlyEntry & { originalPath?: string }).originalPath,
+          artist: name,
+          title: e.title,
+        }));
+        const r = await fetch("/api/playlists/monthly/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            playlistId: pl.id,
+            name,
+            tracks,
+            serverId,
+            isRandom,
+            basePath,
+            useWindows1251,
+          }),
+        });
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error || String(r.status));
+        setSingleResults((prev) => ({ ...prev, [pl.id]: { ok: true } }));
+      } catch (e) {
+        setSingleResults((prev) => ({
+          ...prev,
+          [pl.id]: { ok: false, error: e instanceof Error ? e.message : String(e) },
+        }));
+      } finally {
+        setSendingId(null);
+      }
+    },
+    [customNames, serverId, isRandom, basePath, useWindows1251],
+  );
 
   const totalTracks = playlists.reduce((s, p) => s + p.tracks, 0);
 
@@ -293,8 +352,15 @@ export default function MonthlyRubrics() {
         {playlists.map((pl) => (
           <div key={pl.id} className="card">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
-              <div>
-                <h3 className="text-lg font-medium">{pl.rubric}</h3>
+              <div className="flex-1 min-w-0">
+                <input
+                  type="text"
+                  value={customNames[pl.id] ?? pl.rubric}
+                  onChange={(e) =>
+                    setCustomNames((prev) => ({ ...prev, [pl.id]: e.target.value }))
+                  }
+                  className="text-lg font-medium w-full bg-transparent border-b border-transparent hover:border-gray-300 dark:hover:border-gray-600 focus:border-blue-500 dark:focus:border-blue-400 focus:outline-none transition-colors px-0 py-0.5"
+                />
                 {pl.folder ? (
                   <p className="text-xs text-gray-500">
                     {t("monthly.tracks")}: {pl.tracks}
@@ -307,7 +373,31 @@ export default function MonthlyRubrics() {
                   </p>
                 )}
               </div>
-              {pl.tracks > 0 && (
+              {pl.tracks > 0 && singleResults[pl.id] && (
+                <span className={`text-sm ${singleResults[pl.id].ok ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
+                  {singleResults[pl.id].ok
+                    ? "✓"
+                    : "✗ " + (singleResults[pl.id].error || t("monthly.sendError"))}
+                </span>
+              )}
+            </div>
+            {pl.tracks > 0 && (
+              <div className="flex flex-wrap items-center gap-2 mb-3">
+                <button
+                  type="button"
+                  onClick={() => sendSingle(pl)}
+                  disabled={sendingId === pl.id}
+                  className="btn btn-primary text-sm disabled:opacity-50"
+                >
+                  {sendingId === pl.id ? (
+                    <span className="inline-flex items-center justify-center gap-2">
+                      <Spinner label={t("monthly.sending")} />
+                      <span>{t("monthly.sending")}</span>
+                    </span>
+                  ) : (
+                    t("monthly.send")
+                  )}
+                </button>
                 <button
                   type="button"
                   onClick={() => download(pl)}
@@ -315,8 +405,8 @@ export default function MonthlyRubrics() {
                 >
                   {t("monthly.download")}
                 </button>
-              )}
-            </div>
+              </div>
+            )}
 
             {pl.tracks === 0 && pl.unmatched.length === 0 && (
               <p className="text-sm text-gray-500">{t("monthly.empty")}</p>
