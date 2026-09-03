@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { FtpConfig } from "@/types/track";
 import { buildCatalogsOverFtp } from "@/lib/playlists/ftpSource";
-import { serializeM3U } from "@/lib/playlists/playlistBuilder";
+import { serializeM3U, resolveRubric } from "@/lib/playlists/playlistBuilder";
 import {
   uploadPlaylistToStreamingCenter,
   StreamingCenterTrack,
@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
     if (action === "preview") {
       const playlists = results.map((r) => ({
         id: r.profile.id,
-        rubric: r.profile.rubric,
+        rubric: resolveRubric(r.profile, target),
         folder: r.folder,
         tracks: r.entries.length,
         entries: r.entries.map((e) => ({
@@ -86,7 +86,7 @@ export async function POST(req: NextRequest) {
         unmatched: r.unmatched,
         otherMonths: r.otherMonths,
         m3u: serializeM3U(r.entries, { relative }),
-        fileName: `${safeName(r.profile.rubric)}.m3u`,
+        fileName: `${safeName(resolveRubric(r.profile, target))}.m3u`,
       }));
       return NextResponse.json({ success: true, target: { month: monthNum, year: yearNum }, playlists });
     }
@@ -101,15 +101,15 @@ export async function POST(req: NextRequest) {
       error?: string;
     }[] = [];
     for (const r of results) {
-      const fileName = `${safeName(r.profile.rubric)}.m3u`;
+      const fileName = `${safeName(resolveRubric(r.profile, target))}.m3u`;
       const tracks: StreamingCenterTrack[] = r.entries.map((e) => ({
         raw_name: e.originalPath,
-        artist: r.profile.rubric,
+        artist: resolveRubric(r.profile, target),
         title: e.title,
       }));
       try {
         const res = await uploadPlaylistToStreamingCenter({
-          name: r.profile.rubric,
+          name: resolveRubric(r.profile, target),
           serverId,
           isRandom,
           basePath,
@@ -118,10 +118,10 @@ export async function POST(req: NextRequest) {
         });
         if (res.status !== 200)
           throw new Error((res.json as { error?: string })?.error || `HTTP ${res.status}`);
-        sent.push({ rubric: r.profile.rubric, fileName, tracks: r.entries.length, ok: true });
+        sent.push({ rubric: resolveRubric(r.profile, target), fileName, tracks: r.entries.length, ok: true });
       } catch (e) {
         sent.push({
-          rubric: r.profile.rubric,
+          rubric: resolveRubric(r.profile, target),
           fileName,
           tracks: r.entries.length,
           ok: false,

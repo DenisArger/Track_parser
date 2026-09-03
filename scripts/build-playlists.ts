@@ -17,6 +17,7 @@ import {
   CatalogResult,
   TargetMonth,
   writeM3U,
+  resolveRubric,
 } from "../lib/playlists";
 import { CATALOGS } from "../lib/playlists/catalogs";
 
@@ -128,11 +129,11 @@ async function run() {
   };
 
   for (const r of results) {
-    const rubricSafe = safeName(r.profile.rubric).replace(/\s+/g, "_");
+    const rubricSafe = safeName(resolveRubric(r.profile, target)).replace(/\s+/g, "_");
     const m3uPath = path.join(opts.out, `${rubricSafe}.m3u`);
     const info: Record<string, unknown> = {
       id: r.profile.id,
-      rubric: r.profile.rubric,
+      rubric: resolveRubric(r.profile, target),
       folder: r.folder,
       tracks: r.entries.length,
       m3u: opts.relative ? path.relative(process.cwd(), m3uPath) : m3uPath,
@@ -141,10 +142,10 @@ async function run() {
     };
 
     if (!r.folder) {
-      console.warn(`[пропущено] ${r.profile.rubric}: папка не найдена`);
+      console.warn(`[пропущено] ${resolveRubric(r.profile, target)}: папка не найдена`);
     } else if (r.entries.length === 0 && r.unmatched.length === 0) {
       console.warn(
-        `[пусто] ${r.profile.rubric}: треков за ${opts.month}/${opts.year} нет`,
+        `[пусто] ${resolveRubric(r.profile, target)}: треков за ${opts.month}/${opts.year} нет`,
       );
     } else {
       if (opts.rename) {
@@ -154,7 +155,7 @@ async function run() {
       }
       writeM3U(r.entries, m3uPath, { relative: opts.relative });
       console.log(
-        `[ok] ${r.profile.rubric}: ${r.entries.length} трек(ов) -> ${m3uPath}`,
+        `[ok] ${resolveRubric(r.profile, target)}: ${r.entries.length} трек(ов) -> ${m3uPath}`,
       );
     }
 

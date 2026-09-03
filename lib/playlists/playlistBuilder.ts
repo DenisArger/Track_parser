@@ -96,6 +96,12 @@ function resolveFolder(
   return hit ? path.join(root, hit) : null;
 }
 
+export function resolveRubric(profile: CatalogProfile, target: TargetMonth): string {
+  return profile.rubric
+    .replace("{MM}", String(target.month).padStart(2, "0"))
+    .replace("{YYYY}", String(target.year));
+}
+
 function extractTitle(
   rawName: string,
   date: ParsedDate,
@@ -157,7 +163,7 @@ export function buildCatalogPlaylistFromFiles(
       date,
       dateYmd,
       title,
-      canonicalName: `${dateYmd} ${profile.rubric} — ${title}`,
+      canonicalName: `${dateYmd} ${resolveRubric(profile, target)} — ${title}`,
       originalPath: pathResolver ? pathResolver(f) : f,
       originalName: f,
     });
