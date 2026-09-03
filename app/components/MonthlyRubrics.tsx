@@ -318,7 +318,7 @@ export default function MonthlyRubrics() {
               type="text"
               value={basePath}
               onChange={(e) => setBasePath(e.target.value)}
-              placeholder={t("playlist.basePathPlaceholder")}
+              placeholder="/media/Server_1/"
               className="mt-1 min-w-[200px] rounded border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1 text-sm"
             />
           </label>
