@@ -19,6 +19,7 @@ import { CATALOGS, CatalogProfile } from "./catalogs";
 export interface TargetMonth {
   month: number; // 1-12
   year: number;
+  day?: number;
 }
 
 export interface PlaylistEntry {
@@ -146,6 +147,8 @@ export function buildCatalogPlaylistFromFiles(
   const folderYear = folderLabel ? extractYearFromFolder(folderLabel) : null;
   const year = folderYear ?? target.year;
 
+  const startDay = target.day ?? 1;
+
   for (const f of files) {
     const date = parseDateFromName(f, { defaultYear: year });
     if (!date) {
@@ -154,6 +157,9 @@ export function buildCatalogPlaylistFromFiles(
     }
     if (date.month !== target.month) {
       otherMonths += 1;
+      continue;
+    }
+    if (date.day < startDay) {
       continue;
     }
     const title = extractTitle(f, date, profile);

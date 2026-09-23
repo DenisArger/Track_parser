@@ -3,7 +3,7 @@
  *
  * Пример:
  *   yarn playlists --root /Server_1 --month 9 --year 2026
- *   yarn playlists --root /Server_1 --month 9 --year 2026 --relative --out ./playlists/2026-09
+ *   yarn playlists --root /Server_1 --month 9 --year 2026 --day 5 --relative --out ./playlists/2026-09
  *
  * Результат: по одному .m3u на рубрику (отсортированному по дням месяца)
  * и report.json с неразобранными треками.
@@ -25,6 +25,7 @@ interface Args {
   root: string;
   month: number;
   year: number;
+  day: number;
   out: string;
   relative: boolean;
   rename: boolean;
@@ -51,8 +52,12 @@ function parseArgs(argv: string[]): Args {
   }
   const month = Number(a.month);
   const year = Number(a.year ?? new Date().getFullYear());
+  const day = Number(a.day ?? 1);
   if (!Number.isInteger(month) || month < 1 || month > 12) {
     throw new Error("--month должен быть от 1 до 12");
+  }
+  if (!Number.isInteger(day) || day < 1 || day > 31) {
+    throw new Error("--day должен быть от 1 до 31");
   }
 
   const out =
@@ -63,6 +68,7 @@ function parseArgs(argv: string[]): Args {
     root: a.root as string,
     month,
     year,
+    day,
     out: out as string,
     relative: Boolean(a.relative),
     rename: Boolean(a.rename),
@@ -111,10 +117,10 @@ async function runRename(
 
 async function run() {
   const opts = parseArgs(process.argv.slice(2));
-  const target: TargetMonth = { month: opts.month, year: opts.year };
+  const target: TargetMonth = { month: opts.month, year: opts.year, day: opts.day };
 
   console.log(
-    `Формирование плейлистов: корень=${opts.root} месяц=${opts.month} год=${opts.year}`,
+    `Формирование плейлистов: корень=${opts.root} месяц=${opts.month} день=${opts.day} год=${opts.year}`,
   );
   if (!fs.existsSync(opts.root)) {
     throw new Error(`Корень не найден: ${opts.root}`);

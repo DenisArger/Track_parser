@@ -21,6 +21,7 @@ export async function POST(req: NextRequest) {
     ftpConfig?: FtpConfig;
     month?: number;
     year?: number;
+    day?: number;
     action?: "preview" | "send";
     relative?: boolean;
     serverId?: number;
@@ -38,6 +39,7 @@ export async function POST(req: NextRequest) {
     ftpConfig,
     month,
     year,
+    day,
     action = "preview",
     relative,
     serverId,
@@ -54,19 +56,23 @@ export async function POST(req: NextRequest) {
   }
   const monthNum = Number(month);
   const yearNum = Number(year);
+  const dayNum = Number(day ?? 1);
   if (
     !Number.isInteger(monthNum) ||
     monthNum < 1 ||
     monthNum > 12 ||
-    !Number.isInteger(yearNum)
+    !Number.isInteger(yearNum) ||
+    !Number.isInteger(dayNum) ||
+    dayNum < 1 ||
+    dayNum > 31
   ) {
     return NextResponse.json(
-      { error: "month должен быть 1-12, year — числом" },
+      { error: "month должен быть 1-12, day — 1-31, year — числом" },
       { status: 400 },
     );
   }
 
-  const target = { month: monthNum, year: yearNum };
+  const target = { month: monthNum, year: yearNum, day: dayNum };
 
   try {
     const results = await buildCatalogsOverFtp(ftpConfig, target);
@@ -88,7 +94,7 @@ export async function POST(req: NextRequest) {
         m3u: serializeM3U(r.entries, { relative }),
         fileName: `${safeName(resolveRubric(r.profile, target))}.m3u`,
       }));
-      return NextResponse.json({ success: true, target: { month: monthNum, year: yearNum }, playlists });
+      return NextResponse.json({ success: true, target: { month: monthNum, year: yearNum, day: dayNum }, playlists });
     }
 
     // action === "send": отправляем каждую рубрику в Streaming.Center
@@ -129,7 +135,7 @@ export async function POST(req: NextRequest) {
         });
       }
     }
-    return NextResponse.json({ success: true, target: { month: monthNum, year: yearNum }, sent });
+    return NextResponse.json({ success: true, target: { month: monthNum, year: yearNum, day: dayNum }, sent });
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     return NextResponse.json(

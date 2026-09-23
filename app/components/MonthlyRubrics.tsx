@@ -52,6 +52,7 @@ export default function MonthlyRubrics() {
   const next = new Date(now.getFullYear(), now.getMonth() + 1, 1);
   const [month, setMonth] = useState(next.getMonth() + 1);
   const [year, setYear] = useState(next.getFullYear());
+  const [day, setDay] = useState(1);
   const [relative, setRelative] = useState(false);
   const [serverId, setServerId] = useState(1);
   const [basePath, setBasePath] = useState("");
@@ -97,7 +98,7 @@ export default function MonthlyRubrics() {
         const r = await fetch("/api/playlists/monthly", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ftpConfig, month, year, action, relative, serverId, basePath, useWindows1251, isRandom }),
+          body: JSON.stringify({ ftpConfig, month, year, day, action, relative, serverId, basePath, useWindows1251, isRandom }),
         });
         const d = await r.json();
         if (!r.ok) throw new Error(d.error || String(r.status));
@@ -116,7 +117,7 @@ export default function MonthlyRubrics() {
         setBusy(null);
       }
     },
-    [ftpConfig, month, year, relative, serverId, basePath, useWindows1251, isRandom],
+    [ftpConfig, month, year, day, relative, serverId, basePath, useWindows1251, isRandom],
   );
 
   const download = (pl: MonthlyPlaylist) => {
@@ -258,6 +259,19 @@ export default function MonthlyRubrics() {
                 max={12}
                 value={month}
                 onChange={(e) => setMonth(Number(e.target.value) || 1)}
+                className="w-20 rounded border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">
+                {t("monthly.day")}
+              </label>
+              <input
+                type="number"
+                min={1}
+                max={31}
+                value={day}
+                onChange={(e) => setDay(Number(e.target.value) || 1)}
                 className="w-20 rounded border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1 text-sm"
               />
             </div>

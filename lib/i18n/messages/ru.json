@@ -274,6 +274,7 @@
     "rootPath": "Корень на сервере (remotePath)",
     "rootPathPlaceholder": "/Server_1",
     "month": "Месяц",
+    "day": "День",
     "year": "Год",
     "build": "Сформировать (превью)",
     "building": "Формирование…",

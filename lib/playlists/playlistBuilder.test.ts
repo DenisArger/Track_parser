@@ -153,6 +153,22 @@ describe("buildCatalogPlaylist", () => {
     expect(res.unmatched).toEqual(["Без даты.mp3"]);
   });
 
+  it("фильтрует треки до выбранного дня", () => {
+    const files = [
+      "Хлеб Наш Насущный - Сегодняшнее чтение 01-09-2026.mp3",
+      "Хлеб Наш Насущный - Сегодняшнее чтение 05-09-2026.mp3",
+      "Хлеб Наш Насущный - Сегодняшнее чтение 10-09-2026.mp3",
+    ];
+    const res = buildCatalogPlaylistFromFiles(
+      files,
+      "/Server_1/ODB_Podcast_09",
+      profile("odp"),
+      { month: 9, year: 2026, day: 5 },
+    );
+
+    expect(res.entries.map((e) => e.day)).toEqual([5, 10]);
+  });
+
   it("buildCatalogPlaylistFromFiles работает без ФС (путь FTP)", () => {
     const files = [
       "Хлеб Наш Насущный - Сегодняшнее чтение 05-09-2026.mp3",

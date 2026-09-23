@@ -278,6 +278,7 @@
     "rootPath": "Server root (remotePath)",
     "rootPathPlaceholder": "/Server_1",
     "month": "Month",
+    "day": "Day",
     "year": "Year",
     "build": "Build (preview)",
     "building": "Building…",
