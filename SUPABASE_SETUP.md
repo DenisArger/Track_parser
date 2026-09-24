@@ -90,7 +90,7 @@ FTP_PORT=21
 FTP_USER=radio
 FTP_PASSWORD=your_ftp_password_here
 FTP_SECURE=false
-FTP_REMOTE_PATH=/media/Server_1/0 0 ALL_TRACK
+FTP_REMOTE_PATH=/media/Server_1
 ```
 
 ## Шаг 6: Установка зависимостей

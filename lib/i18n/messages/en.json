@@ -345,7 +345,7 @@
     "serverId": "Server ID",
     "random": "Random",
     "basePath": "Base path (optional)",
-    "basePathPlaceholder": "/media/Server_1/0 0 ALL_TRACK",
+    "basePathPlaceholder": "/media/Server_1",
     "win1251": "Windows-1251",
     "uploadToRadio": "Upload to radio",
     "available": "Total tracks: {total}, old: {old}, new: {new}",

@@ -7,6 +7,7 @@
  */
 
 import { Client } from "basic-ftp";
+import path from "path";
 import { FtpConfig } from "@/types/track";
 import { CATALOGS, CatalogProfile } from "./catalogs";
 import {
@@ -51,23 +52,38 @@ export async function fetchCatalogs(
   ftpConfig: FtpConfig,
   target: TargetMonth,
 ): Promise<RemoteCatalog[]> {
-  const root = (ftpConfig.remotePath || "").replace(/\/+$/, "") || "/";
+  let root = (ftpConfig.remotePath || "").replace(/\/+$/, "") || "/";
   const client = await connect(ftpConfig);
   try {
     const all = await listAll(client, root);
-    // Надёжно: некоторые FTP-серверы неверно помечают isDirectory.
     const dirNames = all.filter((i) => i.isDirectory).map((i) => i.name);
+
+    // Fallback: если в корне нет подкаталогов — пробуем родительский каталог
+    let effectiveDirNames = dirNames;
+    let effectiveRoot = root;
+    if (dirNames.length === 0 && root !== "/") {
+      const parentRoot = path.posix.dirname(root);
+      if (parentRoot !== root) {
+        const parentAll = await listAll(client, parentRoot);
+        const parentDirs = parentAll.filter((i) => i.isDirectory).map((i) => i.name);
+        if (parentDirs.length > 0) {
+          effectiveDirNames = parentDirs;
+          effectiveRoot = parentRoot;
+        }
+      }
+    }
+
     const allNames = all.map((i) => i.name);
     const result: RemoteCatalog[] = [];
     for (const profile of CATALOGS) {
       const folderName =
-        resolveCatalogFolderName(dirNames, profile, target) ??
+        resolveCatalogFolderName(effectiveDirNames, profile, target) ??
         resolveCatalogFolderName(allNames, profile, target);
       if (!folderName) {
         result.push({ profile, folderLabel: null, files: [] });
         continue;
       }
-      const folderPath = `${root}/${folderName}`.replace(/\/+/g, "/");
+      const folderPath = `${effectiveRoot}/${folderName}`.replace(/\/+/g, "/");
       const files = await listDir(client, folderPath);
       result.push({ profile, folderLabel: folderPath, files });
     }
