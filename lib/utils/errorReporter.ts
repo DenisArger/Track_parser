@@ -39,6 +39,27 @@ const getErrorDigest = (error: unknown): string => {
   return `err-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 };
 
+const safeStringify = (value: unknown): string => {
+  const seen = new WeakSet<object>();
+  try {
+    return JSON.stringify(
+      value,
+      (_key, val) => {
+        if (typeof val === "object" && val !== null) {
+          if (seen.has(val)) return "[Circular]";
+          seen.add(val);
+        }
+        if (typeof val === "function") return `[Function ${val.name || "anonymous"}]`;
+        if (typeof val === "bigint") return val.toString();
+        return val;
+      },
+      2,
+    ) ?? String(value);
+  } catch {
+    return String(value);
+  }
+};
+
 export function buildErrorReport(
   error: unknown,
   meta: Partial<ErrorReportMeta> = {},
@@ -58,7 +79,7 @@ export function buildErrorReport(
       : typeof error === "string"
         ? error
         : typeof error === "object" && error !== null
-          ? JSON.stringify(error, null, 2)
+          ? safeStringify(error)
           : "Unknown error";
 
   const stack = error instanceof Error && error.stack ? error.stack : undefined;
@@ -89,7 +110,7 @@ export function formatErrorReportForCopy(report: ErrorReport): string {
   delete meta.timestamp;
 
   if (Object.keys(meta).length > 0) {
-    lines.push("", "Context:", JSON.stringify(meta, null, 2));
+    lines.push("", "Context:", safeStringify(meta));
   }
 
   if (report.stack) {

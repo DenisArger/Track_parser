@@ -55,8 +55,12 @@ export default function TrackPlayer({
     }
   };
 
-  const handleAudioError = (error: unknown) => {
-    const report = reportClientError(error, {
+  const handleAudioError = (event: unknown) => {
+    const mediaError =
+      typeof event === "object" && event !== null && "error" in event
+        ? (event as { error?: unknown }).error
+        : undefined;
+    const report = reportClientError(mediaError ?? event, {
       operation: "audio-playback",
       component: "TrackPlayer",
       endpoint: `/api/audio/${currentTrack?.id}`,

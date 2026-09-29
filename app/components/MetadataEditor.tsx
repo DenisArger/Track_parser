@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Track, TrackMetadata, TrackType } from "@/types/track";
 import TrackList from "./shared/TrackList";
 import { getProcessedTracks } from "@/lib/utils/trackFilters";
@@ -39,6 +39,7 @@ export default function MetadataEditor({
   const [artistSuggestions, setArtistSuggestions] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [errorDetails, setErrorDetails] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
   const processedTracks = getProcessedTracks(tracks);
   const trackTypes: TrackType[] = ["Быстрый", "Средний", "Медленный", "Модерн"];
   const trackTypeLabels: Record<TrackType, string> = {
@@ -74,9 +75,34 @@ export default function MetadataEditor({
     };
   }, []);
 
+  const resetAudio = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+  };
+
   const handleTrackSelect = (track: Track) => {
+    resetAudio();
+    setError(null);
+    setErrorDetails(null);
     setSelectedTrack(track);
     setMetadata({ ...track.metadata });
+  };
+
+  const handleAudioError = (event: unknown) => {
+    const mediaError =
+      typeof event === "object" && event !== null && "error" in event
+        ? (event as { error?: unknown }).error
+        : undefined;
+    const report = reportClientError(mediaError ?? event, {
+      operation: "audio-playback",
+      component: "MetadataEditor",
+      endpoint: `/api/audio/${selectedTrack?.id}?processed=true`,
+      trackId: selectedTrack?.id,
+    });
+    setError(t("player.audioError"));
+    setErrorDetails(formatErrorReportForCopy(report));
   };
 
   const handleMetadataChange = (
@@ -104,6 +130,7 @@ export default function MetadataEditor({
 
       onTracksUpdate();
       setSelectedTrack(null);
+      resetAudio();
       setMetadata({
         title: "",
         artist: "",
@@ -176,6 +203,21 @@ export default function MetadataEditor({
                 <h4 className="font-medium text-gray-900 mb-4">
                   {t("metadata.editing")}: {selectedTrack.metadata.title}
                 </h4>
+
+                <div className="mb-4">
+                  <audio
+                    id="metadata-preview"
+                    ref={audioRef}
+                    controls
+                    className="audio-light w-full"
+                    aria-label={t("player.audioPlayer")}
+                    title={t("player.audioPlayer")}
+                    src={`/api/audio/${selectedTrack.id}?processed=true`}
+                    onError={handleAudioError}
+                    preload="metadata"
+                    key={selectedTrack.id}
+                  />
+                </div>
 
                 <div className="space-y-4">
                   {/* Title */}

@@ -104,6 +104,30 @@ describe("MetadataEditor", () => {
     expect(onTracksUpdate).toHaveBeenCalledTimes(1);
   });
 
+  it("renders a processed-audio player for the selected track", () => {
+    renderEditor();
+
+    expect(screen.queryByLabelText("Audio Player")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("Old title"));
+
+    const audio = screen.getByLabelText("Audio Player") as HTMLAudioElement;
+    expect(audio.getAttribute("src")).toBe("/api/audio/t1?processed=true");
+  });
+
+  it("shows an audio error when the player fails to load", () => {
+    renderEditor();
+
+    fireEvent.click(screen.getByText("Old title"));
+    fireEvent.error(screen.getByLabelText("Audio Player"));
+
+    expect(
+      screen.getByText(
+        "Error loading audio file. Please check the console for details."
+      )
+    ).toBeInTheDocument();
+  });
+
   it("shows errors when save or status update fails", async () => {
     mockUpdateMetadataAction.mockRejectedValueOnce(new Error("save failed"));
     mockFetch.mockImplementation((input: RequestInfo | URL, _init?: RequestInit) => {

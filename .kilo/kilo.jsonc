@@ -1,0 +1,6 @@
+{
+  "$schema": "https://app.kilo.ai/config.json",
+  "commit_message": {
+    "prompt": "Сгенерируй commit messages на анлийском языке  в формате conventional commit. Верни ТОЛЬКО commit messages не больше 50 символов. Описание не нужно."
+  }
+}
