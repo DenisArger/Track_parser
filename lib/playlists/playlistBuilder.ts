@@ -74,7 +74,13 @@ export function resolveCatalogFolderName(
   if (filledNoYear && dirs.includes(filledNoYear)) return filledNoYear;
 
   const kw = profile.matchKeyword.toLowerCase();
-  return dirs.find((n) => n.toLowerCase().includes(kw)) ?? null;
+  const mmPattern = new RegExp(`(^|\\D)${mm}(\\D|$)`, "i");
+  return dirs.find((n) => {
+    const lower = n.toLowerCase();
+    if (!lower.includes(kw)) return false;
+    if (!mmPattern.test(n)) return false;
+    return true;
+  }) ?? null;
 }
 
 function resolveFolder(

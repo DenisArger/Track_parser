@@ -60,13 +60,13 @@ describe("buildCatalogPlaylist", () => {
 
   it("убирает номер эпизода и рубрику (Доброе Духовное) и фильтрует не тот месяц", () => {
     const root = makeRoot();
-    fs.ensureDirSync(path.join(root, "08 Доброе Духовное"));
+    fs.ensureDirSync(path.join(root, "09 Доброе Духовное"));
     fs.writeFileSync(
-      path.join(root, "08 Доброе Духовное", "219 ВЕРА - ДОБРОЕ ДУХОВНОЕ - 2 сентября.mp3"),
+      path.join(root, "09 Доброе Духовное", "219 ВЕРА - ДОБРОЕ ДУХОВНОЕ - 2 сентября.mp3"),
       "",
     );
     fs.writeFileSync(
-      path.join(root, "08 Доброе Духовное", "218 ЧТО-ТО - ДОБРОЕ ДУХОВНОЕ - 1 августа.mp3"),
+      path.join(root, "09 Доброе Духовное", "218 ЧТО-ТО - ДОБРОЕ ДУХОВНОЕ - 1 августа.mp3"),
       "",
     );
 
