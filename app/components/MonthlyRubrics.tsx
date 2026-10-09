@@ -68,7 +68,6 @@ export default function MonthlyRubrics() {
   const [errorDetails, setErrorDetails] = useState<string | null>(null);
   const [customNames, setCustomNames] = useState<Record<string, string>>({});
   const [codes, setCodes] = useState<Record<string, string>>({});
-  const [manuallyEdited, setManuallyEdited] = useState<Record<string, boolean>>({});
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [singleResults, setSingleResults] = useState<Record<string, { ok: boolean; error?: string }>>({});
   const [editedEntries, setEditedEntries] = useState<Record<string, MonthlyEntry[]>>({});
@@ -159,23 +158,7 @@ export default function MonthlyRubrics() {
       }
       return changed ? next : prev;
     });
-    setManuallyEdited((prev) => {
-      const next: Record<string, boolean> = { ...prev };
-      let changed = false;
-      for (const pl of playlists) {
-        if (next[pl.id] === undefined) {
-          next[pl.id] = false;
-          changed = true;
-        }
-      }
-      return changed ? next : prev;
-    });
   }, [playlists]);
-
-  const onNameChange = (pl: MonthlyPlaylist, value: string) => {
-    setCustomNames((prev) => ({ ...prev, [pl.id]: value }));
-    setManuallyEdited((prev) => ({ ...prev, [pl.id]: true }));
-  };
 
   const applyCodeToName = (pl: MonthlyPlaylist, code: string) => {
     if (!pl.rubricTemplate) return;
@@ -188,9 +171,7 @@ export default function MonthlyRubrics() {
 
   const onCodeChange = (pl: MonthlyPlaylist, code: string) => {
     setCodes((prev) => ({ ...prev, [pl.id]: code }));
-    if (!manuallyEdited[pl.id]) {
-      applyCodeToName(pl, code);
-    }
+    applyCodeToName(pl, code);
   };
 
   const sendSingle = useCallback(
@@ -458,7 +439,9 @@ export default function MonthlyRubrics() {
                   <input
                     type="text"
                     value={customNames[pl.id] ?? pl.rubric}
-                    onChange={(e) => onNameChange(pl, e.target.value)}
+                    onChange={(e) =>
+                      setCustomNames((prev) => ({ ...prev, [pl.id]: e.target.value }))
+                    }
                     className="text-lg font-medium w-full bg-transparent border-b border-transparent hover:border-gray-300 dark:hover:border-gray-600 focus:border-blue-500 dark:focus:border-blue-400 focus:outline-none transition-colors px-0 py-0.5"
                   />
                   {pl.codeOptions && pl.codeOptions.length > 0 && (
