@@ -56,16 +56,29 @@ function buildM3u(tracks: StreamingCenterTrack[], basePath: string): string {
       lines.push(`#EXTINF:-1,${display}`);
     }
     const raw = (t.raw_name || "").trim();
-    const hasPath = /[\\/]/.test(raw) || /^[a-zA-Z]:\\/.test(raw);
-    let filename = raw ? getBasename(raw) : generateSafeFilename({ artist, title });
-    if (filename && !/\.[a-z0-9]+$/i.test(filename)) {
-      filename = `${filename}.mp3`;
+    // Определяем, является ли raw абсолютным путем (Windows C:\... или Unix /...)
+    const isAbsolutePath = /^[a-zA-Z]:[\\/]/.test(raw) || raw.startsWith("/");
+    // Относительный путь (содержит разделитель, но не абсолютный) — используем как есть
+    const isRelativePath = !isAbsolutePath && /[\\/]/.test(raw);
+    
+    let filename: string;
+    if (isRelativePath) {
+      // Относительный путь: "folder/file.mp3" — используем целиком
+      filename = raw;
+    } else {
+      // Абсолютный путь или просто имя файла: берём basename
+      filename = isAbsolutePath ? getBasename(raw) : raw;
+      if (!filename) {
+        filename = generateSafeFilename({ artist, title });
+      }
+      if (filename && !/\.[a-z0-9]+$/i.test(filename)) {
+        filename = `${filename}.mp3`;
+      }
     }
-    const value = basePath
-      ? joinBasePath(basePath, filename || raw)
-      : hasPath
-        ? raw
-        : filename;
+    // Присоединяем basePath только если это не относительный путь (уже содержит папку)
+    const value = basePath && !isRelativePath
+      ? joinBasePath(basePath, filename)
+      : filename;
     if (value) lines.push(value);
   }
   return lines.join("\r\n");
@@ -102,6 +115,9 @@ export async function uploadPlaylistToStreamingCenter(
   );
   const defaultBasePath = process.env.STREAMING_CENTER_M3U_BASE_PATH || "";
   const m3uText = buildM3u(body.tracks, body.basePath || defaultBasePath);
+  console.log("[MonthlyRubrics] M3U to upload:", m3uText);
+  console.log("[MonthlyRubrics] basePath:", body.basePath || defaultBasePath);
+  console.log("[MonthlyRubrics] useWindows1251:", body.useWindows1251);
   const m3uBlob = body.useWindows1251
     ? new Blob([new Uint8Array(iconv.encode(m3uText, "windows-1251"))], {
         type: "audio/x-mpegurl",

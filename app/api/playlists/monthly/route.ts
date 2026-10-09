@@ -114,6 +114,8 @@ export async function POST(req: NextRequest) {
         artist: "",
         title: e.title,
       }));
+      console.log("[MonthlyRubrics] Sending rubric:", resolveRubric(r.profile, target), "tracks:", tracks.length, "folder:", folderName);
+      console.log("[MonthlyRubrics] First track raw_name:", tracks[0]?.raw_name);
       try {
         const res = await uploadPlaylistToStreamingCenter({
           name: resolveRubric(r.profile, target),
