@@ -17,7 +17,7 @@ interface MonthlyEntry {
 interface MonthlyPlaylist {
   id: string;
   rubric: string;
-  code?: string;
+  rubricTemplate?: string;
   codeOptions?: string[];
   defaultCode?: string;
   folder: string | null;
@@ -67,10 +67,11 @@ export default function MonthlyRubrics() {
   const [error, setError] = useState<string | null>(null);
   const [errorDetails, setErrorDetails] = useState<string | null>(null);
   const [customNames, setCustomNames] = useState<Record<string, string>>({});
+  const [codes, setCodes] = useState<Record<string, string>>({});
+  const [manuallyEdited, setManuallyEdited] = useState<Record<string, boolean>>({});
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [singleResults, setSingleResults] = useState<Record<string, { ok: boolean; error?: string }>>({});
   const [editedEntries, setEditedEntries] = useState<Record<string, MonthlyEntry[]>>({});
-  const [codes, setCodes] = useState<Record<string, string[]>>({});
 
   useEffect(() => {
     const load = async () => {
@@ -102,7 +103,7 @@ export default function MonthlyRubrics() {
         const r = await fetch("/api/playlists/monthly", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ftpConfig, month, year, day, action, relative, serverId, basePath, useWindows1251, isRandom, codes }),
+          body: JSON.stringify({ ftpConfig, month, year, day, action, relative, serverId, basePath, useWindows1251, isRandom }),
         });
         const d = await r.json();
         if (!r.ok) throw new Error(d.error || String(r.status));
@@ -121,7 +122,7 @@ export default function MonthlyRubrics() {
         setBusy(null);
       }
     },
-    [ftpConfig, month, year, day, relative, serverId, basePath, useWindows1251, isRandom, codes],
+    [ftpConfig, month, year, day, relative, serverId, basePath, useWindows1251, isRandom],
   );
 
   const download = (pl: MonthlyPlaylist) => {
@@ -148,14 +149,22 @@ export default function MonthlyRubrics() {
       return changed ? next : prev;
     });
     setCodes((prev) => {
-      const next: Record<string, string[]> = { ...prev };
+      const next: Record<string, string> = { ...prev };
       let changed = false;
       for (const pl of playlists) {
-        if (!next[pl.id] || next[pl.id].length === 0) {
-          const opts = pl.codeOptions && pl.codeOptions.length > 0
-            ? pl.codeOptions
-            : ["01"];
-          next[pl.id] = [pl.code ?? pl.defaultCode ?? opts[0]];
+        if (!next[pl.id]) {
+          next[pl.id] = pl.defaultCode || (pl.codeOptions && pl.codeOptions[0]) || "01";
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+    setManuallyEdited((prev) => {
+      const next: Record<string, boolean> = { ...prev };
+      let changed = false;
+      for (const pl of playlists) {
+        if (next[pl.id] === undefined) {
+          next[pl.id] = false;
           changed = true;
         }
       }
@@ -163,21 +172,34 @@ export default function MonthlyRubrics() {
     });
   }, [playlists]);
 
+  const onNameChange = (pl: MonthlyPlaylist, value: string) => {
+    setCustomNames((prev) => ({ ...prev, [pl.id]: value }));
+    setManuallyEdited((prev) => ({ ...prev, [pl.id]: true }));
+  };
+
+  const applyCodeToName = (pl: MonthlyPlaylist, code: string) => {
+    if (!pl.rubricTemplate) return;
+    const newName = pl.rubricTemplate
+      .replace("{MM}", String(month).padStart(2, "0"))
+      .replace("{YYYY}", String(year))
+      .replace("{XX}", code);
+    setCustomNames((prev) => ({ ...prev, [pl.id]: newName }));
+  };
+
+  const onCodeChange = (pl: MonthlyPlaylist, code: string) => {
+    setCodes((prev) => ({ ...prev, [pl.id]: code }));
+    if (!manuallyEdited[pl.id]) {
+      applyCodeToName(pl, code);
+    }
+  };
+
   const sendSingle = useCallback(
     async (pl: MonthlyPlaylist) => {
       setSendingId(pl.id);
       setSingleResults((prev) => ({ ...prev, [pl.id]: { ok: false } }));
       try {
         const name = customNames[pl.id] || pl.rubric;
-        let entries = editedEntries[pl.id] ?? pl.entries;
-        // Фильтруем треки по коду, если он задан (как на сервере: треки с дня >= код).
-        const codeStr = codes[pl.id]?.[0] ?? pl.code;
-        if (codeStr) {
-          const dayFromCode = parseInt(codeStr, 10);
-          if (!Number.isNaN(dayFromCode) && dayFromCode >= 1 && dayFromCode <= 31) {
-            entries = entries.filter((e) => e.day >= dayFromCode);
-          }
-        }
+        const entries = editedEntries[pl.id] ?? pl.entries;
         const folderName = pl.folder?.split("/").pop() || "";
         const tracks: StreamingCenterTrack[] = entries.map((e) => ({
           raw_name: folderName ? `${folderName}/${(e as MonthlyEntry & { originalPath?: string }).originalPath}` : (e as MonthlyEntry & { originalPath?: string }).originalPath,
@@ -209,7 +231,7 @@ export default function MonthlyRubrics() {
         setSendingId(null);
       }
     },
-    [customNames, editedEntries, codes, serverId, isRandom, basePath, useWindows1251],
+    [customNames, editedEntries, serverId, isRandom, basePath, useWindows1251],
   );
 
   const getEntries = useCallback(
@@ -436,17 +458,13 @@ export default function MonthlyRubrics() {
                   <input
                     type="text"
                     value={customNames[pl.id] ?? pl.rubric}
-                    onChange={(e) =>
-                      setCustomNames((prev) => ({ ...prev, [pl.id]: e.target.value }))
-                    }
+                    onChange={(e) => onNameChange(pl, e.target.value)}
                     className="text-lg font-medium w-full bg-transparent border-b border-transparent hover:border-gray-300 dark:hover:border-gray-600 focus:border-blue-500 dark:focus:border-blue-400 focus:outline-none transition-colors px-0 py-0.5"
                   />
                   {pl.codeOptions && pl.codeOptions.length > 0 && (
                     <select
-                      value={codes[pl.id]?.[0] ?? pl.code ?? pl.defaultCode ?? pl.codeOptions[0]}
-                      onChange={(e) =>
-                        setCodes((prev) => ({ ...prev, [pl.id]: [e.target.value] }))
-                      }
+                      value={codes[pl.id] ?? pl.defaultCode ?? pl.codeOptions[0]}
+                      onChange={(e) => onCodeChange(pl, e.target.value)}
                       className="text-xs rounded border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-1.5 py-0.5"
                     >
                       {pl.codeOptions.map((c) => (

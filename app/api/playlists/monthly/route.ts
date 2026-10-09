@@ -28,7 +28,6 @@ export async function POST(req: NextRequest) {
     isRandom?: boolean;
     basePath?: string;
     useWindows1251?: boolean;
-    codes?: Record<string, string[]>;
   };
   try {
     body = await req.json();
@@ -47,7 +46,6 @@ export async function POST(req: NextRequest) {
     isRandom,
     basePath,
     useWindows1251,
-    codes,
   } = body;
 
   if (!ftpConfig || !ftpConfig.host || !ftpConfig.user) {
@@ -79,70 +77,31 @@ export async function POST(req: NextRequest) {
   try {
     const results = await buildCatalogsOverFtp(ftpConfig, target);
 
-    // Для каждой рубрики получаем список кодов: из запроса, из профиля, или один по умолчанию.
-    const expandCodes = (profileId: string, profile: { codeOptions?: string[]; defaultCode?: string }): string[] => {
-      const requested = codes?.[profileId];
-      if (requested && requested.length > 0) return requested;
-      if (profile.codeOptions && profile.codeOptions.length > 0) return [profile.defaultCode || profile.codeOptions[0]];
-      return ["01"];
-    };
-
     if (action === "preview") {
-      const playlists: {
-        id: string;
-        rubric: string;
-        code: string;
-        codeOptions?: string[];
-        defaultCode?: string;
-        folder: string | null;
-        tracks: number;
-        entries: { day: number; title: string; dateYmd: string; originalPath?: string }[];
-        unmatched: string[];
-        otherMonths: number;
-        m3u: string;
-        fileName: string;
-      }[] = [];
-
-      for (const r of results) {
-        const profileCodes = expandCodes(r.profile.id, r.profile);
-        for (const code of profileCodes) {
-          const rubricName = resolveRubric(r.profile, target, code);
-          const entries = r.entries.filter((e) => {
-            const dayFromCode = parseInt(code, 10);
-            if (!Number.isNaN(dayFromCode) && dayFromCode >= 1 && dayFromCode <= 31) {
-              return e.day >= dayFromCode;
-            }
-            return true;
-          });
-          playlists.push({
-            id: `${r.profile.id}__${code}`,
-            rubric: rubricName,
-            code,
-            codeOptions: r.profile.codeOptions,
-            defaultCode: r.profile.defaultCode,
-            folder: r.folder,
-            tracks: entries.length,
-            entries: entries.map((e) => ({
-              day: e.day,
-              title: e.title,
-              dateYmd: e.dateYmd,
-              originalPath: e.originalPath,
-            })),
-            unmatched: r.unmatched,
-            otherMonths: r.otherMonths,
-            m3u: serializeM3U(entries, { relative }),
-            fileName: `${safeName(rubricName)}.m3u`,
-          });
-        }
-      }
-      return NextResponse.json({
-        success: true,
-        target: { month: monthNum, year: yearNum, day: dayNum },
-        playlists,
-      });
+      const playlists = results.map((r) => ({
+        id: r.profile.id,
+        rubric: resolveRubric(r.profile, target),
+        rubricTemplate: r.profile.rubric,
+        codeOptions: r.profile.codeOptions,
+        defaultCode: r.profile.defaultCode,
+        folder: r.folder,
+        tracks: r.entries.length,
+        entries: r.entries.map((e) => ({
+          day: e.day,
+          title: e.title,
+          dateYmd: e.dateYmd,
+          originalPath: e.originalPath,
+        })),
+        unmatched: r.unmatched,
+        otherMonths: r.otherMonths,
+        m3u: serializeM3U(r.entries, { relative }),
+        fileName: `${safeName(resolveRubric(r.profile, target))}.m3u`,
+      }));
+      return NextResponse.json({ success: true, target: { month: monthNum, year: yearNum, day: dayNum }, playlists });
     }
 
-    // action === "send": отправляем каждый плейлист в Streaming.Center.
+    // action === "send": отправляем каждую рубрику в Streaming.Center
+    // по аналогии с вкладкой «Плейлист» (по одному плейлисту на рубрику).
     const sent: {
       rubric: string;
       fileName: string;
@@ -150,55 +109,40 @@ export async function POST(req: NextRequest) {
       ok: boolean;
       error?: string;
     }[] = [];
-
     for (const r of results) {
-      const profileCodes = expandCodes(r.profile.id, r.profile);
-      for (const code of profileCodes) {
-        const rubricName = resolveRubric(r.profile, target, code);
-        const entries = r.entries.filter((e) => {
-          const dayFromCode = parseInt(code, 10);
-          if (!Number.isNaN(dayFromCode) && dayFromCode >= 1 && dayFromCode <= 31) {
-            return e.day >= dayFromCode;
-          }
-          return true;
+      const rubricName = resolveRubric(r.profile, target);
+      const fileName = `${safeName(rubricName)}.m3u`;
+      const folderName = r.folder?.split("/").pop() || "";
+      const tracks: StreamingCenterTrack[] = r.entries.map((e) => ({
+        raw_name: folderName ? `${folderName}/${e.originalName}` : e.originalName,
+        artist: "",
+        title: e.title,
+      }));
+      console.log("[MonthlyRubrics] Sending rubric:", rubricName, "tracks:", tracks.length, "folder:", folderName);
+      console.log("[MonthlyRubrics] First track raw_name:", tracks[0]?.raw_name);
+      try {
+        const res = await uploadPlaylistToStreamingCenter({
+          name: rubricName,
+          serverId,
+          isRandom,
+          basePath,
+          useWindows1251,
+          tracks,
         });
-        const fileName = `${safeName(rubricName)}.m3u`;
-        const folderName = r.folder?.split("/").pop() || "";
-        const tracks: StreamingCenterTrack[] = entries.map((e) => ({
-          raw_name: folderName ? `${folderName}/${e.originalName}` : e.originalName,
-          artist: "",
-          title: e.title,
-        }));
-        console.log("[MonthlyRubrics] Sending rubric:", rubricName, "tracks:", tracks.length, "folder:", folderName);
-        console.log("[MonthlyRubrics] First track raw_name:", tracks[0]?.raw_name);
-        try {
-          const res = await uploadPlaylistToStreamingCenter({
-            name: rubricName,
-            serverId,
-            isRandom,
-            basePath,
-            useWindows1251,
-            tracks,
-          });
-          if (res.status !== 200)
-            throw new Error((res.json as { error?: string })?.error || `HTTP ${res.status}`);
-          sent.push({ rubric: rubricName, fileName, tracks: entries.length, ok: true });
-        } catch (e) {
-          sent.push({
-            rubric: rubricName,
-            fileName,
-            tracks: entries.length,
-            ok: false,
-            error: e instanceof Error ? e.message : String(e),
-          });
-        }
+        if (res.status !== 200)
+          throw new Error((res.json as { error?: string })?.error || `HTTP ${res.status}`);
+        sent.push({ rubric: rubricName, fileName, tracks: r.entries.length, ok: true });
+      } catch (e) {
+        sent.push({
+          rubric: rubricName,
+          fileName,
+          tracks: r.entries.length,
+          ok: false,
+          error: e instanceof Error ? e.message : String(e),
+        });
       }
     }
-    return NextResponse.json({
-      success: true,
-      target: { month: monthNum, year: yearNum, day: dayNum },
-      sent,
-    });
+    return NextResponse.json({ success: true, target: { month: monthNum, year: yearNum, day: dayNum }, sent });
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     return NextResponse.json(
