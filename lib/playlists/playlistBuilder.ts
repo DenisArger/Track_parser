@@ -42,6 +42,8 @@ export interface CatalogResult {
   unmatched: string[];
   /** Треки не целевого месяца (проигнорированы, не попали в плейлист). */
   otherMonths: number;
+  /** Код, использованный для формирования имени плейлиста (вторая пара цифр). */
+  code?: string;
 }
 
 const AUDIO_EXT = /\.(mp3|wav|m4a|ogg|aac|flac)$/i;
@@ -103,10 +105,16 @@ function resolveFolder(
   return hit ? path.join(root, hit) : null;
 }
 
-export function resolveRubric(profile: CatalogProfile, target: TargetMonth): string {
+export function resolveRubric(
+  profile: CatalogProfile,
+  target: TargetMonth,
+  code?: string,
+): string {
+  const xx = code || profile.defaultCode || (profile.codeOptions && profile.codeOptions[0]) || "01";
   return profile.rubric
     .replace("{MM}", String(target.month).padStart(2, "0"))
-    .replace("{YYYY}", String(target.year));
+    .replace("{YYYY}", String(target.year))
+    .replace("{XX}", xx);
 }
 
 function extractTitle(
@@ -145,6 +153,7 @@ export function buildCatalogPlaylistFromFiles(
   profile: CatalogProfile,
   target: TargetMonth,
   pathResolver?: (name: string) => string,
+  code?: string,
 ): CatalogResult {
   const entries: PlaylistEntry[] = [];
   const unmatched: string[] = [];
@@ -154,6 +163,7 @@ export function buildCatalogPlaylistFromFiles(
   const year = folderYear ?? target.year;
 
   const startDay = target.day ?? 1;
+  const rubric = resolveRubric(profile, target, code);
 
   for (const f of files) {
     const date = parseDateFromName(f, { defaultYear: year });
@@ -175,14 +185,14 @@ export function buildCatalogPlaylistFromFiles(
       date,
       dateYmd,
       title,
-      canonicalName: `${dateYmd} ${resolveRubric(profile, target)} — ${title}`,
+      canonicalName: `${dateYmd} ${rubric} — ${title}`,
       originalPath: pathResolver ? pathResolver(f) : f,
       originalName: f,
     });
   }
 
   entries.sort((a, b) => a.day - b.day);
-  return { profile, folder: folderLabel, entries, unmatched, otherMonths };
+  return { profile, folder: folderLabel, entries, unmatched, otherMonths, code };
 }
 
 export function buildCatalogPlaylist(

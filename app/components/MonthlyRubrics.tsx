@@ -17,6 +17,9 @@ interface MonthlyEntry {
 interface MonthlyPlaylist {
   id: string;
   rubric: string;
+  code?: string;
+  codeOptions?: string[];
+  defaultCode?: string;
   folder: string | null;
   tracks: number;
   entries: MonthlyEntry[];
@@ -67,6 +70,7 @@ export default function MonthlyRubrics() {
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [singleResults, setSingleResults] = useState<Record<string, { ok: boolean; error?: string }>>({});
   const [editedEntries, setEditedEntries] = useState<Record<string, MonthlyEntry[]>>({});
+  const [codes, setCodes] = useState<Record<string, string[]>>({});
 
   useEffect(() => {
     const load = async () => {
@@ -98,7 +102,7 @@ export default function MonthlyRubrics() {
         const r = await fetch("/api/playlists/monthly", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ftpConfig, month, year, day, action, relative, serverId, basePath, useWindows1251, isRandom }),
+          body: JSON.stringify({ ftpConfig, month, year, day, action, relative, serverId, basePath, useWindows1251, isRandom, codes }),
         });
         const d = await r.json();
         if (!r.ok) throw new Error(d.error || String(r.status));
@@ -117,7 +121,7 @@ export default function MonthlyRubrics() {
         setBusy(null);
       }
     },
-    [ftpConfig, month, year, day, relative, serverId, basePath, useWindows1251, isRandom],
+    [ftpConfig, month, year, day, relative, serverId, basePath, useWindows1251, isRandom, codes],
   );
 
   const download = (pl: MonthlyPlaylist) => {
@@ -143,6 +147,20 @@ export default function MonthlyRubrics() {
       }
       return changed ? next : prev;
     });
+    setCodes((prev) => {
+      const next: Record<string, string[]> = { ...prev };
+      let changed = false;
+      for (const pl of playlists) {
+        if (!next[pl.id] || next[pl.id].length === 0) {
+          const opts = pl.codeOptions && pl.codeOptions.length > 0
+            ? pl.codeOptions
+            : ["01"];
+          next[pl.id] = [pl.code ?? pl.defaultCode ?? opts[0]];
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
   }, [playlists]);
 
   const sendSingle = useCallback(
@@ -151,7 +169,15 @@ export default function MonthlyRubrics() {
       setSingleResults((prev) => ({ ...prev, [pl.id]: { ok: false } }));
       try {
         const name = customNames[pl.id] || pl.rubric;
-        const entries = editedEntries[pl.id] ?? pl.entries;
+        let entries = editedEntries[pl.id] ?? pl.entries;
+        // Фильтруем треки по коду, если он задан (как на сервере: треки с дня >= код).
+        const codeStr = codes[pl.id]?.[0] ?? pl.code;
+        if (codeStr) {
+          const dayFromCode = parseInt(codeStr, 10);
+          if (!Number.isNaN(dayFromCode) && dayFromCode >= 1 && dayFromCode <= 31) {
+            entries = entries.filter((e) => e.day >= dayFromCode);
+          }
+        }
         const folderName = pl.folder?.split("/").pop() || "";
         const tracks: StreamingCenterTrack[] = entries.map((e) => ({
           raw_name: folderName ? `${folderName}/${(e as MonthlyEntry & { originalPath?: string }).originalPath}` : (e as MonthlyEntry & { originalPath?: string }).originalPath,
@@ -183,7 +209,7 @@ export default function MonthlyRubrics() {
         setSendingId(null);
       }
     },
-    [customNames, editedEntries, serverId, isRandom, basePath, useWindows1251],
+    [customNames, editedEntries, codes, serverId, isRandom, basePath, useWindows1251],
   );
 
   const getEntries = useCallback(
@@ -406,14 +432,31 @@ export default function MonthlyRubrics() {
           <div key={pl.id} className="card">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
               <div className="flex-1 min-w-0">
-                <input
-                  type="text"
-                  value={customNames[pl.id] ?? pl.rubric}
-                  onChange={(e) =>
-                    setCustomNames((prev) => ({ ...prev, [pl.id]: e.target.value }))
-                  }
-                  className="text-lg font-medium w-full bg-transparent border-b border-transparent hover:border-gray-300 dark:hover:border-gray-600 focus:border-blue-500 dark:focus:border-blue-400 focus:outline-none transition-colors px-0 py-0.5"
-                />
+                <div className="flex flex-wrap items-center gap-2">
+                  <input
+                    type="text"
+                    value={customNames[pl.id] ?? pl.rubric}
+                    onChange={(e) =>
+                      setCustomNames((prev) => ({ ...prev, [pl.id]: e.target.value }))
+                    }
+                    className="text-lg font-medium w-full bg-transparent border-b border-transparent hover:border-gray-300 dark:hover:border-gray-600 focus:border-blue-500 dark:focus:border-blue-400 focus:outline-none transition-colors px-0 py-0.5"
+                  />
+                  {pl.codeOptions && pl.codeOptions.length > 0 && (
+                    <select
+                      value={codes[pl.id]?.[0] ?? pl.code ?? pl.defaultCode ?? pl.codeOptions[0]}
+                      onChange={(e) =>
+                        setCodes((prev) => ({ ...prev, [pl.id]: [e.target.value] }))
+                      }
+                      className="text-xs rounded border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-1.5 py-0.5"
+                    >
+                      {pl.codeOptions.map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
                 {pl.folder ? (
                   <p className="text-xs text-gray-500">
                     {t("monthly.tracks")}: {getEntries(pl).length}
