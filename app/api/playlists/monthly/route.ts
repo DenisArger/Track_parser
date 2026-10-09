@@ -92,6 +92,8 @@ export async function POST(req: NextRequest) {
         id: string;
         rubric: string;
         code: string;
+        codeOptions?: string[];
+        defaultCode?: string;
         folder: string | null;
         tracks: number;
         entries: { day: number; title: string; dateYmd: string; originalPath?: string }[];
@@ -116,6 +118,8 @@ export async function POST(req: NextRequest) {
             id: `${r.profile.id}__${code}`,
             rubric: rubricName,
             code,
+            codeOptions: r.profile.codeOptions,
+            defaultCode: r.profile.defaultCode,
             folder: r.folder,
             tracks: entries.length,
             entries: entries.map((e) => ({
