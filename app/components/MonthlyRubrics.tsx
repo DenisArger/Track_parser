@@ -152,9 +152,10 @@ export default function MonthlyRubrics() {
       try {
         const name = customNames[pl.id] || pl.rubric;
         const entries = editedEntries[pl.id] ?? pl.entries;
+        const folderName = pl.folder?.split("/").pop() || "";
         const tracks: StreamingCenterTrack[] = entries.map((e) => ({
-          raw_name: (e as MonthlyEntry & { originalPath?: string }).originalPath,
-          artist: name,
+          raw_name: folderName ? `${folderName}/${(e as MonthlyEntry & { originalPath?: string }).originalPath}` : (e as MonthlyEntry & { originalPath?: string }).originalPath,
+          artist: "",
           title: e.title,
         }));
         const r = await fetch("/api/playlists/monthly/send", {

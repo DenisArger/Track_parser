@@ -108,9 +108,10 @@ export async function POST(req: NextRequest) {
     }[] = [];
     for (const r of results) {
       const fileName = `${safeName(resolveRubric(r.profile, target))}.m3u`;
+      const folderName = r.folder?.split("/").pop() || "";
       const tracks: StreamingCenterTrack[] = r.entries.map((e) => ({
-        raw_name: e.originalPath,
-        artist: resolveRubric(r.profile, target),
+        raw_name: folderName ? `${folderName}/${e.originalName}` : e.originalName,
+        artist: "",
         title: e.title,
       }));
       try {
