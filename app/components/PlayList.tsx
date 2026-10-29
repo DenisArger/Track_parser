@@ -179,7 +179,7 @@ export default function PlayList({ onTracksUpdate }: PlayListProps) {
   const [uploadServerId, setUploadServerId] = useState(1);
   const [uploadRandom, setUploadRandom] = useState(false);
   const [uploadBasePath, setUploadBasePath] = useState("");
-  const [uploadWin1251, setUploadWin1251] = useState(true);
+  const [uploadWin1251, setUploadWin1251] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadMessage, setUploadMessage] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);

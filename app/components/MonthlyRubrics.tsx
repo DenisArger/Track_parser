@@ -60,7 +60,7 @@ export default function MonthlyRubrics() {
   const [relative, setRelative] = useState(false);
   const [serverId, setServerId] = useState(1);
   const [basePath, setBasePath] = useState("");
-  const [useWindows1251, setUseWindows1251] = useState(true);
+  const [useWindows1251, setUseWindows1251] = useState(false);
   const [isRandom, setIsRandom] = useState(false);
   const [busy, setBusy] = useState<null | "preview" | "send">(null);
   const [playlists, setPlaylists] = useState<MonthlyPlaylist[]>([]);
