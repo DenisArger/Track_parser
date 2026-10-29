@@ -98,7 +98,7 @@ export async function buildCatalogsOverFtp(
   target: TargetMonth,
 ): Promise<CatalogResult[]> {
   const remote = await fetchCatalogs(ftpConfig, target);
-  return remote.map((rc) =>
+  const results = remote.map((rc) =>
     buildCatalogPlaylistFromFiles(
       rc.files,
       rc.folderLabel,
@@ -106,4 +106,32 @@ export async function buildCatalogsOverFtp(
       target,
     ),
   );
+
+  const includePrev = target.includePrevMonthDays ?? 0;
+  if (includePrev > 0) {
+    const prevTarget: TargetMonth = {
+      month: target.month === 1 ? 12 : target.month - 1,
+      year: target.month === 1 ? target.year - 1 : target.year,
+      day: 1,
+      includePrevMonthDays: includePrev,
+    };
+    const prevRemote = await fetchCatalogs(ftpConfig, prevTarget);
+    for (let i = 0; i < results.length; i++) {
+      const rc = prevRemote[i];
+      if (!rc || !rc.files.length) continue;
+      const prevRes = buildCatalogPlaylistFromFiles(
+        rc.files,
+        rc.folderLabel,
+        rc.profile,
+        target,
+      );
+      results[i].entries = [...results[i].entries, ...prevRes.entries].sort((a, b) =>
+        a.dateYmd.localeCompare(b.dateYmd),
+      );
+      results[i].unmatched.push(...prevRes.unmatched);
+      results[i].otherMonths += prevRes.otherMonths;
+    }
+  }
+
+  return results;
 }
