@@ -20,6 +20,8 @@ export interface TargetMonth {
   month: number; // 1-12
   year: number;
   day?: number;
+  /** Сколько последних дней предыдущего месяца включать в плейлист. */
+  includePrevMonthDays?: number;
 }
 
 export interface PlaylistEntry {
@@ -163,6 +165,12 @@ export function buildCatalogPlaylistFromFiles(
   const year = folderYear ?? target.year;
 
   const startDay = target.day ?? 1;
+  const includePrev = target.includePrevMonthDays ?? 0;
+  const prevMonth = target.month === 1 ? 12 : target.month - 1;
+  const prevYear = target.month === 1 ? target.year - 1 : target.year;
+  const daysInPrev = new Date(prevYear, prevMonth, 0).getDate();
+  const prevThreshold = daysInPrev - includePrev + 1;
+
   const rubric = resolveRubric(profile, target, code);
 
   for (const f of files) {
@@ -171,11 +179,17 @@ export function buildCatalogPlaylistFromFiles(
       unmatched.push(f);
       continue;
     }
-    if (date.month !== target.month) {
+    const isTargetMonth = date.month === target.month && date.year === target.year;
+    const isPrevTail =
+      includePrev > 0 &&
+      date.month === prevMonth &&
+      date.year === prevYear &&
+      date.day >= prevThreshold;
+    if (!isTargetMonth && !isPrevTail) {
       otherMonths += 1;
       continue;
     }
-    if (date.day < startDay) {
+    if (isTargetMonth && date.day < startDay) {
       continue;
     }
     const title = extractTitle(f, date, profile);
@@ -191,7 +205,7 @@ export function buildCatalogPlaylistFromFiles(
     });
   }
 
-  entries.sort((a, b) => a.day - b.day);
+  entries.sort((a, b) => a.dateYmd.localeCompare(b.dateYmd));
   return { profile, folder: folderLabel, entries, unmatched, otherMonths, code };
 }
 

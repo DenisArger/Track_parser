@@ -56,6 +56,7 @@ export default function MonthlyRubrics() {
   const [month, setMonth] = useState(next.getMonth() + 1);
   const [year, setYear] = useState(next.getFullYear());
   const [day, setDay] = useState(1);
+  const [includePrevMonthDays, setIncludePrevMonthDays] = useState(0);
   const [relative, setRelative] = useState(false);
   const [serverId, setServerId] = useState(1);
   const [basePath, setBasePath] = useState("");
@@ -102,7 +103,7 @@ export default function MonthlyRubrics() {
         const r = await fetch("/api/playlists/monthly", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ftpConfig, month, year, day, action, relative, serverId, basePath, useWindows1251, isRandom }),
+          body: JSON.stringify({ ftpConfig, month, year, day, includePrevMonthDays, action, relative, serverId, basePath, useWindows1251, isRandom }),
         });
         const d = await r.json();
         if (!r.ok) throw new Error(d.error || String(r.status));
@@ -121,7 +122,7 @@ export default function MonthlyRubrics() {
         setBusy(null);
       }
     },
-    [ftpConfig, month, year, day, relative, serverId, basePath, useWindows1251, isRandom],
+    [ftpConfig, month, year, day, includePrevMonthDays, relative, serverId, basePath, useWindows1251, isRandom],
   );
 
   const download = (pl: MonthlyPlaylist) => {
@@ -305,9 +306,22 @@ export default function MonthlyRubrics() {
                 className="w-20 rounded border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1 text-sm"
               />
             </div>
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">
-                {t("monthly.year")}
+             <div>
+               <label className="block text-xs text-gray-500 mb-1">
+                 {t("monthly.prevMonthDays")}
+               </label>
+               <input
+                 type="number"
+                 min={0}
+                 max={31}
+                 value={includePrevMonthDays}
+                 onChange={(e) => setIncludePrevMonthDays(Number(e.target.value) || 0)}
+                 className="w-20 rounded border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1 text-sm"
+               />
+             </div>
+             <div>
+               <label className="block text-xs text-gray-500 mb-1">
+                 {t("monthly.year")}
               </label>
               <input
                 type="number"

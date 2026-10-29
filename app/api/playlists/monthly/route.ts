@@ -22,6 +22,7 @@ export async function POST(req: NextRequest) {
     month?: number;
     year?: number;
     day?: number;
+    includePrevMonthDays?: number;
     action?: "preview" | "send";
     relative?: boolean;
     serverId?: number;
@@ -40,6 +41,7 @@ export async function POST(req: NextRequest) {
     month,
     year,
     day,
+    includePrevMonthDays,
     action = "preview",
     relative,
     serverId,
@@ -57,6 +59,7 @@ export async function POST(req: NextRequest) {
   const monthNum = Number(month);
   const yearNum = Number(year);
   const dayNum = Number(day ?? 1);
+  const prevDaysNum = Number(includePrevMonthDays ?? 0);
   if (
     !Number.isInteger(monthNum) ||
     monthNum < 1 ||
@@ -64,7 +67,10 @@ export async function POST(req: NextRequest) {
     !Number.isInteger(yearNum) ||
     !Number.isInteger(dayNum) ||
     dayNum < 1 ||
-    dayNum > 31
+    dayNum > 31 ||
+    !Number.isInteger(prevDaysNum) ||
+    prevDaysNum < 0 ||
+    prevDaysNum > 31
   ) {
     return NextResponse.json(
       { error: "month должен быть 1-12, day — 1-31, year — числом" },
@@ -72,7 +78,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const target = { month: monthNum, year: yearNum, day: dayNum };
+  const target = { month: monthNum, year: yearNum, day: dayNum, includePrevMonthDays: prevDaysNum };
 
   try {
     const results = await buildCatalogsOverFtp(ftpConfig, target);

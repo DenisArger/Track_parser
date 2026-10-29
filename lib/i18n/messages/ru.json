@@ -275,6 +275,7 @@
     "rootPathPlaceholder": "/Server_1",
     "month": "Месяц",
     "day": "День",
+    "prevMonthDays": "Дней из прошлого месяца",
     "year": "Год",
     "build": "Сформировать (превью)",
     "building": "Формирование…",

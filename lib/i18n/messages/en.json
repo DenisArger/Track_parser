@@ -279,6 +279,7 @@
     "rootPathPlaceholder": "/Server_1",
     "month": "Month",
     "day": "Day",
+    "prevMonthDays": "Days from previous month",
     "year": "Year",
     "build": "Build (preview)",
     "building": "Building…",
