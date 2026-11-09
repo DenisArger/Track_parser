@@ -15,6 +15,7 @@
     "manage": "Track Manager",
     "playlist": "Playlist",
     "monthly": "Monthly Rubrics",
+    "recentPlaylist": "Recent Tracks Playlist",
     "schedule": "Broadcast grid"
   },
   "overview": {
@@ -387,6 +388,27 @@
     "copyDebugDetails": "Copy debug details",
     "copyDebugDetailsSuccess": "Copied",
     "copyDebugDetailsError": "Unable to copy debug details. Please copy manually."
+  },
+  "recentPlaylist": {
+    "title": "Playlist from Recently Added Tracks",
+    "description": "Create a playlist from tracks added within the last N days. Select tracks, download M3U, or upload to radio.",
+    "recentDays": "Window (days)",
+    "recentHint": "Shows only tracks added within the last N days.",
+    "available": "Total: {total}, selected: {selected}",
+    "empty": "No recently added tracks",
+    "track": "Track",
+    "artist": "Artist",
+    "added": "Added",
+    "noTitle": "No title",
+    "selectAll": "Select all",
+    "selectNone": "Select none",
+    "tracksSelected": "tracks",
+    "playlistName": "Playlist name",
+    "errorDetailsTitle": "Error details",
+    "uploadErrorDetailsTitle": "Upload error details",
+    "noTracksToUpload": "No tracks to upload",
+    "uploadSuccess": "Playlist sent to radio",
+    "uploadError": "Playlist upload error"
   },
   "schedule": {
     "title": "Broadcast grid",

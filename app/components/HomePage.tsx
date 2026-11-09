@@ -10,6 +10,7 @@ import TrackStatusBadge from "./shared/TrackStatusBadge";
 import TrackManager from "./TrackManager";
 import PlayList from "./PlayList";
 import MonthlyRubrics from "./MonthlyRubrics";
+import RecentPlaylist from "./RecentPlaylist";
 import Spinner from "./Spinner";
 import { Track } from "@/types/track";
 import { getAllTracks, changeTrackStatusAction } from "@/lib/actions/trackActions";
@@ -218,17 +219,18 @@ export default function HomePage() {
     { id: "manage", label: t("tabs.manage"), component: TrackManager },
     { id: "playlist", label: t("tabs.playlist"), component: PlayList },
     { id: "monthly", label: t("tabs.monthly"), component: MonthlyRubrics },
+    { id: "recentPlaylist", label: t("tabs.recentPlaylist"), component: RecentPlaylist },
     { id: "schedule", label: t("tabs.schedule"), component: RadioScheduleManager },
   ];
 
   const tabs = isAdmin
     ? allTabs
-    : allTabs.filter((tab) => !["upload", "manage", "playlist", "monthly", "schedule"].includes(tab.id));
+    : allTabs.filter((tab) => !["upload", "manage", "playlist", "monthly", "recentPlaylist", "schedule"].includes(tab.id));
 
   useEffect(() => {
     if (
       !isAdmin &&
-      (activeTab === "upload" || activeTab === "manage" || activeTab === "playlist" || activeTab === "monthly" || activeTab === "schedule")
+      (activeTab === "upload" || activeTab === "manage" || activeTab === "playlist" || activeTab === "monthly" || activeTab === "recentPlaylist" || activeTab === "schedule")
     ) {
       setActiveTab("download");
     }

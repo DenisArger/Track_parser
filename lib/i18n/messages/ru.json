@@ -15,6 +15,7 @@
     "manage": "Менеджер треков",
     "playlist": "Плейлист",
     "monthly": "Месячные рубрики",
+    "recentPlaylist": "Плейлист из новых",
     "schedule": "Сетка вещания"
   },
   "overview": {
@@ -383,6 +384,27 @@
     "copyDebugDetails": "Скопировать отладочные данные",
     "copyDebugDetailsSuccess": "Скопировано",
     "copyDebugDetailsError": "Не удалось скопировать. Скопируйте вручную."
+  },
+  "recentPlaylist": {
+    "title": "Плейлист из недавно добавленных",
+    "description": "Составьте плейлист из треков, добавленных за последние N дней. Отметьте нужные треки, скачайте M3U или отправьте на радио.",
+    "recentDays": "Период, дней",
+    "recentHint": "Показываются только треки, добавленные за последние N дней.",
+    "available": "Всего: {total}, выбрано: {selected}",
+    "empty": "Нет недавно добавленных треков",
+    "track": "Трек",
+    "artist": "Исполнитель",
+    "added": "Добавлен",
+    "noTitle": "Без названия",
+    "selectAll": "Выбрать все",
+    "selectNone": "Снять всё",
+    "tracksSelected": "трека(ов)",
+    "playlistName": "Название плейлиста",
+    "errorDetailsTitle": "Детали ошибки",
+    "uploadErrorDetailsTitle": "Детали ошибки загрузки",
+    "noTracksToUpload": "Нет треков для загрузки",
+    "uploadSuccess": "Плейлист отправлен в радио",
+    "uploadError": "Ошибка загрузки плейлиста"
   },
   "schedule": {
     "title": "Сетка вещания",
