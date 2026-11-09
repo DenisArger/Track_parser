@@ -30,10 +30,16 @@ export default function TrackPlayer({
   const [error, setError] = useState<string | null>(null);
   const [errorDetails, setErrorDetails] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const [volume, setVolume] = useState(0.5);
 
   const downloadedTracks = tracks.filter(
     (track) => track.status === "downloaded",
   );
+
+  useEffect(() => {
+    if (!audioRef.current) return;
+    audioRef.current.volume = volume;
+  }, [volume]);
 
   useEffect(() => {
     if (!currentTrack) return;
@@ -186,6 +192,7 @@ export default function TrackPlayer({
                   className="audio-light w-full"
                   src={`/api/audio/${currentTrack.id}`}
                   onError={handleAudioError}
+                  onVolumeChange={(e) => setVolume(e.currentTarget.volume)}
                   preload="metadata"
                 />
 

@@ -182,7 +182,8 @@
     "audioError": "Error loading audio file. Please check the console for details.",
     "processError": "Error processing track",
     "rejectError": "Error rejecting track",
-    "unknownError": "Unknown error"
+    "unknownError": "Unknown error",
+    "volume": "Volume"
   },
   "manager": {
     "title": "Track management",
